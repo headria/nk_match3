@@ -5,9 +5,11 @@ WORKDIR /backend
 COPY package*.json .
 RUN npm install
 
+# Install TypeScript
+RUN npm install -g typescript
+
 COPY tsconfig.json .
-COPY src/index.ts .
-COPY src /backend/src
+COPY . .
 RUN npx tsc
 
 FROM registry.heroiclabs.com/heroiclabs/nakama:3.17.0
