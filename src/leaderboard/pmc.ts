@@ -33,27 +33,21 @@ const PMC_Leaderboard = {
       logger.error(`failed to create leaderboard: ${error.message}`);
     }
   },
+};
 
-  setRecords: function (
-    ctx: nkruntime.Context,
-    logger: nkruntime.Logger,
-    nk: nkruntime.Nakama,
-    payload: string
-  ) {
-    try {
-      const data: UserScore = JSON.parse(payload);
-      Object.keys(data).map((userId) => {
-        nk.leaderboardRecordWrite(
-          PMC_Leaderboard.config.id,
-          userId,
-          undefined,
-          data[userId]
-        );
-      });
-      return "OK";
-    } catch (error: any) {
-      logger.error(error.message);
-      return error.message;
-    }
-  },
+const setRecords: nkruntime.RpcFunction = (
+  ctx: nkruntime.Context,
+  logger: nkruntime.Logger,
+  nk: nkruntime.Nakama,
+  payload: string
+) => {
+  const data = JSON.parse(payload);
+  Object.keys(data).map((userId: string) => {
+    nk.leaderboardRecordWrite(
+      PMC_Leaderboard.config.id,
+      userId,
+      undefined,
+      data[userId]
+    );
+  });
 };
