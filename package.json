@@ -1,5 +1,5 @@
 {
-  "name": "ts-project",
+  "name": "nk-server",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -9,12 +9,10 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "dependencies": {
-    "@heroiclabs/nakama-js": "^2.6.1",
-    "nakama-runtime": "github:heroiclabs/nakama-common",
+  "devDependencies": {
     "typescript": "^5.1.6"
   },
-  "devDependencies": {
-    "@types/node": "^20.4.5"
+  "dependencies": {
+    "nakama-runtime": "github:heroiclabs/nakama-common"
   }
 }
