@@ -10,15 +10,22 @@ const InitModule: nkruntime.InitModule = function (
   PMC_Leaderboard.initalizeLeaderboard(ctx, logger, nk);
   initializer.registerRpc("pmc/setRecords", setRecords);
 
-  initializer.registerRpc("HELLO", hello);
+  initializer.registerRpc("addWalletAddr", addWalletAddr);
 };
 
-const hello: nkruntime.RpcFunction = (
+const addWalletAddr: nkruntime.RpcFunction = (
   ctx: nkruntime.Context,
   logger: nkruntime.Logger,
   nk: nkruntime.Nakama,
   payload: string
 ): string => {
-  logger.info("HELLOOOOOOO");
+  const { walletAddr } = JSON.parse(payload);
+  if (!ctx.userId) {
+    // Reject non server-to-server call
+    throw Error("Cannot invoke this function from user session");
+  }
+
+  nk.linkCustom(ctx.userId, walletAddr);
+
   return JSON.stringify("HELLOOO");
 };

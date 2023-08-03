@@ -41,9 +41,29 @@ var InitModule = function (ctx, logger, nk, initializer) {
   //Register Leaderboards
   PMC_Leaderboard.initalizeLeaderboard(ctx, logger, nk);
   initializer.registerRpc("pmc/setRecords", setRecords);
-  initializer.registerRpc("HELLO", hello);
+  initializer.registerRpc("addWalletAddr", addWalletAddr);
 };
-var hello = function (ctx, logger, nk, payload) {
-  logger.info("HELLOOOOOOO");
+var addWalletAddr = function (ctx, logger, nk, payload) {
+  var walletAddr = JSON.parse(payload).walletAddr;
+  if (!ctx.userId) {
+    // Reject non server-to-server call
+    throw Error("Cannot invoke this function from user session");
+  }
+  nk.linkCustom(ctx.userId, walletAddr);
   return JSON.stringify("HELLOOO");
 };
+var rpcInitializeUserWallet = function (ctx, logger, nk) {
+  if (!ctx.userId) throw Error("called by a server");
+  var walletUpdateResult = initializeWallet(nk, ctx.userId);
+  var updateString = JSON.stringify(walletUpdateResult);
+  logger.debug("Initialized wallet successfully", ctx.userId, updateString);
+  return updateString;
+};
+function initializeWallet(nk, userId) {
+  var changeset = {
+    coins: 10,
+    gems: 10,
+  };
+  var result = nk.walletUpdate(userId, changeset, { a: "a" }, true);
+  return result;
+}
