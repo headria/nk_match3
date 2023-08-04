@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "outFile": "./build/index.js",
+    "outFile": "./modules/index.js",
     "typeRoots": ["./node_modules"],
     "target": "es5",
     "module": "system",

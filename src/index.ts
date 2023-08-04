@@ -10,22 +10,32 @@ const InitModule: nkruntime.InitModule = function (
   PMC_Leaderboard.initalizeLeaderboard(ctx, logger, nk);
   initializer.registerRpc("pmc/setRecords", setRecords);
 
-  initializer.registerRpc("addWalletAddr", addWalletAddr);
+  initializer.registerRpc("addDataToStorage", addDataToStorage);
 };
 
-const addWalletAddr: nkruntime.RpcFunction = (
+const addDataToStorage: nkruntime.RpcFunction = (
   ctx: nkruntime.Context,
   logger: nkruntime.Logger,
   nk: nkruntime.Nakama,
   payload: string
 ): string => {
-  const { walletAddr } = JSON.parse(payload);
+  const { collection, key, value, permissionRead, permissionWrite } =
+    JSON.parse(payload);
   if (!ctx.userId) {
     // Reject non server-to-server call
     throw Error("Cannot invoke this function from user session");
   }
 
-  nk.linkCustom(ctx.userId, walletAddr);
+  const write: nkruntime.StorageWriteRequest = {
+    collection,
+    key,
+    userId: ctx.userId,
+    value: { number1: 0, score: 120 },
+    version: "1",
+    permissionRead, // Only the server and owner can read
+    permissionWrite, // Only the server can write
+  };
 
+  nk.storageWrite([write]);
   return JSON.stringify("HELLOOO");
 };

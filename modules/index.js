@@ -41,15 +41,29 @@ var InitModule = function (ctx, logger, nk, initializer) {
   //Register Leaderboards
   PMC_Leaderboard.initalizeLeaderboard(ctx, logger, nk);
   initializer.registerRpc("pmc/setRecords", setRecords);
-  initializer.registerRpc("addWalletAddr", addWalletAddr);
+  initializer.registerRpc("addDataToStorage", addDataToStorage);
 };
-var addWalletAddr = function (ctx, logger, nk, payload) {
-  var walletAddr = JSON.parse(payload).walletAddr;
+var addDataToStorage = function (ctx, logger, nk, payload) {
+  var _a = JSON.parse(payload),
+    collection = _a.collection,
+    key = _a.key,
+    value = _a.value,
+    permissionRead = _a.permissionRead,
+    permissionWrite = _a.permissionWrite;
   if (!ctx.userId) {
     // Reject non server-to-server call
     throw Error("Cannot invoke this function from user session");
   }
-  nk.linkCustom(ctx.userId, walletAddr);
+  var write = {
+    collection: collection,
+    key: key,
+    userId: ctx.userId,
+    version: "1",
+    value: { number1: 0, score: 120 },
+    permissionRead: permissionRead,
+    permissionWrite: permissionWrite,
+  };
+  nk.storageWrite([write]);
   return JSON.stringify("HELLOOO");
 };
 var rpcInitializeUserWallet = function (ctx, logger, nk) {
