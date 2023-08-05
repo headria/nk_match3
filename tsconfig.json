@@ -1,12 +1,22 @@
 {
   "compilerOptions": {
+    "outFile": "./modules/index.js",
+    "typeRoots": ["./node_modules"],
     "target": "es5",
+    "module": "system",
+    "allowJs": true,
+    "checkJs": false,
+    "jsx": "react",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "outFile": "./build/index.js",
-    "typeRoots": ["./node_modules"]
+    "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*.ts"]
+  "include": [
+    "./src/leaderboard/pmc.ts",
+    "./src/economy.ts",
+    "./src/service/crypto.ts",
+    "./src/index.ts",
+    "src/**/*"
+  ]
 }
