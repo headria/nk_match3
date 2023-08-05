@@ -213,11 +213,15 @@ const LastLevelKeys = {
 };
 
 const getLastLevel = (nk: nkruntime.Nakama, userId: string): number => {
-  const storageObjects = nk.storageRead([
-    { collection: LastLevelKeys.collection, key: LastLevelKeys.key, userId },
-  ]);
-  const lastLevel: number = storageObjects[0].value[LastLevelKeys.id];
-  return lastLevel;
+  try {
+    const storageObjects = nk.storageRead([
+      { collection: LastLevelKeys.collection, key: LastLevelKeys.key, userId },
+    ]);
+    const lastLevel: number = storageObjects[0].value[LastLevelKeys.id];
+    return lastLevel;
+  } catch (error: any) {
+    throw new Error("failed to get Last level: " + error.message);
+  }
 };
 
 const setLastLevel = (
@@ -225,13 +229,17 @@ const setLastLevel = (
   userId: string,
   newValue: number
 ) => {
-  const value = { [LastLevelKeys.id]: newValue };
-  nk.storageWrite([
-    {
-      collection: LastLevelKeys.collection,
-      key: LastLevelKeys.key,
-      userId,
-      value,
-    },
-  ]);
+  try {
+    const value = { [LastLevelKeys.id]: newValue };
+    nk.storageWrite([
+      {
+        collection: LastLevelKeys.collection,
+        key: LastLevelKeys.key,
+        userId,
+        value,
+      },
+    ]);
+  } catch (error: any) {
+    throw new Error("failed to set Last level: " + error.message);
+  }
 };
