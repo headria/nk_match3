@@ -1,11 +1,15 @@
 interface UserScore {
-  [userId: string]: number;
+  userId: string;
+  username?: string;
+  score: number;
 }
+
+const serverId = "1a52749c-15d6-43ad-8fef-01e2997ad6e0";
 
 const PMC_Leaderboard = {
   config: {
     id: "PMC-Leaderboard",
-    authoritative: true,
+    authoritative: false,
     sort: nkruntime.SortOrder.DESCENDING,
     operator: nkruntime.Operator.SET,
     reset_schedule: "0 0 * * 1", // Every Monday at 00:00
@@ -35,19 +39,19 @@ const PMC_Leaderboard = {
   },
 };
 
-const setRecords: nkruntime.RpcFunction = (
+const setRecord: nkruntime.RpcFunction = (
   ctx: nkruntime.Context,
   logger: nkruntime.Logger,
   nk: nkruntime.Nakama,
   payload: string
 ) => {
-  const data = JSON.parse(payload);
-  Object.keys(data).map((userId: string) => {
-    nk.leaderboardRecordWrite(
-      PMC_Leaderboard.config.id,
-      userId,
-      undefined,
-      data[userId]
-    );
-  });
+  if (ctx.userId !== serverId) throw Error("Unauthorized");
+  const data: UserScore = JSON.parse(payload);
+  logger.debug(payload);
+  nk.leaderboardRecordWrite(
+    PMC_Leaderboard.config.id,
+    data.userId,
+    data.username,
+    data.score
+  );
 };

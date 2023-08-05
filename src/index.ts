@@ -8,8 +8,10 @@ const InitModule: nkruntime.InitModule = function (
 
   //Register Leaderboards
   PMC_Leaderboard.initalizeLeaderboard(ctx, logger, nk);
-  initializer.registerRpc("pmc/setRecords", setRecords);
+  initializer.registerRpc("pmc/setRecord", setRecord);
 
+  //validators
+  initializer.registerRpc("levelValidator", levelValidatorRPC);
   initializer.registerRpc("addDataToStorage", addDataToStorage);
 };
 
