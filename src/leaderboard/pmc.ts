@@ -9,7 +9,7 @@ const serverId = "1a52749c-15d6-43ad-8fef-01e2997ad6e0";
 const PMC_Leaderboard = {
   config: {
     id: "PMC-Leaderboard",
-    authoritative: true,
+    authoritative: false,
     sort: nkruntime.SortOrder.DESCENDING,
     operator: nkruntime.Operator.SET,
     reset_schedule: "0 0 * * 1", // Every Monday at 00:00
