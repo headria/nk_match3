@@ -6,6 +6,9 @@ const InitModule: nkruntime.InitModule = function (
 ) {
   logger.info("MODULE INJECTED");
 
+  //initiate user wallet
+  initializer.registerRpc("user/initiate", InitiateUserRPC);
+
   //Register Leaderboards
   PMC_Leaderboard.initalizeLeaderboard(ctx, logger, nk);
   initializer.registerRpc("pmc/setRecord", setRecord);
