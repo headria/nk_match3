@@ -9,17 +9,8 @@ const InitModule: nkruntime.InitModule = function (
   initializer.registerRpc("initialize_user_wallet", rpcInitializeUserWallet);
   //Register Leaderboards
   PMC_Leaderboard.initalizeLeaderboard(ctx, logger, nk);
-  initializer.registerRpc("pmc/setRecords", setRecords);
+  initializer.registerRpc("pmc/setRecord", setRecord);
 
-  initializer.registerRpc("HELLO", hello);
-};
-
-const hello: nkruntime.RpcFunction = (
-  ctx: nkruntime.Context,
-  logger: nkruntime.Logger,
-  nk: nkruntime.Nakama,
-  payload: string
-): string => {
-  logger.info("HELLOOOOOOO");
-  return JSON.stringify("HELLOOO");
+  //validators
+  initializer.registerRpc("levelValidator", levelValidatorRPC);
 };
