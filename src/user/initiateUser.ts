@@ -44,9 +44,6 @@ const InitiateUserRPC: nkruntime.RpcFunction = (
         permissionWrite: 1,
       },
     ]);
-    nk.accountUpdateId(ctx.userId, null, null, null, null, null, null, {
-      "crypto-wallet": null,
-    });
     logger.info(`New User Joined: ${ctx.userId}`);
   } catch (error: any) {
     throw new Error(`Failed to initiate user. cause: ${error.message}`);
