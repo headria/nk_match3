@@ -27,13 +27,22 @@ const InitialWallet: { [key: string]: any } = {
   Gems: 0,
   Score: 0,
 };
+const initialCrypto: { [key: string]: any } = {
+  address: null,
+  balance: null,
+};
 
-const InitiateUserRPC: nkruntime.RpcFunction = (
+const InitiateUser: nkruntime.AfterHookFunction<
+  nkruntime.Session,
+  nkruntime.AuthenticateDeviceRequest
+> = (
   ctx: nkruntime.Context,
   logger: nkruntime.Logger,
-  nk: nkruntime.Nakama
+  nk: nkruntime.Nakama,
+  data: nkruntime.Session
 ): void => {
   try {
+    if (!data.created) return;
     nk.storageWrite([
       {
         collection: "Economy",
@@ -42,6 +51,14 @@ const InitiateUserRPC: nkruntime.RpcFunction = (
         userId: ctx.userId,
         permissionRead: 1,
         permissionWrite: 1,
+      },
+      {
+        collection: "Crypto",
+        key: "Wallet",
+        value: initialCrypto,
+        userId: ctx.userId,
+        permissionRead: 1,
+        permissionWrite: 0,
       },
     ]);
     logger.info(`New User Joined: ${ctx.userId}`);

@@ -194,16 +194,19 @@ const levelValidatorRPC: nkruntime.RpcFunction = (
   const levelLog: ILevelLog = JSON.parse(payload);
   const validator = new LevelValidator(levelLog);
   const cheats = validator.cheatCheck();
+  logger.debug(JSON.stringify(cheats));
   const lastLevel = getLastLevel(nk, ctx.userId);
+  logger.debug(JSON.stringify(lastLevel));
   if (levelLog.levelNumber > lastLevel + 1) {
-    return `level skip detected: lastLevel:${lastLevel}  current:${levelLog.levelNumber}`;
+    throw new Error(
+      `level skip detected: lastLevel:${lastLevel}  current:${levelLog.levelNumber}`
+    );
   }
   setLastLevel(nk, ctx.userId, lastLevel + 1);
 
   if (cheats.length > 0) {
-    return `cheats detected:\n ${cheats.toString()}`;
+    throw new Error(`cheats detected:\n ${cheats.toString()}`);
   }
-  return "ok";
 };
 
 const LastLevelKeys = {
