@@ -18,7 +18,6 @@ services:
       timeout: 3s
       retries: 5
   nakama:
-    build: .
     image: registry.heroiclabs.com/heroiclabs/nakama:3.17.0
     entrypoint:
       - "/bin/sh"
