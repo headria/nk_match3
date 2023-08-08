@@ -1,35 +1,33 @@
 const GameApi = {
-  LastLevel: {
-    Keys: {
-      collection: "levels",
-      key: "data",
-      id: "number",
-    },
-    get: (nk: nkruntime.Nakama, userId: string): number => {
+  LastLevel: class {
+    static Keys = {
+      collection: "Levels",
+      key: "Data",
+    };
+    static id = "progress";
+    static get(nk: nkruntime.Nakama, userId: string): number {
       try {
-        const keys = GameApi.LastLevel.Keys;
         const storageObjects = nk.storageRead([
           {
-            collection: keys.collection,
-            key: keys.key,
+            collection: this.Keys.collection,
+            key: this.Keys.key,
             userId,
           },
         ]);
-        const lastLevel: number = storageObjects[0].value[keys.id];
+        const lastLevel: number = storageObjects[0].value[this.id];
         return lastLevel;
       } catch (error: any) {
         throw new Error("failed to get Last level: " + error.message);
       }
-    },
+    }
 
-    set: (nk: nkruntime.Nakama, userId: string, newValue: number) => {
+    static set(nk: nkruntime.Nakama, userId: string, newValue: number) {
       try {
-        const keys = GameApi.LastLevel.Keys;
-        const value = { [keys.id]: newValue };
+        const value = { [this.id]: newValue };
         nk.storageWrite([
           {
-            collection: keys.collection,
-            key: keys.key,
+            collection: this.Keys.collection,
+            key: this.Keys.key,
             userId,
             value,
           },
@@ -37,35 +35,61 @@ const GameApi = {
       } catch (error: any) {
         throw new Error("failed to set Last level: " + error.message);
       }
-    },
+    }
   },
-  LevelLog: {
-    Keys: {
+  LevelLog: class {
+    static Keys = {
       collection: "Levels",
-      key: "Log",
-    },
-    set: (
+    };
+    static save(
       nk: nkruntime.Nakama,
       userId: string,
       data: LevelValidation.ILevelLog
-    ) => {
-      const keys = GameApi.LevelLog.Keys;
+    ): void {
       nk.storageWrite([
         {
-          collection: keys.collection,
-          key: keys.key,
+          collection: this.Keys.collection,
+          key: data.levelNumber.toString(),
           userId,
           value: data,
           permissionRead: 2,
           permissionWrite: 0,
         },
       ]);
-    },
-    get: (nk: nkruntime.Nakama, userId: string) => {
-      const keys = GameApi.LevelLog.Keys;
+    }
+    static get(nk: nkruntime.Nakama, userId: string, levelNumber: string) {
       const data = nk.storageRead([
-        { collection: keys.collection, key: keys.key, userId },
+        { collection: this.Keys.collection, key: levelNumber, userId },
       ]);
-    },
+      return data;
+    }
+  },
+  Cheat: class {
+    static Keys = {
+      collection: "Cheats",
+    };
+    static write(
+      nk: nkruntime.Nakama,
+      userId: string,
+      levelLog: LevelValidation.ILevelLog,
+      cheats: string[]
+    ): void {
+      nk.storageWrite([
+        {
+          collection: this.Keys.collection,
+          key: levelLog.levelNumber.toString(),
+          userId,
+          value: { cheats, levelLog },
+          permissionRead: 2,
+          permissionWrite: 0,
+        },
+      ]);
+    }
+  },
+  Crypto: class {
+    static Keys = {
+      collection: "Crypto",
+      key: "Wallet",
+    };
   },
 };

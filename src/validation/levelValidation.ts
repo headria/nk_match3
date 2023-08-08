@@ -1,6 +1,5 @@
 namespace LevelValidation {
   export type ILevelLog = {
-    playerId: string;
     levelNumber: number;
     atStart: {
       coins: number;
@@ -28,18 +27,24 @@ namespace LevelValidation {
     };
   };
 
+  export type WalletItem = {
+    id: string;
+    quantity: number;
+  };
+
+  export const PowerUps = [
+    { name: "Hammer", index: 0 },
+    { name: "VerticalRocket", index: 1 },
+    { name: "Shuffle", index: 2 },
+    { name: "HorizontalRocket", index: 3 },
+  ];
+  export const Boosters = [
+    { name: "TNT", index: 0 },
+    { name: "Discoball", index: 1 },
+    { name: "Rocket", index: 2 },
+  ];
+
   export class Validator {
-    static PowerUps = [
-      { name: "Hammer", id: "HAMMER", index: 0 },
-      { name: "VerticalRocket", id: "VERTICAL_ROCKET", index: 1 },
-      { name: "Shuffle", id: "SHUFFLE", index: 2 },
-      { name: "HorizontalRocket", id: "HORIZONTAL_ROCKET", index: 3 },
-    ];
-    static Boosters = [
-      { name: "TNT", id: "TNT", index: 0 },
-      { name: "DiscoBall", id: "DISCO_BALL", index: 1 },
-      { name: "Rocket", id: "ROCKET", index: 2 },
-    ];
     cheatCheck(levelLog: ILevelLog) {
       try {
         const { atStart, atEnd } = levelLog;
@@ -79,6 +84,7 @@ namespace LevelValidation {
         throw new Error(`Cheat Check Error: ${error.message}`);
       }
     }
+
     checkHearts(heartCount: number): string[] {
       if (heartCount === 0) return ["Started level with no heart!"];
       else if (heartCount < -1 || heartCount > 5)
@@ -92,7 +98,7 @@ namespace LevelValidation {
       selectedBoosters: string[]
     ): string[] {
       const detectedCheats: string[] = [];
-      for (const booster of Validator.Boosters) {
+      for (const booster of Boosters) {
         const { name, index } = booster;
         const startCount = startCounts[index];
         const endCount = endCounts[index];
@@ -128,6 +134,15 @@ namespace LevelValidation {
         : [];
     }
 
+    static checkLevel(levelNumber: number, lastLevel: number): string[] {
+      if (levelNumber > lastLevel + 1) {
+        return [
+          `level skip detected: lastLevel:${lastLevel}  current:${levelNumber}`,
+        ];
+      }
+      return [];
+    }
+
     checkTime(startTime: number, endTime: number): string[] {
       return endTime - startTime < 1000 ? ["Time less than one second"] : [];
     }
@@ -155,7 +170,7 @@ namespace LevelValidation {
       usedItems: number[]
     ): string[] {
       const detectedCheats: string[] = [];
-      for (const powerUp of Validator.PowerUps) {
+      for (const powerUp of PowerUps) {
         const { name, index } = powerUp;
         const before = startPowerUpsCount[index];
         const after = endPowerUpsCount[index];
@@ -182,6 +197,47 @@ namespace LevelValidation {
         : [];
     }
   }
+
+  export function extractData(log: ILevelLog): WalletItem[] {
+    try {
+      const boosters: WalletItem[] = Boosters.reduce((acc: any, curr) => {
+        const quantity = log.atEnd.boostersCount[curr.index];
+        if (quantity > -1) {
+          acc.push({
+            id: curr.name,
+            quantity,
+          });
+        }
+        return acc;
+      }, []);
+
+      const powerUps: WalletItem[] = PowerUps.map((curr) => ({
+        id: curr.name,
+        quantity: log.atEnd.powerUpsCount[curr.index],
+      }));
+
+      const coins: WalletItem = {
+        id: "Coins",
+        quantity: log.atEnd.coins - log.atStart.coins,
+      };
+
+      const result: WalletItem[] = [...boosters, ...powerUps, coins];
+
+      if (log.atStart.heart != -1) {
+        const hearts =
+          log.atEnd.result !== "win"
+            ? log.atStart.heart - 1
+            : log.atStart.heart;
+        result.push({
+          id: "Heart",
+          quantity: hearts,
+        });
+      }
+      return result;
+    } catch (error: any) {
+      throw new Error(`Error while extracting data from log: ${error.message}`);
+    }
+  }
 }
 
 const levelValidatorRPC: nkruntime.RpcFunction = (
@@ -192,22 +248,50 @@ const levelValidatorRPC: nkruntime.RpcFunction = (
 ) => {
   try {
     const levelLog: LevelValidation.ILevelLog = JSON.parse(payload);
+    GameApi.LevelLog.save(nk, ctx.userId, levelLog);
+
     const validator = new LevelValidation.Validator();
     const cheats = validator.cheatCheck(levelLog);
+
     const lastLevel = GameApi.LastLevel.get(nk, ctx.userId);
-    if (levelLog.levelNumber > lastLevel + 1) {
-      throw new Error(
-        `level skip detected: lastLevel:${lastLevel}  current:${levelLog.levelNumber}`
-      );
-    }
     if (levelLog.atEnd.result === "win")
       GameApi.LastLevel.set(nk, ctx.userId, lastLevel + 1);
 
+    cheats.push(
+      ...LevelValidation.Validator.checkLevel(levelLog.levelNumber, lastLevel)
+    );
+
     if (cheats.length > 0) {
-      throw new Error(`cheats detected:\n ${cheats.toString()}`);
+      GameApi.Cheat.write(nk, ctx.userId, levelLog, cheats);
     }
+
+    //update inventory
+    const extractData = LevelValidation.extractData(levelLog);
+    const wallet = nk.storageRead([
+      { collection: "Economy", key: "Wallet", userId: ctx.userId },
+    ])[0].value;
+    // logger.debug(`Inventory: ${JSON.stringify(wallet)}`);
+    // logger.debug(`extracted: ${JSON.stringify(extractData)}`);
+
+    extractData.map((item: LevelValidation.WalletItem) => {
+      if (typeof wallet[item.id] === "number") wallet[item.id] = item.quantity;
+      else wallet[item.id].quantity = item.quantity;
+    });
+    // logger.debug(`New Inventory: ${JSON.stringify(wallet)}`);
+
+    nk.storageWrite([
+      {
+        collection: "Economy",
+        key: "Wallet",
+        userId: ctx.userId,
+        value: wallet,
+        permissionRead: 1,
+        permissionWrite: 0,
+      },
+    ]);
+    // logger.debug("Inventory Updated");
   } catch (error: any) {
-    logger.error(error.message);
+    logger.error(`failed to validate level: ${error.message}`);
     throw error;
   }
 };

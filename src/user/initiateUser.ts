@@ -61,6 +61,7 @@ const InitiateUser: nkruntime.AfterHookFunction<
         permissionWrite: 0,
       },
     ]);
+    GameApi.LastLevel.set(nk, ctx.userId, 0);
     logger.info(`New User Joined: ${ctx.userId}`);
   } catch (error: any) {
     throw new Error(`Failed to initiate user. cause: ${error.message}`);
