@@ -1,7 +1,3 @@
 node_modules
-build
-docker-compose.yml
-Dockerfile
-modules
-tsconfig.json
+
 .cookie
