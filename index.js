@@ -39,6 +39,8 @@ var setRecord = function (ctx, logger, nk, payload) {
 };
 var InitModule = function (ctx, logger, nk, initializer) {
     logger.info("MODULE INJECTED");
+    //initiate user wallet
+    initializer.registerAfterAuthenticateDevice(InitiateUser);
     //Register Leaderboards
     PMC_Leaderboard.initalizeLeaderboard(ctx, logger, nk);
     initializer.registerRpc("pmc/setRecord", setRecord);
@@ -64,23 +66,67 @@ var addDataToStorage = function (ctx, logger, nk, payload) {
     nk.storageWrite([write]);
     return JSON.stringify("HELLOOO");
 };
-var rpcInitializeUserWallet = function (ctx, logger, nk) {
-    if (!ctx.userId)
-        throw Error("called by a server");
-    var walletUpdateResult = initializeWallet(nk, ctx.userId);
-    var updateString = JSON.stringify(walletUpdateResult);
-    logger.debug("Initialized wallet successfully", ctx.userId, updateString);
-    return updateString;
+var InitialWallet = {
+    Heart: {
+        endDate: 0,
+        isUnlimited: false,
+        quantity: 5,
+    },
+    TNT: {
+        endDate: 0,
+        isUnlimited: false,
+        quantity: 3,
+    },
+    Discoball: {
+        endDate: 0,
+        isUnlimited: false,
+        quantity: 3,
+    },
+    Rocket: {
+        endDate: 0,
+        isUnlimited: false,
+        quantity: 3,
+    },
+    Hammer: 0,
+    Shuffle: 0,
+    HorizontalRocket: 0,
+    VerticalRocket: 0,
+    Coins: 0,
+    Gems: 0,
+    Score: 0,
 };
-function initializeWallet(nk, userId) {
-    var changeset = {
-        coins: 10,
-        gems: 10,
-    };
-    var result = nk.walletUpdate(userId, changeset, { a: "a" }, true);
-    return result;
-}
-var initailDataForNewUser = function (ctx, logger, nk, payload) { };
+var initialCrypto = {
+    address: null,
+    balance: null,
+};
+var InitiateUser = function (ctx, logger, nk, data) {
+    try {
+        if (!data.created)
+            return;
+        nk.storageWrite([
+            {
+                collection: "Economy",
+                key: "Wallet",
+                value: InitialWallet,
+                userId: ctx.userId,
+                permissionRead: 1,
+                permissionWrite: 1,
+            },
+            {
+                collection: "Crypto",
+                key: "Wallet",
+                value: initialCrypto,
+                userId: ctx.userId,
+                permissionRead: 1,
+                permissionWrite: 0,
+            },
+        ]);
+        logger.info("New User Joined: ".concat(ctx.userId));
+    }
+    catch (error) {
+        throw new Error("Failed to initiate user. cause: ".concat(error.message));
+    }
+};
 var LevelValidator = /** @class */ (function () {
     function LevelValidator(levelLog) {
         this.levelLog = levelLog;
@@ -183,15 +229,16 @@ var levelValidatorRPC = function (ctx, logger, nk, payload) {
     var levelLog = JSON.parse(payload);
     var validator = new LevelValidator(levelLog);
     var cheats = validator.cheatCheck();
+    logger.debug(JSON.stringify(cheats));
     var lastLevel = getLastLevel(nk, ctx.userId);
+    logger.debug(JSON.stringify(lastLevel));
     if (levelLog.levelNumber > lastLevel + 1) {
-        return "level skip detected: lastLevel:".concat(lastLevel, "  current:").concat(levelLog.levelNumber);
+        throw new Error("level skip detected: lastLevel:".concat(lastLevel, "  current:").concat(levelLog.levelNumber));
     }
     setLastLevel(nk, ctx.userId, lastLevel + 1);
     if (cheats.length > 0) {
-        return "cheats detected:\n ".concat(cheats.toString());
+        throw new Error("cheats detected:\n ".concat(cheats.toString()));
     }
-    return "ok";
 };
 var LastLevelKeys = {
     collection: "levels",
