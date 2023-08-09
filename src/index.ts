@@ -4,8 +4,6 @@ const InitModule: nkruntime.InitModule = function (
   nk: nkruntime.Nakama,
   initializer: nkruntime.Initializer
 ) {
-  logger.info("MODULE INJECTED");
-
   //register storage index
   cryptoWalletIndex(initializer);
 
@@ -13,8 +11,14 @@ const InitModule: nkruntime.InitModule = function (
   initializer.registerAfterAuthenticateDevice(InitiateUser);
   //Register Leaderboards
   PMC_Leaderboard.initalizeLeaderboard(ctx, logger, nk);
-  initializer.registerRpc("pmc/setRecord", setRecord);
-  initializer.registerRpc("WalletConnect", WalletConnect);
+
+  //Register Leaderboards rpcs
+  initializer.registerRpc(
+    "leaderboard/pmc/setRecord",
+    PMC_Leaderboard.SetRecordRPC
+  );
+
+  initializer.registerRpc("user/WalletConnect", WalletConnect);
   //validators
-  initializer.registerRpc("levelValidator", levelValidatorRPC);
+  initializer.registerRpc("level/validate", levelValidatorRPC);
 };
