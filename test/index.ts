@@ -49,7 +49,7 @@ const updateAccount = async () => {
 };
 
 const updateWallet = async () => {
-  const deviceId = "1ddd1b2a-1bac-49e5-931e-a6e69b68f586";
+  const deviceId = "2d3b8d16-1b01-4a98-a6d0-7d7d8a444c16";
   console.log(deviceId);
   try {
     const session = await client.authenticateDevice(deviceId);
