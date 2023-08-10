@@ -9,7 +9,7 @@ const InitialWallet: { [key: string]: any } = {
     isUnlimited: false,
     quantity: 3,
   },
-  DiscoBall: {
+  Discoball: {
     endDate: 0,
     isUnlimited: false,
     quantity: 3,
@@ -49,6 +49,7 @@ const InitiateUser: nkruntime.AfterHookFunction<
         key: "Wallet",
         value: InitialWallet,
         userId: ctx.userId,
+
         permissionRead: 1,
         permissionWrite: 1,
       },
@@ -57,6 +58,7 @@ const InitiateUser: nkruntime.AfterHookFunction<
         key: "Wallet",
         value: initialCrypto,
         userId: ctx.userId,
+
         permissionRead: 1,
         permissionWrite: 0,
       },

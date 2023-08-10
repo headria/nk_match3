@@ -247,43 +247,38 @@ const levelValidatorRPC: nkruntime.RpcFunction = (
   payload: string
 ) => {
   try {
-    const userId: string = ctx.userId;
-    if (!userId) throw new Error("called by a server");
-
-    let levelLog: LevelValidation.ILevelLog;
-    try {
-      levelLog = JSON.parse(payload);
-      if (!levelLog) throw new Error();
-    } catch (error) {
-      throw new Error("Invalid request body");
-    }
-    GameApi.LevelLog.save(nk, userId, levelLog);
+    const levelLog: LevelValidation.ILevelLog = JSON.parse(payload);
+    GameApi.LevelLog.save(nk, ctx.userId, levelLog);
 
     const validator = new LevelValidation.Validator();
     const cheats = validator.cheatCheck(levelLog);
 
-    const lastLevel = GameApi.LastLevel.get(nk, userId);
+    const lastLevel = GameApi.LastLevel.get(nk, ctx.userId);
     if (levelLog.atEnd.result === "win")
-      GameApi.LastLevel.set(nk, userId, lastLevel + 1);
+      GameApi.LastLevel.set(nk, ctx.userId, lastLevel + 1);
 
     cheats.push(
       ...LevelValidation.Validator.checkLevel(levelLog.levelNumber, lastLevel)
     );
 
     if (cheats.length > 0) {
-      GameApi.Cheat.write(nk, levelLog.levelNumber, userId, cheats);
+      GameApi.Cheat.write(nk, ctx.userId, levelLog, cheats);
     }
 
     //update inventory
     const extractData = LevelValidation.extractData(levelLog);
     const wallet = nk.storageRead([
-      { collection: "Economy", key: "Wallet", userId },
+      { collection: "Economy", key: "Wallet", userId: ctx.userId },
     ])[0].value;
+    // logger.debug(`Inventory: ${JSON.stringify(wallet)}`);
+    // logger.debug(`extracted: ${JSON.stringify(extractData)}`);
 
     extractData.map((item: LevelValidation.WalletItem) => {
       if (typeof wallet[item.id] === "number") wallet[item.id] = item.quantity;
       else wallet[item.id].quantity = item.quantity;
     });
+    // logger.debug(`New Inventory: ${JSON.stringify(wallet)}`);
+
     nk.storageWrite([
       {
         collection: "Economy",
@@ -291,12 +286,13 @@ const levelValidatorRPC: nkruntime.RpcFunction = (
         userId: ctx.userId,
         value: wallet,
 
-        permissionRead: 2,
+        permissionRead: 1,
         permissionWrite: 0,
       },
     ]);
     // logger.debug("Inventory Updated");
   } catch (error: any) {
-    throw new Error(`failed to validate level: ${error.message}`);
+    logger.error(`failed to validate level: ${error.message}`);
+    throw error;
   }
 };
