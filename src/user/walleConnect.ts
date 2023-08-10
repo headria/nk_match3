@@ -36,7 +36,7 @@ const WalletConnect: nkruntime.RpcFunction = (
         collection: "Crypto",
         key: "Wallet",
         userId: ctx.userId,
-        value: { address: address },
+        value: { address: address, balance: 0 },
         permissionRead: 2,
         permissionWrite: 0,
       },
