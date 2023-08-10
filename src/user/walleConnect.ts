@@ -1,16 +1,38 @@
+namespace Wallet {
+  const queryMaker = (address: string) => `+address:${address}`;
+  export const get = (
+    nk: nkruntime.Nakama,
+    address: string
+  ): nkruntime.StorageObject | null => {
+    try {
+      const query = queryMaker(address);
+      const res = nk.storageIndexList("crypto-wallet", query, 1);
+      return res.length > 0 ? res[0] : null;
+    } catch (error: any) {
+      throw new Error(
+        `failed to check wallet address existance: ${error.message}`
+      );
+    }
+  };
+}
+
 const WalletConnect: nkruntime.RpcFunction = (
   ctx: nkruntime.Context,
   logger: nkruntime.Logger,
   nk: nkruntime.Nakama,
   payload: string
 ): string | void => {
+  let data: { [address: string]: string };
   try {
-    const data = JSON.parse(payload);
-    if (!data || !data["address"]) throw new Error("Bad Request");
-    let address = data["address"];
-    const query = `+address:${address}`;
-    const res = nk.storageIndexList("crypto-wallet", query, 1);
-    if (res.length == 0) {
+    data = JSON.parse(payload);
+    if (!data || !data.address) throw Error();
+  } catch (error) {
+    throw new Error("invalid request body");
+  }
+  let address = data.address;
+  try {
+    const wallet = Wallet.get(nk, address);
+    if (!wallet) {
       nk.storageWrite([
         {
           collection: "Crypto",
@@ -24,7 +46,7 @@ const WalletConnect: nkruntime.RpcFunction = (
       ]);
       return;
     }
-    const WalletUID = res[0].userId;
+    const WalletUID = wallet.userId;
     const account = nk.accountGetId(WalletUID);
     const deviceId = account.devices[0].id;
     return JSON.stringify(deviceId);
