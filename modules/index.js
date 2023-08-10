@@ -125,28 +125,48 @@ var InitiateUser = function (ctx, logger, nk, data) {
         throw new Error("Failed to initiate user. cause: ".concat(error.message));
     }
 };
+var Wallet;
+(function (Wallet) {
+    var queryMaker = function (address) { return "+address:".concat(address); };
+    Wallet.get = function (nk, address) {
+        try {
+            var query = queryMaker(address);
+            var res = nk.storageIndexList("crypto-wallet", query, 1);
+            return res.length > 0 ? res[0] : null;
+        }
+        catch (error) {
+            throw new Error("failed to check wallet address existance: ".concat(error.message));
+        }
+    };
+})(Wallet || (Wallet = {}));
 var WalletConnect = function (ctx, logger, nk, payload) {
+    var data;
     try {
-        var data = JSON.parse(payload);
-        if (!data || !data["address"])
-            throw new Error("Bad Request");
-        var address = data["address"];
-        var query = "+address:".concat(address);
-        var res = nk.storageIndexList("crypto-wallet", query, 1);
-        if (res.length == 0) {
+        data = JSON.parse(payload);
+        if (!data || !data.address)
+            throw Error();
+    }
+    catch (error) {
+        throw new Error("invalid request body");
+    }
+    var address = data.address;
+    try {
+        var wallet = Wallet.get(nk, address);
+        if (!wallet) {
             nk.storageWrite([
                 {
                     collection: "Crypto",
                     key: "Wallet",
                     userId: ctx.userId,
                     value: { address: address, balance: null },
+                    version: "*",
                     permissionRead: 2,
                     permissionWrite: 0,
                 },
             ]);
             return;
         }
-        var WalletUID = res[0].userId;
+        var WalletUID = wallet.userId;
         var account = nk.accountGetId(WalletUID);
         var deviceId = account.devices[0].id;
         return JSON.stringify(deviceId);
