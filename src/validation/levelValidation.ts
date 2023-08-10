@@ -285,7 +285,7 @@ const levelValidatorRPC: nkruntime.RpcFunction = (
         key: "Wallet",
         userId: ctx.userId,
         value: wallet,
-        version: "*",
+
         permissionRead: 1,
         permissionWrite: 0,
       },

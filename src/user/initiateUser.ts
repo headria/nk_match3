@@ -49,7 +49,7 @@ const InitiateUser: nkruntime.AfterHookFunction<
         key: "Wallet",
         value: InitialWallet,
         userId: ctx.userId,
-        version: "*",
+
         permissionRead: 1,
         permissionWrite: 1,
       },
@@ -58,7 +58,7 @@ const InitiateUser: nkruntime.AfterHookFunction<
         key: "Wallet",
         value: initialCrypto,
         userId: ctx.userId,
-        version: "*",
+
         permissionRead: 1,
         permissionWrite: 0,
       },
