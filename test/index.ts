@@ -73,4 +73,4 @@ const updateWallet = async () => {
   }
 };
 
-updateWallet();
+updateAccount();
