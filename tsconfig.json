@@ -12,11 +12,5 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": [
-    "./src/leaderboard/pmc.ts",
-    "./src/economy.ts",
-    "./src/service/crypto.ts",
-    "./src/index.ts",
-    "src/**/*"
-  ]
+  "include": ["src/**/*"]
 }
