@@ -55,11 +55,10 @@ const updateWallet = async () => {
     const session = await client.authenticateDevice(deviceId);
 
     const data = {
-      address: "Ahmad",
+      address: "Ahmad2",
     };
 
-    var response = await client.rpc(session, "user/walletconnect", data);
-    console.log(response);
+    await client.rpc(session, "user/walletconnect", data);
   } catch (err: any) {
     console.log(
       "Error authenticating device: %o:%o",
