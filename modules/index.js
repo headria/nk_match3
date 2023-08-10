@@ -263,7 +263,7 @@ var GameApi = {
                     nk.storageWrite([
                         {
                             collection: this.Keys.collection,
-                            key: (levelNumber || -1).toString(),
+                            key: (levelNumber || -2).toString(),
                             userId: userId,
                             value: { cheats: cheats },
                             permissionRead: 2,
