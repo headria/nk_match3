@@ -28,6 +28,7 @@ const GameApi = {
           {
             collection: this.Keys.collection,
             key: this.Keys.key,
+            version: "*",
             userId,
             value,
           },
@@ -51,6 +52,7 @@ const GameApi = {
           collection: this.Keys.collection,
           key: data.levelNumber.toString(),
           userId,
+          version: "*",
           value: data,
           permissionRead: 2,
           permissionWrite: 0,
@@ -80,6 +82,7 @@ const GameApi = {
           key: levelLog.levelNumber.toString(),
           userId,
           value: { cheats, levelLog },
+          version: "*",
           permissionRead: 2,
           permissionWrite: 0,
         },
