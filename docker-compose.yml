@@ -20,7 +20,6 @@ services:
       timeout: 3s
       retries: 5
   nakama:
-    build: .
     container_name: nakama
     image: registry.heroiclabs.com/heroiclabs/nakama:3.17.0
     entrypoint:
