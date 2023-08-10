@@ -159,7 +159,6 @@ var WalletConnect = function (ctx, logger, nk, payload) {
                     key: "Wallet",
                     userId: ctx.userId,
                     value: { address: address, balance: null },
-                    version: "*",
                     permissionRead: 2,
                     permissionWrite: 0,
                 },

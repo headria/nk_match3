@@ -39,7 +39,6 @@ const WalletConnect: nkruntime.RpcFunction = (
           key: "Wallet",
           userId: ctx.userId,
           value: { address, balance: null },
-          version: "*",
           permissionRead: 2,
           permissionWrite: 0,
         },
