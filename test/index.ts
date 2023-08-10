@@ -3,7 +3,7 @@ import { v4 } from "uuid";
 import { encode } from "js-base64";
 
 const newUser = async (): Promise<void> => {
-  var client = new Client("defaulthttpkey", "nk.planetmemes.com", "443", true);
+  var client = new Client("defaulthttpkey", "127.0.0.1", "443");
   const deviceId = await v4();
 
   console.log(encode("defaulthttpkey" + ":"));
