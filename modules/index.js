@@ -74,7 +74,7 @@ var InitialWallet = {
         isUnlimited: false,
         quantity: 3,
     },
-    Discoball: {
+    DiscoBall: {
         endDate: 0,
         isUnlimited: false,
         quantity: 3,
@@ -226,16 +226,21 @@ var GameApi = {
             function class_2() {
             }
             class_2.save = function (nk, userId, data) {
-                nk.storageWrite([
-                    {
-                        collection: this.Keys.collection,
-                        key: data.levelNumber.toString(),
-                        userId: userId,
-                        value: data,
-                        permissionRead: 2,
-                        permissionWrite: 0,
-                    },
-                ]);
+                try {
+                    nk.storageWrite([
+                        {
+                            collection: this.Keys.collection,
+                            key: data.levelNumber.toString(),
+                            userId: userId,
+                            value: data,
+                            permissionRead: 2,
+                            permissionWrite: 0,
+                        },
+                    ]);
+                }
+                catch (error) {
+                    throw new Error("failed to save LevelLog: ".concat(error.message));
+                }
             };
             class_2.get = function (nk, userId, levelNumber) {
                 var data = nk.storageRead([
@@ -253,17 +258,22 @@ var GameApi = {
     Cheat: (_c = /** @class */ (function () {
             function class_3() {
             }
-            class_3.write = function (nk, userId, levelLog, cheats) {
-                nk.storageWrite([
-                    {
-                        collection: this.Keys.collection,
-                        key: levelLog.levelNumber.toString(),
-                        userId: userId,
-                        value: { cheats: cheats, levelLog: levelLog },
-                        permissionRead: 2,
-                        permissionWrite: 0,
-                    },
-                ]);
+            class_3.write = function (nk, levelNumber, userId, cheats) {
+                try {
+                    nk.storageWrite([
+                        {
+                            collection: this.Keys.collection,
+                            key: levelNumber.toString(),
+                            userId: userId,
+                            value: { cheats: cheats },
+                            permissionRead: 2,
+                            permissionWrite: 0,
+                        },
+                    ]);
+                }
+                catch (error) {
+                    throw new Error("failed to save Cheats: ".concat(error.message));
+                }
             };
             return class_3;
         }()),
@@ -432,45 +442,52 @@ var LevelValidation;
 })(LevelValidation || (LevelValidation = {}));
 var levelValidatorRPC = function (ctx, logger, nk, payload) {
     try {
-        var levelLog = JSON.parse(payload);
-        GameApi.LevelLog.save(nk, ctx.userId, levelLog);
+        var userId = ctx.userId;
+        if (!userId)
+            throw new Error("called by a server");
+        var levelLog = void 0;
+        try {
+            levelLog = JSON.parse(payload);
+            if (!levelLog)
+                throw new Error();
+        }
+        catch (error) {
+            throw new Error("Invalid request body");
+        }
+        GameApi.LevelLog.save(nk, userId, levelLog);
         var validator = new LevelValidation.Validator();
         var cheats = validator.cheatCheck(levelLog);
-        var lastLevel = GameApi.LastLevel.get(nk, ctx.userId);
+        var lastLevel = GameApi.LastLevel.get(nk, userId);
         if (levelLog.atEnd.result === "win")
-            GameApi.LastLevel.set(nk, ctx.userId, lastLevel + 1);
+            GameApi.LastLevel.set(nk, userId, lastLevel + 1);
         cheats.push.apply(cheats, LevelValidation.Validator.checkLevel(levelLog.levelNumber, lastLevel));
         if (cheats.length > 0) {
-            GameApi.Cheat.write(nk, ctx.userId, levelLog, cheats);
+            GameApi.Cheat.write(nk, levelLog.levelNumber, userId, cheats);
         }
         //update inventory
         var extractData = LevelValidation.extractData(levelLog);
         var wallet_1 = nk.storageRead([
-            { collection: "Economy", key: "Wallet", userId: ctx.userId },
+            { collection: "Economy", key: "Wallet", userId: userId },
         ])[0].value;
-        // logger.debug(`Inventory: ${JSON.stringify(wallet)}`);
-        // logger.debug(`extracted: ${JSON.stringify(extractData)}`);
         extractData.map(function (item) {
             if (typeof wallet_1[item.id] === "number")
                 wallet_1[item.id] = item.quantity;
             else
                 wallet_1[item.id].quantity = item.quantity;
         });
-        // logger.debug(`New Inventory: ${JSON.stringify(wallet)}`);
         nk.storageWrite([
             {
                 collection: "Economy",
                 key: "Wallet",
                 userId: ctx.userId,
                 value: wallet_1,
-                permissionRead: 1,
+                permissionRead: 2,
                 permissionWrite: 0,
             },
         ]);
         // logger.debug("Inventory Updated");
     }
     catch (error) {
-        logger.error("failed to validate level: ".concat(error.message));
-        throw error;
+        throw new Error("failed to validate level: ".concat(error.message));
     }
 };
