@@ -433,53 +433,47 @@ var LevelValidation;
     LevelValidation.extractData = extractData;
 })(LevelValidation || (LevelValidation = {}));
 var levelValidatorRPC = function (ctx, logger, nk, payload) {
+    var userId = ctx.userId;
+    if (!userId)
+        throw new Error("called by a server");
+    var levelLog;
     try {
-        var userId = ctx.userId;
-        if (!userId)
-            throw new Error("called by a server");
-        var levelLog = void 0;
-        try {
-            levelLog = JSON.parse(payload);
-            if (!levelLog)
-                throw new Error();
-        }
-        catch (error) {
-            throw new Error("Invalid request body");
-        }
-        GameApi.LevelLog.save(nk, userId, levelLog);
-        var validator = new LevelValidation.Validator();
-        var cheats = validator.cheatCheck(levelLog);
-        var lastLevel = GameApi.LastLevel.get(nk, userId);
-        if (levelLog.atEnd.result === "win")
-            GameApi.LastLevel.set(nk, userId, lastLevel + 1);
-        cheats.push.apply(cheats, LevelValidation.Validator.checkLevel(levelLog.levelNumber, lastLevel));
-        if (cheats.length > 0) {
-            GameApi.Cheat.write(nk, levelLog.levelNumber, userId, cheats);
-        }
-        //update inventory
-        var extractData = LevelValidation.extractData(levelLog);
-        var wallet_1 = nk.storageRead([
-            { collection: "Economy", key: "Wallet", userId: userId },
-        ])[0].value;
-        extractData.map(function (item) {
-            if (typeof wallet_1[item.id] === "number")
-                wallet_1[item.id] = item.quantity;
-            else
-                wallet_1[item.id].quantity = item.quantity;
-        });
-        nk.storageWrite([
-            {
-                collection: "Economy",
-                key: "Wallet",
-                userId: ctx.userId,
-                value: wallet_1,
-                permissionRead: 2,
-                permissionWrite: 0,
-            },
-        ]);
-        // logger.debug("Inventory Updated");
+        levelLog = JSON.parse(payload);
+        if (!levelLog)
+            throw new Error();
     }
     catch (error) {
-        throw new Error("failed to validate level: ".concat(error.message));
+        throw new Error("Invalid request body");
     }
+    GameApi.LevelLog.save(nk, userId, levelLog);
+    var validator = new LevelValidation.Validator();
+    var cheats = validator.cheatCheck(levelLog);
+    var lastLevel = GameApi.LastLevel.get(nk, userId);
+    if (levelLog.atEnd.result === "win")
+        GameApi.LastLevel.set(nk, userId, lastLevel + 1);
+    cheats.push.apply(cheats, LevelValidation.Validator.checkLevel(levelLog.levelNumber, lastLevel));
+    if (cheats.length > 0) {
+        GameApi.Cheat.write(nk, levelLog.levelNumber, userId, cheats);
+    }
+    //update inventory
+    var extractData = LevelValidation.extractData(levelLog);
+    var wallet = nk.storageRead([
+        { collection: "Economy", key: "Wallet", userId: userId },
+    ])[0].value;
+    extractData.map(function (item) {
+        if (typeof wallet[item.id] === "number")
+            wallet[item.id] = item.quantity;
+        else
+            wallet[item.id].quantity = item.quantity;
+    });
+    nk.storageWrite([
+        {
+            collection: "Economy",
+            key: "Wallet",
+            userId: ctx.userId,
+            value: wallet,
+            permissionRead: 2,
+            permissionWrite: 0,
+        },
+    ]);
 };
