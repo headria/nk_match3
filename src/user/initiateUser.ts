@@ -9,7 +9,7 @@ const InitialWallet: { [key: string]: any } = {
     isUnlimited: false,
     quantity: 3,
   },
-  Discoball: {
+  DiscoBall: {
     endDate: 0,
     isUnlimited: false,
     quantity: 3,

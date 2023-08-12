@@ -46,16 +46,21 @@ const GameApi = {
       userId: string,
       data: LevelValidation.ILevelLog
     ): void {
-      nk.storageWrite([
-        {
-          collection: this.Keys.collection,
-          key: data.levelNumber.toString(),
-          userId,
-          value: data,
-          permissionRead: 2,
-          permissionWrite: 0,
-        },
-      ]);
+      try {
+        nk.storageWrite([
+          {
+            collection: this.Keys.collection,
+            key: (data.levelNumber || -1).toString(),
+            userId,
+            value: data,
+
+            permissionRead: 2,
+            permissionWrite: 0,
+          },
+        ]);
+      } catch (error: any) {
+        throw new Error(`failed to save LevelLog: ${error.message}`);
+      }
     }
     static get(nk: nkruntime.Nakama, userId: string, levelNumber: string) {
       const data = nk.storageRead([
@@ -70,20 +75,25 @@ const GameApi = {
     };
     static write(
       nk: nkruntime.Nakama,
+      levelNumber: number,
       userId: string,
-      levelLog: LevelValidation.ILevelLog,
       cheats: string[]
     ): void {
-      nk.storageWrite([
-        {
-          collection: this.Keys.collection,
-          key: levelLog.levelNumber.toString(),
-          userId,
-          value: { cheats, levelLog },
-          permissionRead: 2,
-          permissionWrite: 0,
-        },
-      ]);
+      try {
+        nk.storageWrite([
+          {
+            collection: this.Keys.collection,
+            key: (levelNumber || -2).toString(),
+            userId,
+
+            value: { cheats },
+            permissionRead: 2,
+            permissionWrite: 0,
+          },
+        ]);
+      } catch (error: any) {
+        throw new Error(`failed to save Cheats: ${error.message}`);
+      }
     }
   },
   Crypto: class {

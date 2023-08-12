@@ -247,51 +247,61 @@ const levelValidatorRPC: nkruntime.RpcFunction = (
   payload: string
 ) => {
   try {
-    const levelLog: LevelValidation.ILevelLog = JSON.parse(payload);
-    GameApi.LevelLog.save(nk, ctx.userId, levelLog);
+    const userId: string = ctx.userId;
+    if (!userId) throw new Error("called by a server");
+
+    let levelLog: LevelValidation.ILevelLog;
+    try {
+      levelLog = JSON.parse(payload);
+      if (!levelLog) throw new Error();
+    } catch (error) {
+      throw new Error("Invalid request body");
+    }
+    GameApi.LevelLog.save(nk, userId, levelLog);
 
     const validator = new LevelValidation.Validator();
     const cheats = validator.cheatCheck(levelLog);
 
-    const lastLevel = GameApi.LastLevel.get(nk, ctx.userId);
+    const lastLevel = GameApi.LastLevel.get(nk, userId);
     if (levelLog.atEnd.result === "win")
-      GameApi.LastLevel.set(nk, ctx.userId, lastLevel + 1);
+      GameApi.LastLevel.set(nk, userId, lastLevel + 1);
 
     cheats.push(
       ...LevelValidation.Validator.checkLevel(levelLog.levelNumber, lastLevel)
     );
 
     if (cheats.length > 0) {
-      GameApi.Cheat.write(nk, ctx.userId, levelLog, cheats);
+      GameApi.Cheat.write(nk, levelLog.levelNumber, userId, cheats);
     }
 
     //update inventory
     const extractData = LevelValidation.extractData(levelLog);
     const wallet = nk.storageRead([
-      { collection: "Economy", key: "Wallet", userId: ctx.userId },
+      { collection: "Economy", key: "Wallet", userId },
     ])[0].value;
-    // logger.debug(`Inventory: ${JSON.stringify(wallet)}`);
-    // logger.debug(`extracted: ${JSON.stringify(extractData)}`);
 
     extractData.map((item: LevelValidation.WalletItem) => {
-      if (typeof wallet[item.id] === "number") wallet[item.id] = item.quantity;
-      else wallet[item.id].quantity = item.quantity;
+      try {
+        if (typeof wallet[item.id] === "number")
+          wallet[item.id] = item.quantity;
+        else wallet[item.id].quantity = item.quantity;
+      } catch (err: any) {
+        logger.error(`[extractData.map] : ${err}`);
+      }
     });
-    // logger.debug(`New Inventory: ${JSON.stringify(wallet)}`);
-
     nk.storageWrite([
       {
         collection: "Economy",
         key: "Wallet",
         userId: ctx.userId,
         value: wallet,
-        permissionRead: 1,
+
+        permissionRead: 2,
         permissionWrite: 0,
       },
     ]);
     // logger.debug("Inventory Updated");
   } catch (error: any) {
-    logger.error(`failed to validate level: ${error.message}`);
-    throw error;
+    throw new Error(`failed to validate level: ${error.message}`);
   }
 };
