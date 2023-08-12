@@ -9,13 +9,15 @@ const InitModule: nkruntime.InitModule = function (
 
   //initiate user wallet
   initializer.registerAfterAuthenticateDevice(InitiateUser);
-  //Register Leaderboards
-  PMC_Leaderboard.initalizeLeaderboard(ctx, logger, nk);
+
+  //create Leaderboards
+  Leaderboards.initalizeLeaderboards(nk, logger);
+  BucketedLeaderboard.initializeLeaderboards(nk, initializer);
 
   //Register Leaderboards rpcs
   initializer.registerRpc(
-    "leaderboard/pmc/setRecord",
-    PMC_Leaderboard.SetRecordRPC
+    "leaderboard/setRecord/pmc",
+    Leaderboards.updateScore
   );
 
   initializer.registerRpc("user/WalletConnect", WalletConnect);

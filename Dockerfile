@@ -4,9 +4,10 @@ FROM node:alpine AS node-builder
 WORKDIR /backend
 
 
-COPY . .
-RUN npm install
-RUN npm run build
+COPY /modules .
+# RUN npm install
+# RUN npm run build
+
 
 FROM registry.heroiclabs.com/heroiclabs/nakama:3.17.0
 

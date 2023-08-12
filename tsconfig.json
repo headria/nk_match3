@@ -2,7 +2,9 @@
   "compilerOptions": {
     "outFile": "./modules/index.js",
     "typeRoots": ["./node_modules"],
+    "rootDir": "./src",
     "target": "es5",
+
     "module": "system",
     "allowJs": true,
     "checkJs": false,
@@ -12,11 +14,6 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": [
-    "./src/leaderboard/pmc.ts",
-    "./src/economy.ts",
-    "./src/service/crypto.ts",
-    "./src/index.ts",
-    "src/**/*"
-  ]
+  "include": ["src/**/*"]
+
 }
