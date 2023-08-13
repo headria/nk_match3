@@ -1,19 +1,12 @@
 {
   "compilerOptions": {
-    "outFile": "./modules/index.js",
-    "typeRoots": ["./node_modules"],
-    "rootDir": "./src",
     "target": "es5",
-
-    "module": "system",
-    "allowJs": true,
-    "checkJs": false,
-    "jsx": "react",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "outFile": "./modules/index.js",
+    "typeRoots": ["./node_modules"]
   },
-  "include": ["src/**/*"]
-
+  "include": ["src/**/**.ts"]
 }

@@ -15,10 +15,7 @@ const InitModule: nkruntime.InitModule = function (
   BucketedLeaderboard.initializeLeaderboards(nk, initializer);
 
   //Register Leaderboards rpcs
-  initializer.registerRpc(
-    "leaderboard/setRecord/pmc",
-    Leaderboards.updateScore
-  );
+  initializer.registerRpc("leaderboard/setRecord/pmc", updateScore);
 
   initializer.registerRpc("user/WalletConnect", WalletConnect);
   //validators
