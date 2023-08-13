@@ -12,48 +12,260 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     }
     return to.concat(ar || Array.prototype.slice.call(from));
 };
-var PMC_Leaderboard;
-(function (PMC_Leaderboard) {
-    var config = {
-        id: "PMC-Leaderboard",
-        authoritative: false,
-        sort: "descending" /* nkruntime.SortOrder.DESCENDING */,
-        operator: "set" /* nkruntime.Operator.SET */,
-        reset_schedule: "0 0 * * 1", // Every Monday at 00:00
-    };
-    function calculateScore(balance, lastLevel) {
-        var score = lastLevel * 1000 + balance * 250;
-        return score;
-    }
-    function initalizeLeaderboard(ctx, logger, nk) {
-        try {
-            nk.leaderboardCreate(config.id, config.authoritative, config.sort, config.operator, config.reset_schedule);
-        }
-        catch (error) {
-            logger.error("failed to create leaderboard: ".concat(error.message));
-        }
-    }
-    PMC_Leaderboard.initalizeLeaderboard = initalizeLeaderboard;
-    PMC_Leaderboard.SetRecordRPC = function (ctx, logger, nk, payload) {
-        if (ctx.userId)
-            throw Error("Unauthorized");
-        var data = JSON.parse(payload);
-        logger.debug(payload);
-        nk.leaderboardRecordWrite(config.id, data.userId, data.username, data.score);
-    };
-})(PMC_Leaderboard || (PMC_Leaderboard = {}));
 var InitModule = function (ctx, logger, nk, initializer) {
     //register storage index
     cryptoWalletIndex(initializer);
     //initiate user wallet
     initializer.registerAfterAuthenticateDevice(InitiateUser);
-    //Register Leaderboards
-    PMC_Leaderboard.initalizeLeaderboard(ctx, logger, nk);
+    //create Leaderboards
+    Leaderboards.initalizeLeaderboards(nk, logger);
+    BucketedLeaderboard.initializeLeaderboards(nk, initializer);
     //Register Leaderboards rpcs
-    initializer.registerRpc("leaderboard/pmc/setRecord", PMC_Leaderboard.SetRecordRPC);
+    initializer.registerRpc("leaderboard/setRecord/pmc", updateScore);
     initializer.registerRpc("user/WalletConnect", WalletConnect);
     //validators
     initializer.registerRpc("level/validate", levelValidatorRPC);
+};
+var Category;
+(function (Category) {
+    Category[Category["GLOBAL"] = 0] = "GLOBAL";
+    Category[Category["WEEKLY"] = 1] = "WEEKLY";
+    Category[Category["PMC"] = 2] = "PMC";
+    Category[Category["RUSH"] = 3] = "RUSH";
+    Category[Category["CUP"] = 4] = "CUP";
+    Category[Category["FRIENDS"] = 5] = "FRIENDS";
+})(Category || (Category = {}));
+var MAX_SCORE = 1000000;
+var BucketedLeaderboard;
+(function (BucketedLeaderboard) {
+    var MAX_BUCKET_SIZE = {
+        weekly: 10,
+    };
+    var RESET_SCHEDULE = {
+        weekly: "0 0 * * 1",
+    };
+    BucketedLeaderboard.initializeLeaderboards = function (nk, initializer) {
+        for (var _i = 0, _a = Object.keys(BucketedLeaderboard.configs); _i < _a.length; _i++) {
+            var id = _a[_i];
+            init(nk, initializer, BucketedLeaderboard.configs[id]);
+        }
+    };
+    var init = function (nk, initializer, config) {
+        nk.tournamentCreate(config.tournamentID, config.authoritative, config.sortOrder, config.operator, config.duration, config.resetSchedule, config.metadata, config.title, config.description, config.category, config.startTime, config.endTime, config.maxSize, config.maxNumScore, config.joinRequired);
+        initializer.registerRpc("leaderboard/getRecords/".concat(config.tournamentID), WeeklyGetRecordsRPC);
+    };
+    BucketedLeaderboard.configs = {
+        weekly: {
+            tournamentID: "Weekly",
+            authoritative: true,
+            category: Category.WEEKLY,
+            duration: 7 * 24 * 60 * 60,
+            description: "",
+            bucketSize: 10,
+            endTime: 0,
+            joinRequired: false,
+            maxNumScore: MAX_SCORE,
+            maxSize: 1000000,
+            metadata: {},
+            operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
+            resetSchedule: RESET_SCHEDULE.weekly,
+            sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
+            startTime: 0,
+            title: "Weekly Leaderboard",
+        },
+    };
+})(BucketedLeaderboard || (BucketedLeaderboard = {}));
+var WeeklyGetRecordsRPC = function (ctx, logger, nk) {
+    var _a;
+    var collection = "Buckets";
+    var key = "Bucket";
+    var objects = nk.storageRead([
+        {
+            collection: collection,
+            key: key,
+            userId: ctx.userId,
+        },
+    ]);
+    // Fetch any existing bucket or create one if none exist
+    var userBucket = {
+        resetTimeUnix: 0,
+        userIds: [],
+    };
+    if (objects.length > 0) {
+        userBucket = objects[0]
+            .value;
+    }
+    // Fetch the tournament leaderboard
+    var leaderboards = nk.tournamentsGetId([
+        BucketedLeaderboard.configs.weekly.tournamentID,
+    ]);
+    // Leaderboard has reset or no current bucket exists for user
+    if (userBucket.resetTimeUnix != leaderboards[0].endActive ||
+        userBucket.userIds.length < 1) {
+        var users = nk.usersGetRandom(BucketedLeaderboard.configs.weekly.bucketSize);
+        users.forEach(function (user) {
+            userBucket.userIds.push(user.userId);
+        });
+        // Set the Reset and Bucket end times to be in sync
+        userBucket.resetTimeUnix = leaderboards[0].endActive;
+        // Store generated bucket for the user
+        nk.storageWrite([
+            {
+                collection: collection,
+                key: key,
+                userId: ctx.userId,
+                value: userBucket,
+                permissionRead: 0,
+                permissionWrite: 0,
+            },
+        ]);
+    }
+    // Add self to the list of leaderboard records to fetch
+    userBucket.userIds.push(ctx.userId);
+    var accounts = nk.accountsGetId(userBucket.userIds);
+    var records = nk.tournamentRecordsList(BucketedLeaderboard.configs.weekly.tournamentID, userBucket.userIds, BucketedLeaderboard.configs.weekly.bucketSize);
+    var userIDS = (_a = records.ownerRecords) === null || _a === void 0 ? void 0 : _a.map(function (record) {
+        return record.ownerId;
+    });
+    accounts.map(function (account) {
+        var _a;
+        var userId = account.user.userId;
+        var username = account.user.username;
+        if (!userIDS)
+            nk.tournamentRecordWrite(BucketedLeaderboard.configs.weekly.tournamentID, userId, username, 0);
+        else {
+            var user = (_a = records.ownerRecords) === null || _a === void 0 ? void 0 : _a.filter(function (r) { return r.ownerId === userId; });
+            var score = !user ? 0 : user[0] ? user[0].score : 0;
+            nk.tournamentRecordWrite(BucketedLeaderboard.configs.weekly.tournamentID, userId, username, score);
+        }
+    });
+    // Get the leaderboard records
+    var finalRecords = nk.tournamentRecordsList(BucketedLeaderboard.configs.weekly.tournamentID, userBucket.userIds, BucketedLeaderboard.configs.weekly.bucketSize);
+    return JSON.stringify(finalRecords);
+};
+// const RpcGetBucketRecordsFn = function (
+//   ids: string[],
+//   bucketSize: number
+// ): nkruntime.RpcFunction {
+//   return function (
+//     ctx: nkruntime.Context,
+//     logger: nkruntime.Logger,
+//     nk: nkruntime.Nakama,
+//     payload: string
+//   ): string | void {
+//     if (payload) {
+//       throw new Error("no payload input allowed");
+//     }
+//     const collection = "Buckets";
+//     const key = "Bucket";
+//     const objects = nk.storageRead([
+//       {
+//         collection,
+//         key,
+//         userId: ctx.userId,
+//       },
+//     ]);
+//     // Fetch any existing bucket or create one if none exist
+//     let userBucket: BucketedLeaderboard.UserBucketStorageObject = {
+//       resetTimeUnix: 0,
+//       userIds: [],
+//     };
+//     if (objects.length > 0) {
+//       userBucket = objects[0]
+//         .value as BucketedLeaderboard.UserBucketStorageObject;
+//     }
+//     // Fetch the tournament leaderboard
+//     const leaderboards = nk.tournamentsGetId(ids);
+//     // Leaderboard has reset or no current bucket exists for user
+//     if (
+//       userBucket.resetTimeUnix != leaderboards[0].endActive ||
+//       userBucket.userIds.length < 1
+//     ) {
+//       logger.debug(`RpcGetBucketRecordsFn new bucket for ${ctx.userId}`);
+//       const users = nk.usersGetRandom(bucketSize);
+//       users.forEach(function (user: nkruntime.User) {
+//         userBucket.userIds.push(user.userId);
+//       });
+//       // Set the Reset and Bucket end times to be in sync
+//       userBucket.resetTimeUnix = leaderboards[0].endActive;
+//       // Store generated bucket for the user
+//       nk.storageWrite([
+//         {
+//           collection,
+//           key,
+//           userId: ctx.userId,
+//           value: userBucket,
+//           permissionRead: 0,
+//           permissionWrite: 0,
+//         },
+//       ]);
+//     }
+//     // Add self to the list of leaderboard records to fetch
+//     userBucket.userIds.push(ctx.userId);
+//     // Get the leaderboard records
+//     const records = nk.tournamentRecordsList(
+//       ids[0],
+//       userBucket.userIds,
+//       bucketSize
+//     );
+//     const result = JSON.stringify(records);
+//     logger.debug(`RpcGetBucketRecordsFn resp: ${result}`);
+//     return JSON.stringify(records);
+//   };
+// };
+var Leaderboards;
+(function (Leaderboards) {
+    Leaderboards.configs = {
+        global: {
+            leaderboardID: "Global",
+            authoritative: true,
+            sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
+            operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
+            resetSchedule: null,
+        },
+        PMC: {
+            leaderboardID: "PMC",
+            authoritative: true,
+            sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
+            operator: "set" /* nkruntime.Operator.SET */,
+            resetSchedule: "0 0 * * 1", // Every Monday at 00:00
+        },
+    };
+    var Leaderboard = /** @class */ (function () {
+        function Leaderboard(config) {
+            this.config = config;
+        }
+        Leaderboard.prototype.initialize = function (nk, logger) {
+            try {
+                nk.leaderboardCreate(this.config.leaderboardID, this.config.authoritative, this.config.sortOrder, this.config.operator, this.config.resetSchedule, this.config.metadata);
+                logger.info("".concat(this.config.leaderboardID, " leaderboard created"));
+            }
+            catch (error) {
+                logger.error("failed to create ".concat(this.config.leaderboardID, " leaderboard"));
+            }
+        };
+        return Leaderboard;
+    }());
+    Leaderboards.Leaderboard = Leaderboard;
+    Leaderboards.initalizeLeaderboards = function (nk, logger) {
+        for (var _i = 0, _a = Object.keys(Leaderboards.configs); _i < _a.length; _i++) {
+            var key = _a[_i];
+            var conf = Leaderboards.configs[key];
+            new Leaderboard(conf).initialize(nk, logger);
+        }
+    };
+})(Leaderboards || (Leaderboards = {}));
+var updateScore = function (ctx, logger, nk, payload) {
+    try {
+        if (ctx.userId)
+            throw Error("Unauthorized");
+        var data = JSON.parse(payload);
+        logger.debug(payload);
+        nk.leaderboardRecordWrite(Leaderboards.configs.PMC.leaderboardID, data.userId, data.username, data.score);
+    }
+    catch (error) {
+        logger.error(error.message);
+    }
 };
 var cryptoWalletIndex = function (initializer) {
     var name = "crypto-wallet";
