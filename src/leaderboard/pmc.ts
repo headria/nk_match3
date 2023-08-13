@@ -4,13 +4,15 @@ namespace Leaderboards {
     username?: string;
     score: number;
   }
+}
 
-  export const updateScore: nkruntime.RpcFunction = (
-    ctx: nkruntime.Context,
-    logger: nkruntime.Logger,
-    nk: nkruntime.Nakama,
-    payload: string
-  ) => {
+const updateScore: nkruntime.RpcFunction = (
+  ctx: nkruntime.Context,
+  logger: nkruntime.Logger,
+  nk: nkruntime.Nakama,
+  payload: string
+): string | void => {
+  try {
     if (ctx.userId) throw Error("Unauthorized");
     const data: Leaderboards.UserScore = JSON.parse(payload);
     logger.debug(payload);
@@ -20,5 +22,7 @@ namespace Leaderboards {
       data.username,
       data.score
     );
-  };
-}
+  } catch (error: any) {
+    logger.error(error.message);
+  }
+};
