@@ -672,8 +672,10 @@ var levelValidatorRPC = function (ctx, logger, nk, payload) {
         var validator = new LevelValidation.Validator();
         var cheats = validator.cheatCheck(levelLog);
         var lastLevel = GameApi.LastLevel.get(nk, userId);
-        if (levelLog.atEnd.result === "win")
+        if (levelLog.atEnd.result === "win") {
             GameApi.LastLevel.set(nk, userId, lastLevel + 1);
+            Leaderboards.UpdateLeaderboards(nk, userId, ctx.username, levelLog);
+        }
         cheats.push.apply(cheats, LevelValidation.Validator.checkLevel(levelLog.levelNumber, lastLevel));
         if (cheats.length > 0) {
             GameApi.Cheat.write(nk, levelLog.levelNumber, userId, cheats);
@@ -683,11 +685,8 @@ var levelValidatorRPC = function (ctx, logger, nk, payload) {
         var wallet_1 = nk.storageRead([
             { collection: "Economy", key: "Wallet", userId: userId },
         ])[0].value;
-        logger.debug(JSON.stringify(Object.keys(extractData)));
-        logger.debug(JSON.stringify(Object.keys(wallet_1)));
         extractData.map(function (item) {
             try {
-                logger.debug("".concat(item.id, "  ").concat(item.quantity));
                 if (typeof wallet_1[item.id] === "number")
                     wallet_1[item.id] = item.quantity;
                 else
@@ -707,8 +706,6 @@ var levelValidatorRPC = function (ctx, logger, nk, payload) {
                 permissionWrite: 0,
             },
         ]);
-        Leaderboards.UpdateLeaderboards(nk, userId, ctx.username, levelLog);
-        // logger.debug("Inventory Updated");
     }
     catch (error) {
         throw new Error("failed to validate level: ".concat(error.message));
