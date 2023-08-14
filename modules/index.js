@@ -254,6 +254,16 @@ var Leaderboards;
             new Leaderboard(conf).initialize(nk, logger);
         }
     };
+    var updateGlobal = function (nk, userId, username, score, subScore) {
+        nk.leaderboardRecordWrite(Leaderboards.configs.global.leaderboardID, userId, username, score, subScore);
+    };
+    var updateWeekly = function (nk, userId, username, score, subScore) {
+        nk.tournamentRecordWrite(BucketedLeaderboard.configs.weekly.tournamentID, userId, username, score, subScore);
+    };
+    Leaderboards.UpdateLeaderboards = function (nk, userId, username, levelLog) {
+        updateGlobal(nk, userId, username, 1, 0);
+        updateWeekly(nk, userId, username, 1, 0);
+    };
 })(Leaderboards || (Leaderboards = {}));
 var updateScore = function (ctx, logger, nk, payload) {
     try {
@@ -508,7 +518,7 @@ var LevelValidation;
     ];
     LevelValidation.Boosters = [
         { name: "TNT", index: 0 },
-        { name: "Discoball", index: 1 },
+        { name: "DiscoBall", index: 1 },
         { name: "Rocket", index: 2 },
     ];
     var Validator = /** @class */ (function () {
@@ -673,8 +683,11 @@ var levelValidatorRPC = function (ctx, logger, nk, payload) {
         var wallet_1 = nk.storageRead([
             { collection: "Economy", key: "Wallet", userId: userId },
         ])[0].value;
+        logger.debug(JSON.stringify(Object.keys(extractData)));
+        logger.debug(JSON.stringify(Object.keys(wallet_1)));
         extractData.map(function (item) {
             try {
+                logger.debug("".concat(item.id, "  ").concat(item.quantity));
                 if (typeof wallet_1[item.id] === "number")
                     wallet_1[item.id] = item.quantity;
                 else
@@ -694,6 +707,7 @@ var levelValidatorRPC = function (ctx, logger, nk, payload) {
                 permissionWrite: 0,
             },
         ]);
+        Leaderboards.UpdateLeaderboards(nk, userId, ctx.username, levelLog);
         // logger.debug("Inventory Updated");
     }
     catch (error) {
