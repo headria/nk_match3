@@ -108,7 +108,7 @@ const WeeklyGetRecordsRPC: nkruntime.RpcFunction = (
   nk: nkruntime.Nakama
 ): string => {
   const collection = "Buckets";
-  const key = "Bucket";
+  const key = "Weekly";
   const objects = nk.storageRead([
     {
       collection,
@@ -166,35 +166,28 @@ const WeeklyGetRecordsRPC: nkruntime.RpcFunction = (
 
   const accounts = nk.accountsGetId(userBucket.userIds);
 
-  const records = nk.tournamentRecordsList(
+  const recordsList = nk.tournamentRecordsList(
     BucketedLeaderboard.configs.weekly.tournamentID,
     userBucket.userIds,
     BucketedLeaderboard.configs.weekly.bucketSize
   );
-  const userIDS = records.ownerRecords?.map((record) => {
+  const userIDS = recordsList.records?.map((record) => {
     return record.ownerId;
   });
-  accounts.map((account: nkruntime.Account) => {
-    const userId = account.user.userId;
-    const username = account.user.username;
-    if (!userIDS)
+
+  for (const acc of accounts) {
+    const userId = acc.user.userId;
+    const username = acc.user.username;
+
+    if (!userIDS || userIDS.indexOf(userId) === -1) {
       nk.tournamentRecordWrite(
         BucketedLeaderboard.configs.weekly.tournamentID,
         userId,
         username,
         0
       );
-    else {
-      const user = records.ownerRecords?.filter((r) => r.ownerId === userId);
-      const score = !user ? 0 : user[0] ? user[0].score : 0;
-      nk.tournamentRecordWrite(
-        BucketedLeaderboard.configs.weekly.tournamentID,
-        userId,
-        username,
-        score
-      );
     }
-  });
+  }
 
   // Get the leaderboard records
   const finalRecords = nk.tournamentRecordsList(
@@ -203,7 +196,7 @@ const WeeklyGetRecordsRPC: nkruntime.RpcFunction = (
     BucketedLeaderboard.configs.weekly.bucketSize
   );
 
-  return JSON.stringify(finalRecords);
+  return JSON.stringify(finalRecords.records);
 };
 
 // const RpcGetBucketRecordsFn = function (

@@ -78,7 +78,7 @@ var BucketedLeaderboard;
 var WeeklyGetRecordsRPC = function (ctx, logger, nk) {
     var _a;
     var collection = "Buckets";
-    var key = "Bucket";
+    var key = "Weekly";
     var objects = nk.storageRead([
         {
             collection: collection,
@@ -123,25 +123,21 @@ var WeeklyGetRecordsRPC = function (ctx, logger, nk) {
     // Add self to the list of leaderboard records to fetch
     userBucket.userIds.push(ctx.userId);
     var accounts = nk.accountsGetId(userBucket.userIds);
-    var records = nk.tournamentRecordsList(BucketedLeaderboard.configs.weekly.tournamentID, userBucket.userIds, BucketedLeaderboard.configs.weekly.bucketSize);
-    var userIDS = (_a = records.ownerRecords) === null || _a === void 0 ? void 0 : _a.map(function (record) {
+    var recordsList = nk.tournamentRecordsList(BucketedLeaderboard.configs.weekly.tournamentID, userBucket.userIds, BucketedLeaderboard.configs.weekly.bucketSize);
+    var userIDS = (_a = recordsList.records) === null || _a === void 0 ? void 0 : _a.map(function (record) {
         return record.ownerId;
     });
-    accounts.map(function (account) {
-        var _a;
-        var userId = account.user.userId;
-        var username = account.user.username;
-        if (!userIDS)
+    for (var _i = 0, accounts_1 = accounts; _i < accounts_1.length; _i++) {
+        var acc = accounts_1[_i];
+        var userId = acc.user.userId;
+        var username = acc.user.username;
+        if (!userIDS || userIDS.indexOf(userId) === -1) {
             nk.tournamentRecordWrite(BucketedLeaderboard.configs.weekly.tournamentID, userId, username, 0);
-        else {
-            var user = (_a = records.ownerRecords) === null || _a === void 0 ? void 0 : _a.filter(function (r) { return r.ownerId === userId; });
-            var score = !user ? 0 : user[0] ? user[0].score : 0;
-            nk.tournamentRecordWrite(BucketedLeaderboard.configs.weekly.tournamentID, userId, username, score);
         }
-    });
+    }
     // Get the leaderboard records
     var finalRecords = nk.tournamentRecordsList(BucketedLeaderboard.configs.weekly.tournamentID, userBucket.userIds, BucketedLeaderboard.configs.weekly.bucketSize);
-    return JSON.stringify(finalRecords);
+    return JSON.stringify(finalRecords.records);
 };
 // const RpcGetBucketRecordsFn = function (
 //   ids: string[],
@@ -672,8 +668,10 @@ var levelValidatorRPC = function (ctx, logger, nk, payload) {
         var validator = new LevelValidation.Validator();
         var cheats = validator.cheatCheck(levelLog);
         var lastLevel = GameApi.LastLevel.get(nk, userId);
-        if (levelLog.atEnd.result === "win")
+        if (levelLog.atEnd.result === "win") {
             GameApi.LastLevel.set(nk, userId, lastLevel + 1);
+            Leaderboards.UpdateLeaderboards(nk, userId, ctx.username, levelLog);
+        }
         cheats.push.apply(cheats, LevelValidation.Validator.checkLevel(levelLog.levelNumber, lastLevel));
         if (cheats.length > 0) {
             GameApi.Cheat.write(nk, levelLog.levelNumber, userId, cheats);
@@ -683,11 +681,8 @@ var levelValidatorRPC = function (ctx, logger, nk, payload) {
         var wallet_1 = nk.storageRead([
             { collection: "Economy", key: "Wallet", userId: userId },
         ])[0].value;
-        logger.debug(JSON.stringify(Object.keys(extractData)));
-        logger.debug(JSON.stringify(Object.keys(wallet_1)));
         extractData.map(function (item) {
             try {
-                logger.debug("".concat(item.id, "  ").concat(item.quantity));
                 if (typeof wallet_1[item.id] === "number")
                     wallet_1[item.id] = item.quantity;
                 else
@@ -707,8 +702,6 @@ var levelValidatorRPC = function (ctx, logger, nk, payload) {
                 permissionWrite: 0,
             },
         ]);
-        Leaderboards.UpdateLeaderboards(nk, userId, ctx.username, levelLog);
-        // logger.debug("Inventory Updated");
     }
     catch (error) {
         throw new Error("failed to validate level: ".concat(error.message));
