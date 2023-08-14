@@ -78,7 +78,7 @@ var BucketedLeaderboard;
 var WeeklyGetRecordsRPC = function (ctx, logger, nk) {
     var _a;
     var collection = "Buckets";
-    var key = "Bucket";
+    var key = "Weekly";
     var objects = nk.storageRead([
         {
             collection: collection,
@@ -123,25 +123,21 @@ var WeeklyGetRecordsRPC = function (ctx, logger, nk) {
     // Add self to the list of leaderboard records to fetch
     userBucket.userIds.push(ctx.userId);
     var accounts = nk.accountsGetId(userBucket.userIds);
-    var records = nk.tournamentRecordsList(BucketedLeaderboard.configs.weekly.tournamentID, userBucket.userIds, BucketedLeaderboard.configs.weekly.bucketSize);
-    var userIDS = (_a = records.ownerRecords) === null || _a === void 0 ? void 0 : _a.map(function (record) {
+    var recordsList = nk.tournamentRecordsList(BucketedLeaderboard.configs.weekly.tournamentID, userBucket.userIds, BucketedLeaderboard.configs.weekly.bucketSize);
+    var userIDS = (_a = recordsList.records) === null || _a === void 0 ? void 0 : _a.map(function (record) {
         return record.ownerId;
     });
-    accounts.map(function (account) {
-        var _a;
-        var userId = account.user.userId;
-        var username = account.user.username;
-        if (!userIDS)
+    for (var _i = 0, accounts_1 = accounts; _i < accounts_1.length; _i++) {
+        var acc = accounts_1[_i];
+        var userId = acc.user.userId;
+        var username = acc.user.username;
+        if (!userIDS || userIDS.indexOf(userId) === -1) {
             nk.tournamentRecordWrite(BucketedLeaderboard.configs.weekly.tournamentID, userId, username, 0);
-        else {
-            var user = (_a = records.ownerRecords) === null || _a === void 0 ? void 0 : _a.filter(function (r) { return r.ownerId === userId; });
-            var score = !user ? 0 : user[0] ? user[0].score : 0;
-            nk.tournamentRecordWrite(BucketedLeaderboard.configs.weekly.tournamentID, userId, username, score);
         }
-    });
+    }
     // Get the leaderboard records
     var finalRecords = nk.tournamentRecordsList(BucketedLeaderboard.configs.weekly.tournamentID, userBucket.userIds, BucketedLeaderboard.configs.weekly.bucketSize);
-    return JSON.stringify(finalRecords);
+    return JSON.stringify(finalRecords.records);
 };
 // const RpcGetBucketRecordsFn = function (
 //   ids: string[],

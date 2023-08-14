@@ -108,7 +108,7 @@ const WeeklyGetRecordsRPC: nkruntime.RpcFunction = (
   nk: nkruntime.Nakama
 ): string => {
   const collection = "Buckets";
-  const key = "Bucket";
+  const key = "Weekly";
   const objects = nk.storageRead([
     {
       collection,
@@ -166,35 +166,28 @@ const WeeklyGetRecordsRPC: nkruntime.RpcFunction = (
 
   const accounts = nk.accountsGetId(userBucket.userIds);
 
-  const records = nk.tournamentRecordsList(
+  const recordsList = nk.tournamentRecordsList(
     BucketedLeaderboard.configs.weekly.tournamentID,
     userBucket.userIds,
     BucketedLeaderboard.configs.weekly.bucketSize
   );
-  const userIDS = records.ownerRecords?.map((record) => {
+  const userIDS = recordsList.records?.map((record) => {
     return record.ownerId;
   });
-  accounts.map((account: nkruntime.Account) => {
-    const userId = account.user.userId;
-    const username = account.user.username;
-    if (!userIDS)
+
+  for (const acc of accounts) {
+    const userId = acc.user.userId;
+    const username = acc.user.username;
+
+    if (!userIDS || userIDS.indexOf(userId) === -1) {
       nk.tournamentRecordWrite(
         BucketedLeaderboard.configs.weekly.tournamentID,
         userId,
         username,
         0
       );
-    else {
-      const user = records.ownerRecords?.filter((r) => r.ownerId === userId);
-      const score = !user ? 0 : user[0] ? user[0].score : 0;
-      nk.tournamentRecordWrite(
-        BucketedLeaderboard.configs.weekly.tournamentID,
-        userId,
-        username,
-        score
-      );
     }
-  });
+  }
 
   // Get the leaderboard records
   const finalRecords = nk.tournamentRecordsList(
@@ -203,88 +196,5 @@ const WeeklyGetRecordsRPC: nkruntime.RpcFunction = (
     BucketedLeaderboard.configs.weekly.bucketSize
   );
 
-  return JSON.stringify(finalRecords);
+  return JSON.stringify(finalRecords.records);
 };
-
-// const RpcGetBucketRecordsFn = function (
-//   ids: string[],
-//   bucketSize: number
-// ): nkruntime.RpcFunction {
-//   return function (
-//     ctx: nkruntime.Context,
-//     logger: nkruntime.Logger,
-//     nk: nkruntime.Nakama,
-//     payload: string
-//   ): string | void {
-//     if (payload) {
-//       throw new Error("no payload input allowed");
-//     }
-
-//     const collection = "Buckets";
-//     const key = "Bucket";
-
-//     const objects = nk.storageRead([
-//       {
-//         collection,
-//         key,
-//         userId: ctx.userId,
-//       },
-//     ]);
-
-//     // Fetch any existing bucket or create one if none exist
-//     let userBucket: BucketedLeaderboard.UserBucketStorageObject = {
-//       resetTimeUnix: 0,
-//       userIds: [],
-//     };
-
-//     if (objects.length > 0) {
-//       userBucket = objects[0]
-//         .value as BucketedLeaderboard.UserBucketStorageObject;
-//     }
-
-//     // Fetch the tournament leaderboard
-//     const leaderboards = nk.tournamentsGetId(ids);
-
-//     // Leaderboard has reset or no current bucket exists for user
-//     if (
-//       userBucket.resetTimeUnix != leaderboards[0].endActive ||
-//       userBucket.userIds.length < 1
-//     ) {
-//       logger.debug(`RpcGetBucketRecordsFn new bucket for ${ctx.userId}`);
-//       const users = nk.usersGetRandom(bucketSize);
-//       users.forEach(function (user: nkruntime.User) {
-//         userBucket.userIds.push(user.userId);
-//       });
-
-//       // Set the Reset and Bucket end times to be in sync
-//       userBucket.resetTimeUnix = leaderboards[0].endActive;
-
-//       // Store generated bucket for the user
-//       nk.storageWrite([
-//         {
-//           collection,
-//           key,
-//           userId: ctx.userId,
-//           value: userBucket,
-//           permissionRead: 0,
-//           permissionWrite: 0,
-//         },
-//       ]);
-//     }
-
-//     // Add self to the list of leaderboard records to fetch
-//     userBucket.userIds.push(ctx.userId);
-
-//     // Get the leaderboard records
-//     const records = nk.tournamentRecordsList(
-//       ids[0],
-//       userBucket.userIds,
-//       bucketSize
-//     );
-
-//     const result = JSON.stringify(records);
-//     logger.debug(`RpcGetBucketRecordsFn resp: ${result}`);
-
-//     return JSON.stringify(records);
-//   };
-// };
