@@ -40,7 +40,7 @@ namespace LevelValidation {
   ];
   export const Boosters = [
     { name: "TNT", index: 0 },
-    { name: "Discoball", index: 1 },
+    { name: "DiscoBall", index: 1 },
     { name: "Rocket", index: 2 },
   ];
 
@@ -263,8 +263,10 @@ const levelValidatorRPC: nkruntime.RpcFunction = (
     const cheats = validator.cheatCheck(levelLog);
 
     const lastLevel = GameApi.LastLevel.get(nk, userId);
-    if (levelLog.atEnd.result === "win")
+    if (levelLog.atEnd.result === "win") {
       GameApi.LastLevel.set(nk, userId, lastLevel + 1);
+      Leaderboards.UpdateLeaderboards(nk, userId, ctx.username, levelLog);
+    }
 
     cheats.push(
       ...LevelValidation.Validator.checkLevel(levelLog.levelNumber, lastLevel)
@@ -300,7 +302,6 @@ const levelValidatorRPC: nkruntime.RpcFunction = (
         permissionWrite: 0,
       },
     ]);
-    // logger.debug("Inventory Updated");
   } catch (error: any) {
     throw new Error(`failed to validate level: ${error.message}`);
   }

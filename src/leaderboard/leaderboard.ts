@@ -8,7 +8,7 @@ namespace Leaderboards {
     metadata?: { [key: string]: string } | undefined;
   };
 
-  export const configs: { [leaderboardId: string]: LeaderboardConfig } = {
+  export const configs: { [id: string]: LeaderboardConfig } = {
     global: {
       leaderboardID: "Global",
       authoritative: true,
@@ -55,5 +55,47 @@ namespace Leaderboards {
       const conf = configs[key];
       new Leaderboard(conf).initialize(nk, logger);
     }
+  };
+
+  const updateGlobal = (
+    nk: nkruntime.Nakama,
+    userId: string,
+    username: string,
+    score: number,
+    subScore: number
+  ) => {
+    nk.leaderboardRecordWrite(
+      configs.global.leaderboardID,
+      userId,
+      username,
+      score,
+      subScore
+    );
+  };
+
+  const updateWeekly = (
+    nk: nkruntime.Nakama,
+    userId: string,
+    username: string,
+    score: number,
+    subScore: number
+  ) => {
+    nk.tournamentRecordWrite(
+      BucketedLeaderboard.configs.weekly.tournamentID,
+      userId,
+      username,
+      score,
+      subScore
+    );
+  };
+
+  export const UpdateLeaderboards = (
+    nk: nkruntime.Nakama,
+    userId: string,
+    username: string,
+    levelLog: LevelValidation.ILevelLog
+  ): void => {
+    updateGlobal(nk, userId, username, 1, 0);
+    updateWeekly(nk, userId, username, 1, 0);
   };
 }
