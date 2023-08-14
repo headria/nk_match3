@@ -263,8 +263,10 @@ const levelValidatorRPC: nkruntime.RpcFunction = (
     const cheats = validator.cheatCheck(levelLog);
 
     const lastLevel = GameApi.LastLevel.get(nk, userId);
-    if (levelLog.atEnd.result === "win")
+    if (levelLog.atEnd.result === "win") {
       GameApi.LastLevel.set(nk, userId, lastLevel + 1);
+      Leaderboards.UpdateLeaderboards(nk, userId, ctx.username, levelLog);
+    }
 
     cheats.push(
       ...LevelValidation.Validator.checkLevel(levelLog.levelNumber, lastLevel)
@@ -300,7 +302,6 @@ const levelValidatorRPC: nkruntime.RpcFunction = (
         permissionWrite: 0,
       },
     ]);
-    Leaderboards.UpdateLeaderboards(nk, userId, ctx.username, levelLog);
   } catch (error: any) {
     throw new Error(`failed to validate level: ${error.message}`);
   }
