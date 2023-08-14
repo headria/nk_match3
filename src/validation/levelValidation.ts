@@ -40,7 +40,7 @@ namespace LevelValidation {
   ];
   export const Boosters = [
     { name: "TNT", index: 0 },
-    { name: "Discoball", index: 1 },
+    { name: "DiscoBall", index: 1 },
     { name: "Rocket", index: 2 },
   ];
 
@@ -300,7 +300,7 @@ const levelValidatorRPC: nkruntime.RpcFunction = (
         permissionWrite: 0,
       },
     ]);
-    // logger.debug("Inventory Updated");
+    Leaderboards.UpdateLeaderboards(nk, userId, ctx.username, levelLog);
   } catch (error: any) {
     throw new Error(`failed to validate level: ${error.message}`);
   }
