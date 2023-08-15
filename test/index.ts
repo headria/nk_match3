@@ -3,7 +3,7 @@ import { v4 } from "uuid";
 import { encode } from "js-base64";
 import { ApiUpdateAccountRequest } from "@heroiclabs/nakama-js/dist/api.gen";
 
-var client = new Client("defaultkey", "nk.planetmemes.com", "443", true);
+var client = new Client("defaultkey", "127.0.0.1", "7350");
 
 const newUser = async (): Promise<void> => {
   const deviceId = v4();
@@ -11,15 +11,7 @@ const newUser = async (): Promise<void> => {
   try {
     await client.authenticateDevice(deviceId, true, "headria");
   } catch (err: any) {
-    console.log(
-      "Error authenticating device: %o:%o",
-      err.statusCode,
-      err.message,
-      err.bodyUsed,
-      err.status,
-      err.url,
-      err.body
-    );
+    console.log("Error authenticating device: %o:%o", err);
   }
 };
 const updateAccount = async () => {
@@ -73,4 +65,4 @@ const updateWallet = async () => {
   }
 };
 
-updateWallet();
+newUser();
