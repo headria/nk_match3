@@ -138,16 +138,8 @@ const WeeklyGetRecordsRPC: nkruntime.RpcFunction = (
     userBucket.resetTimeUnix != leaderboards[0].endActive ||
     userBucket.userIds.length < 1
   ) {
-    const users = nk.usersGetRandom(
-      BucketedLeaderboard.configs.weekly.bucketSize
-    );
-    users.forEach(function (user: nkruntime.User) {
-      userBucket.userIds.push(user.userId);
-    });
-
     // Set the Reset and Bucket end times to be in sync
     userBucket.resetTimeUnix = leaderboards[0].endActive;
-
     // Store generated bucket for the user
     nk.storageWrite([
       {

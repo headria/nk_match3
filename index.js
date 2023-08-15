@@ -110,7 +110,7 @@ var BucketedLeaderboard;
 var WeeklyGetRecordsRPC = function (ctx, logger, nk) {
   var _a;
   var collection = "Buckets";
-  var key = "Bucket";
+  var key = "Weekly";
   var objects = nk.storageRead([
     {
       collection: collection,
@@ -135,12 +135,6 @@ var WeeklyGetRecordsRPC = function (ctx, logger, nk) {
     userBucket.resetTimeUnix != leaderboards[0].endActive ||
     userBucket.userIds.length < 1
   ) {
-    var users = nk.usersGetRandom(
-      BucketedLeaderboard.configs.weekly.bucketSize
-    );
-    users.forEach(function (user) {
-      userBucket.userIds.push(user.userId);
-    });
     // Set the Reset and Bucket end times to be in sync
     userBucket.resetTimeUnix = leaderboards[0].endActive;
     // Store generated bucket for the user
@@ -158,122 +152,38 @@ var WeeklyGetRecordsRPC = function (ctx, logger, nk) {
   // Add self to the list of leaderboard records to fetch
   userBucket.userIds.push(ctx.userId);
   var accounts = nk.accountsGetId(userBucket.userIds);
-  var records = nk.tournamentRecordsList(
+  var recordsList = nk.tournamentRecordsList(
     BucketedLeaderboard.configs.weekly.tournamentID,
     userBucket.userIds,
     BucketedLeaderboard.configs.weekly.bucketSize
   );
   var userIDS =
-    (_a = records.ownerRecords) === null || _a === void 0
+    (_a = recordsList.records) === null || _a === void 0
       ? void 0
       : _a.map(function (record) {
           return record.ownerId;
         });
-  accounts.map(function (account) {
-    var _a;
-    var userId = account.user.userId;
-    var username = account.user.username;
-    if (!userIDS)
+  for (var _i = 0, accounts_1 = accounts; _i < accounts_1.length; _i++) {
+    var acc = accounts_1[_i];
+    var userId = acc.user.userId;
+    var username = acc.user.username;
+    if (!userIDS || userIDS.indexOf(userId) === -1) {
       nk.tournamentRecordWrite(
         BucketedLeaderboard.configs.weekly.tournamentID,
         userId,
         username,
         0
       );
-    else {
-      var user =
-        (_a = records.ownerRecords) === null || _a === void 0
-          ? void 0
-          : _a.filter(function (r) {
-              return r.ownerId === userId;
-            });
-      var score = !user ? 0 : user[0] ? user[0].score : 0;
-      nk.tournamentRecordWrite(
-        BucketedLeaderboard.configs.weekly.tournamentID,
-        userId,
-        username,
-        score
-      );
     }
-  });
+  }
   // Get the leaderboard records
   var finalRecords = nk.tournamentRecordsList(
     BucketedLeaderboard.configs.weekly.tournamentID,
     userBucket.userIds,
     BucketedLeaderboard.configs.weekly.bucketSize
   );
-  return JSON.stringify(finalRecords);
+  return JSON.stringify(finalRecords.records);
 };
-// const RpcGetBucketRecordsFn = function (
-//   ids: string[],
-//   bucketSize: number
-// ): nkruntime.RpcFunction {
-//   return function (
-//     ctx: nkruntime.Context,
-//     logger: nkruntime.Logger,
-//     nk: nkruntime.Nakama,
-//     payload: string
-//   ): string | void {
-//     if (payload) {
-//       throw new Error("no payload input allowed");
-//     }
-//     const collection = "Buckets";
-//     const key = "Bucket";
-//     const objects = nk.storageRead([
-//       {
-//         collection,
-//         key,
-//         userId: ctx.userId,
-//       },
-//     ]);
-//     // Fetch any existing bucket or create one if none exist
-//     let userBucket: BucketedLeaderboard.UserBucketStorageObject = {
-//       resetTimeUnix: 0,
-//       userIds: [],
-//     };
-//     if (objects.length > 0) {
-//       userBucket = objects[0]
-//         .value as BucketedLeaderboard.UserBucketStorageObject;
-//     }
-//     // Fetch the tournament leaderboard
-//     const leaderboards = nk.tournamentsGetId(ids);
-//     // Leaderboard has reset or no current bucket exists for user
-//     if (
-//       userBucket.resetTimeUnix != leaderboards[0].endActive ||
-//       userBucket.userIds.length < 1
-//     ) {
-//       logger.debug(`RpcGetBucketRecordsFn new bucket for ${ctx.userId}`);
-//       const users = nk.usersGetRandom(bucketSize);
-//       users.forEach(function (user: nkruntime.User) {
-//         userBucket.userIds.push(user.userId);
-//       });
-//       // Set the Reset and Bucket end times to be in sync
-//       userBucket.resetTimeUnix = leaderboards[0].endActive;
-//       // Store generated bucket for the user
-//       nk.storageWrite([
-//         {
-//           collection,
-//           key,
-//           userId: ctx.userId,
-//           value: userBucket,
-//           permissionRead: 0,
-//           permissionWrite: 0,
-//         },
-//       ]);
-//     }
-//     // Add self to the list of leaderboard records to fetch
-//     userBucket.userIds.push(ctx.userId);
-//     // Get the leaderboard records
-//     const records = nk.tournamentRecordsList(
-//       ids[0],
-//       userBucket.userIds,
-//       bucketSize
-//     );
-//     const result = JSON.stringify(records);
-//     logger.debug(`RpcGetBucketRecordsFn resp: ${result}`);
-//     return JSON.stringify(records);
-//   };
-// };
 var Leaderboards;
 (function (Leaderboards) {
   Leaderboards.configs = {
