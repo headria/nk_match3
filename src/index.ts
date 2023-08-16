@@ -7,12 +7,14 @@ const InitModule: nkruntime.InitModule = function (
   //register storage index
   cryptoWalletIndex(initializer);
 
+  //initialize bucket
+  Bucket.InitBucket(nk);
   //initiate user wallet
   initializer.registerAfterAuthenticateDevice(InitiateUser);
 
   //create Leaderboards
   Leaderboards.initalizeLeaderboards(nk, logger);
-  BucketedLeaderboard.initializeLeaderboards(nk, initializer);
+  Bucket.initializeLeaderboards(nk, initializer);
 
   //Register Leaderboards rpcs
   initializer.registerRpc("leaderboard/setRecord/pmc", updateScore);
