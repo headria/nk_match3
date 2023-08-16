@@ -81,7 +81,7 @@ namespace Leaderboards {
     subScore: number
   ) => {
     nk.tournamentRecordWrite(
-      BucketedLeaderboard.configs.weekly.tournamentID,
+      Bucket.configs.weekly.tournamentID,
       userId,
       username,
       score,
