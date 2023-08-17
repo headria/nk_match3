@@ -7,8 +7,11 @@ const InitModule: nkruntime.InitModule = function (
   //register storage index
   cryptoWalletIndex(initializer);
 
+  //initialize shop
+  initShop(nk);
+
   //initialize bucket
-  Bucket.InitBucket(nk);
+  Bucket.InitBucket(nk, logger);
   //initiate user wallet
   initializer.registerAfterAuthenticateDevice(InitiateUser);
 
