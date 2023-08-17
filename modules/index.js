@@ -109,7 +109,8 @@ var Bucket;
             tournamentID: "Weekly",
             authoritative: true,
             category: Category.WEEKLY,
-            duration: 7 * 24 * 60 * 60,
+            // duration: 7 * 24 * 60 * 60,
+            duration: 15 * 60,
             description: "",
             bucketSize: 10,
             endTime: null,
@@ -293,7 +294,7 @@ var Bucket;
         }
     }
     Bucket.setUserBucket = setUserBucket;
-    function getUserBucketRecords(nk, config, userId) {
+    function getUserBucketRecords(nk, config, userId, time) {
         try {
             var collection = Bucket.storage.collection;
             var leaderBoadrdId = config.tournamentID;
@@ -305,7 +306,7 @@ var Bucket;
                 return null;
             var id = userBucket[0].value.id;
             var bucket = Bucket.getBucketById(nk, leaderBoadrdId, id).bucket;
-            var records = nk.tournamentRecordsList(leaderBoadrdId, bucket.userIds, bucketSize);
+            var records = nk.tournamentRecordsList(leaderBoadrdId, bucket.userIds, bucketSize, undefined, time);
             return JSON.stringify({
                 records: records,
                 bucketId: id,
@@ -317,14 +318,17 @@ var Bucket;
     }
     Bucket.getUserBucketRecords = getUserBucketRecords;
 })(Bucket || (Bucket = {}));
-var WeeklyGetRecordsRPC = function (ctx, logger, nk) {
+var WeeklyGetRecordsRPC = function (ctx, logger, nk, payload) {
     var _a, _b;
     var config = Bucket.configs.Weekly;
     var userId = ctx.userId;
     var leaderBoadrdId = config.tournamentID;
+    var time = undefined;
+    if (payload)
+        time = JSON.parse(payload).time;
     var bucketSize = config.bucketSize;
     //get user bucket
-    var userBucket = Bucket.getUserBucketRecords(nk, config, userId);
+    var userBucket = Bucket.getUserBucketRecords(nk, config, userId, time);
     if (userBucket)
         return userBucket;
     //if not exists
@@ -368,14 +372,17 @@ var WeeklyGetRecordsRPC = function (ctx, logger, nk) {
         }
     }
 };
-var CupGetRecordsRPC = function (ctx, logger, nk) {
+var CupGetRecordsRPC = function (ctx, logger, nk, payload) {
     var _a, _b;
     var config = Bucket.configs.Cup;
     var userId = ctx.userId;
     var leaderBoadrdId = config.tournamentID;
+    var time = undefined;
+    if (payload)
+        time = JSON.parse(payload).time;
     var bucketSize = config.bucketSize;
     //get user bucket
-    var userBucket = Bucket.getUserBucketRecords(nk, config, userId);
+    var userBucket = Bucket.getUserBucketRecords(nk, config, userId, time);
     if (userBucket)
         return userBucket;
     //if not exists
@@ -419,14 +426,17 @@ var CupGetRecordsRPC = function (ctx, logger, nk) {
         }
     }
 };
-var RushGetRecordsRPC = function (ctx, logger, nk) {
+var RushGetRecordsRPC = function (ctx, logger, nk, payload) {
     var _a, _b;
-    var config = Bucket.configs.Weekly;
+    var config = Bucket.configs.Rush;
     var userId = ctx.userId;
     var leaderBoadrdId = config.tournamentID;
+    var time = undefined;
+    if (payload)
+        time = JSON.parse(payload).time;
     var bucketSize = config.bucketSize;
     //get user bucket
-    var userBucket = Bucket.getUserBucketRecords(nk, config, userId);
+    var userBucket = Bucket.getUserBucketRecords(nk, config, userId, time);
     if (userBucket)
         return userBucket;
     //if not exists
@@ -470,14 +480,17 @@ var RushGetRecordsRPC = function (ctx, logger, nk) {
         }
     }
 };
-var EndlessGetRecordsRPC = function (ctx, logger, nk) {
+var EndlessGetRecordsRPC = function (ctx, logger, nk, payload) {
     var _a, _b;
     var config = Bucket.configs.Endless;
     var userId = ctx.userId;
     var leaderBoadrdId = config.tournamentID;
+    var time = undefined;
+    if (payload)
+        time = JSON.parse(payload).time;
     var bucketSize = config.bucketSize;
     //get user bucket
-    var userBucket = Bucket.getUserBucketRecords(nk, config, userId);
+    var userBucket = Bucket.getUserBucketRecords(nk, config, userId, time);
     if (userBucket)
         return userBucket;
     //if not exists
@@ -821,11 +834,6 @@ var GameApi = {
             key: "Wallet",
         },
         _d),
-};
-var starterGifts = {
-    Cup: {
-        Heart: {},
-    },
 };
 var SHOP_ITEMS = [
     {

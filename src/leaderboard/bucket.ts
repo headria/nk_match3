@@ -131,7 +131,8 @@ namespace Bucket {
       tournamentID: "Weekly",
       authoritative: true,
       category: Category.WEEKLY,
-      duration: 7 * 24 * 60 * 60,
+      // duration: 7 * 24 * 60 * 60,
+      duration: 15 * 60,
       description: "",
       bucketSize: 10,
       endTime: null,
@@ -348,7 +349,8 @@ namespace Bucket {
   export function getUserBucketRecords(
     nk: nkruntime.Nakama,
     config: Config,
-    userId: string
+    userId: string,
+    time?: number
   ) {
     try {
       const collection = Bucket.storage.collection;
@@ -365,7 +367,9 @@ namespace Bucket {
       const records = nk.tournamentRecordsList(
         leaderBoadrdId,
         bucket.userIds,
-        bucketSize
+        bucketSize,
+        undefined,
+        time
       );
       return JSON.stringify({
         records: records,
@@ -380,14 +384,17 @@ namespace Bucket {
 const WeeklyGetRecordsRPC: nkruntime.RpcFunction = (
   ctx: nkruntime.Context,
   logger: nkruntime.Logger,
-  nk: nkruntime.Nakama
+  nk: nkruntime.Nakama,
+  payload: string
 ): string => {
   const config = Bucket.configs.Weekly;
   const userId = ctx.userId;
   const leaderBoadrdId = config.tournamentID;
+  let time: number | undefined = undefined;
+  if (payload) time = JSON.parse(payload).time;
   const bucketSize = config.bucketSize;
   //get user bucket
-  const userBucket = Bucket.getUserBucketRecords(nk, config, userId);
+  const userBucket = Bucket.getUserBucketRecords(nk, config, userId, time);
   if (userBucket) return userBucket;
 
   //if not exists
@@ -460,14 +467,17 @@ const WeeklyGetRecordsRPC: nkruntime.RpcFunction = (
 const CupGetRecordsRPC: nkruntime.RpcFunction = (
   ctx: nkruntime.Context,
   logger: nkruntime.Logger,
-  nk: nkruntime.Nakama
+  nk: nkruntime.Nakama,
+  payload: string
 ): string => {
   const config = Bucket.configs.Cup;
   const userId = ctx.userId;
   const leaderBoadrdId = config.tournamentID;
+  let time: number | undefined = undefined;
+  if (payload) time = JSON.parse(payload).time;
   const bucketSize = config.bucketSize;
   //get user bucket
-  const userBucket = Bucket.getUserBucketRecords(nk, config, userId);
+  const userBucket = Bucket.getUserBucketRecords(nk, config, userId, time);
   if (userBucket) return userBucket;
 
   //if not exists
@@ -540,14 +550,17 @@ const CupGetRecordsRPC: nkruntime.RpcFunction = (
 const RushGetRecordsRPC: nkruntime.RpcFunction = (
   ctx: nkruntime.Context,
   logger: nkruntime.Logger,
-  nk: nkruntime.Nakama
+  nk: nkruntime.Nakama,
+  payload: string
 ): string => {
-  const config = Bucket.configs.Weekly;
+  const config = Bucket.configs.Rush;
   const userId = ctx.userId;
   const leaderBoadrdId = config.tournamentID;
+  let time: number | undefined = undefined;
+  if (payload) time = JSON.parse(payload).time;
   const bucketSize = config.bucketSize;
   //get user bucket
-  const userBucket = Bucket.getUserBucketRecords(nk, config, userId);
+  const userBucket = Bucket.getUserBucketRecords(nk, config, userId, time);
   if (userBucket) return userBucket;
 
   //if not exists
@@ -620,14 +633,17 @@ const RushGetRecordsRPC: nkruntime.RpcFunction = (
 const EndlessGetRecordsRPC: nkruntime.RpcFunction = (
   ctx: nkruntime.Context,
   logger: nkruntime.Logger,
-  nk: nkruntime.Nakama
+  nk: nkruntime.Nakama,
+  payload: string
 ): string => {
   const config = Bucket.configs.Endless;
   const userId = ctx.userId;
   const leaderBoadrdId = config.tournamentID;
+  let time: number | undefined = undefined;
+  if (payload) time = JSON.parse(payload).time;
   const bucketSize = config.bucketSize;
   //get user bucket
-  const userBucket = Bucket.getUserBucketRecords(nk, config, userId);
+  const userBucket = Bucket.getUserBucketRecords(nk, config, userId, time);
   if (userBucket) return userBucket;
 
   //if not exists
