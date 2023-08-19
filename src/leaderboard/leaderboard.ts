@@ -11,7 +11,7 @@ namespace Leaderboards {
   export const configs: { [id: string]: LeaderboardConfig } = {
     global: {
       leaderboardID: "Global",
-      authoritative: false,
+      authoritative: true,
       sortOrder: nkruntime.SortOrder.DESCENDING,
       operator: nkruntime.Operator.INCREMENTAL,
       resetSchedule: null,
