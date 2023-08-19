@@ -265,7 +265,7 @@ const levelValidatorRPC: nkruntime.RpcFunction = (
     const lastLevel = GameApi.LastLevel.get(nk, userId);
     if (levelLog.atEnd.result === "win") {
       GameApi.LastLevel.set(nk, userId, lastLevel + 1);
-      Leaderboards.UpdateLeaderboards(nk, userId, ctx.username, levelLog);
+      // Leaderboards.UpdateLeaderboards(nk, userId, ctx.username, levelLog);
     }
 
     cheats.push(

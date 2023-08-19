@@ -129,7 +129,7 @@ namespace Bucket {
   export const configs: { [id: string]: Config } = {
     Weekly: {
       tournamentID: "Weekly",
-      authoritative: true,
+      authoritative: false,
       category: Category.WEEKLY,
       // duration: 7 * 24 * 60 * 60,
       duration: 15 * 60,
@@ -148,7 +148,7 @@ namespace Bucket {
     },
     Cup: {
       tournamentID: "Cup",
-      authoritative: true,
+      authoritative: false,
       category: Category.CUP,
       duration: 3 * 24 * 60 * 60,
       description: "",
@@ -166,7 +166,7 @@ namespace Bucket {
     },
     Rush: {
       tournamentID: "Rush",
-      authoritative: true,
+      authoritative: false,
       category: Category.RUSH,
       duration: 12 * 60 * 60,
       description: "",
@@ -184,7 +184,7 @@ namespace Bucket {
     },
     Endless: {
       tournamentID: "Endless",
-      authoritative: true,
+      authoritative: false,
       category: Category.ENDLESS,
       duration: 3 * 24 * 60 * 60,
       description: "",
