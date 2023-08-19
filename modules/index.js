@@ -324,8 +324,10 @@ var WeeklyGetRecordsRPC = function (ctx, logger, nk, payload) {
     var userId = ctx.userId;
     var leaderBoadrdId = config.tournamentID;
     var time = undefined;
-    if (payload)
+    var input = JSON.parse(payload);
+    if (input) {
         time = JSON.parse(payload).time;
+    }
     var bucketSize = config.bucketSize;
     //get user bucket
     var userBucket = Bucket.getUserBucketRecords(nk, config, userId, time);
@@ -378,8 +380,10 @@ var CupGetRecordsRPC = function (ctx, logger, nk, payload) {
     var userId = ctx.userId;
     var leaderBoadrdId = config.tournamentID;
     var time = undefined;
-    if (payload)
+    var input = JSON.parse(payload);
+    if (input) {
         time = JSON.parse(payload).time;
+    }
     var bucketSize = config.bucketSize;
     //get user bucket
     var userBucket = Bucket.getUserBucketRecords(nk, config, userId, time);
@@ -432,8 +436,10 @@ var RushGetRecordsRPC = function (ctx, logger, nk, payload) {
     var userId = ctx.userId;
     var leaderBoadrdId = config.tournamentID;
     var time = undefined;
-    if (payload)
+    var input = JSON.parse(payload);
+    if (input) {
         time = JSON.parse(payload).time;
+    }
     var bucketSize = config.bucketSize;
     //get user bucket
     var userBucket = Bucket.getUserBucketRecords(nk, config, userId, time);
@@ -486,8 +492,10 @@ var EndlessGetRecordsRPC = function (ctx, logger, nk, payload) {
     var userId = ctx.userId;
     var leaderBoadrdId = config.tournamentID;
     var time = undefined;
-    if (payload)
+    var input = JSON.parse(payload);
+    if (input) {
         time = JSON.parse(payload).time;
+    }
     var bucketSize = config.bucketSize;
     //get user bucket
     var userBucket = Bucket.getUserBucketRecords(nk, config, userId, time);
