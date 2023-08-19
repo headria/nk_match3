@@ -391,7 +391,10 @@ const WeeklyGetRecordsRPC: nkruntime.RpcFunction = (
   const userId = ctx.userId;
   const leaderBoadrdId = config.tournamentID;
   let time: number | undefined = undefined;
-  if (payload) time = JSON.parse(payload).time;
+  const input = JSON.parse(payload);
+  if (input) {
+    time = JSON.parse(payload).time;
+  }
   const bucketSize = config.bucketSize;
   //get user bucket
   const userBucket = Bucket.getUserBucketRecords(nk, config, userId, time);
@@ -445,6 +448,7 @@ const WeeklyGetRecordsRPC: nkruntime.RpcFunction = (
       // Bucket.setLatestBucketId(nk, latestId.toString(), latestVersion);
 
       //add user to leaderboard
+
       nk.tournamentRecordWrite(leaderBoadrdId, userId, ctx.username, 0);
       //get tournament records
       const tournament = nk.tournamentRecordsList(
@@ -474,7 +478,10 @@ const CupGetRecordsRPC: nkruntime.RpcFunction = (
   const userId = ctx.userId;
   const leaderBoadrdId = config.tournamentID;
   let time: number | undefined = undefined;
-  if (payload) time = JSON.parse(payload).time;
+  const input = JSON.parse(payload);
+  if (input) {
+    time = JSON.parse(payload).time;
+  }
   const bucketSize = config.bucketSize;
   //get user bucket
   const userBucket = Bucket.getUserBucketRecords(nk, config, userId, time);
@@ -528,6 +535,7 @@ const CupGetRecordsRPC: nkruntime.RpcFunction = (
       // Bucket.setLatestBucketId(nk, latestId.toString(), latestVersion);
 
       //add user to leaderboard
+
       nk.tournamentRecordWrite(leaderBoadrdId, userId, ctx.username, 0);
       //get tournament records
       const tournament = nk.tournamentRecordsList(
@@ -557,7 +565,10 @@ const RushGetRecordsRPC: nkruntime.RpcFunction = (
   const userId = ctx.userId;
   const leaderBoadrdId = config.tournamentID;
   let time: number | undefined = undefined;
-  if (payload) time = JSON.parse(payload).time;
+  const input = JSON.parse(payload);
+  if (input) {
+    time = JSON.parse(payload).time;
+  }
   const bucketSize = config.bucketSize;
   //get user bucket
   const userBucket = Bucket.getUserBucketRecords(nk, config, userId, time);
@@ -611,6 +622,7 @@ const RushGetRecordsRPC: nkruntime.RpcFunction = (
       // Bucket.setLatestBucketId(nk, latestId.toString(), latestVersion);
 
       //add user to leaderboard
+
       nk.tournamentRecordWrite(leaderBoadrdId, userId, ctx.username, 0);
       //get tournament records
       const tournament = nk.tournamentRecordsList(
@@ -640,7 +652,10 @@ const EndlessGetRecordsRPC: nkruntime.RpcFunction = (
   const userId = ctx.userId;
   const leaderBoadrdId = config.tournamentID;
   let time: number | undefined = undefined;
-  if (payload) time = JSON.parse(payload).time;
+  const input = JSON.parse(payload);
+  if (input) {
+    time = JSON.parse(payload).time;
+  }
   const bucketSize = config.bucketSize;
   //get user bucket
   const userBucket = Bucket.getUserBucketRecords(nk, config, userId, time);
@@ -694,6 +709,7 @@ const EndlessGetRecordsRPC: nkruntime.RpcFunction = (
       // Bucket.setLatestBucketId(nk, latestId.toString(), latestVersion);
 
       //add user to leaderboard
+
       nk.tournamentRecordWrite(leaderBoadrdId, userId, ctx.username, 0);
       //get tournament records
       const tournament = nk.tournamentRecordsList(
