@@ -56,10 +56,11 @@ var Bucket;
             var id = _a[_i];
             init(nk, initializer, Bucket.configs[id]);
         }
+        initializer.registerBeforeJoinTournament(beforeJointournament);
     };
     var init = function (nk, initializer, config) {
         nk.tournamentCreate(config.tournamentID, config.authoritative, config.sortOrder, config.operator, config.duration, config.resetSchedule, config.metadata, config.title, config.description, config.category, config.startTime, config.endTime, config.maxSize, config.maxNumScore, config.joinRequired);
-        initializer.registerRpc("leaderboard/getRecords/".concat(config.tournamentID), BucketRpcs[config.tournamentID]);
+        initializer.registerRpc("leaderboard/getRecords/".concat(config.tournamentID), GetRecordsRpcs[config.tournamentID]);
     };
     function InitBucket(nk, logger) {
         var initValue = 1;
@@ -119,7 +120,8 @@ var Bucket;
             maxSize: 1000000,
             metadata: {},
             operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
-            resetSchedule: "0 0 * * 1",
+            // resetSchedule: "0 0 * * 1",
+            resetSchedule: "*/15 * * * *",
             sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
             startTime: 0,
             title: "Weekly Leaderboard",
@@ -294,11 +296,10 @@ var Bucket;
         }
     }
     Bucket.setUserBucket = setUserBucket;
-    function getUserBucketRecords(nk, config, userId, time) {
+    function getUserBucket(nk, config, userId) {
         try {
             var collection = Bucket.storage.collection;
             var leaderBoadrdId = config.tournamentID;
-            var bucketSize = config.bucketSize;
             var userBucket = nk.storageRead([
                 { collection: collection, key: leaderBoadrdId, userId: userId },
             ]);
@@ -306,247 +307,114 @@ var Bucket;
                 return null;
             var id = userBucket[0].value.id;
             var bucket = Bucket.getBucketById(nk, leaderBoadrdId, id).bucket;
-            var records = nk.tournamentRecordsList(leaderBoadrdId, bucket.userIds, bucketSize, undefined, time);
-            return JSON.stringify({
-                records: records,
-                bucketId: id,
-            });
+            return bucket;
         }
         catch (error) {
             throw new Error("failed to getUserBucket: ".concat(error.message));
         }
     }
-    Bucket.getUserBucketRecords = getUserBucketRecords;
+    Bucket.getUserBucket = getUserBucket;
+    function joinLeaderboard(nk, logger, ctx, config) {
+        var _a, _b;
+        var userId = ctx.userId;
+        var username = ctx.username;
+        var leaderBoadrdId = config.tournamentID;
+        var userBucket = getUserBucket(nk, config, userId);
+        if (userBucket)
+            throw new Error("User Has already joined ".concat(leaderBoadrdId, " leaderboard ").concat(userBucket));
+        var attempts = 0;
+        //get last bucket
+        while (true) {
+            try {
+                var _c = Bucket.getLatestBucketId(nk, leaderBoadrdId), latestId = _c.latestId, latestVersion = _c.latestVersion;
+                var _d = Bucket.getBucketById(nk, leaderBoadrdId, latestId), bucket = _d.bucket, version = _d.version;
+                // if full create new bucket
+                if (bucket.userIds.length >= config.bucketSize) {
+                    var tournamentInfo = nk.tournamentsGetId([leaderBoadrdId])[0];
+                    var resetTimeUnix = (_b = (_a = tournamentInfo.endActive) !== null && _a !== void 0 ? _a : tournamentInfo.endTime) !== null && _b !== void 0 ? _b : 0;
+                    bucket = {
+                        userIds: [],
+                        resetTimeUnix: resetTimeUnix,
+                    };
+                    latestId = latestId + 1;
+                    version = Bucket.createNewBucket(nk, leaderBoadrdId, latestId, latestVersion, bucket);
+                    logger.debug("created new bucket: ".concat(leaderBoadrdId, "#").concat(latestId));
+                }
+                //if not full add user to it
+                bucket.userIds.push(userId);
+                Bucket.addUserToBucket(nk, leaderBoadrdId, latestId, version, bucket);
+                Bucket.setUserBucket(nk, userId, leaderBoadrdId, latestId);
+                //add user to leaderboard
+                nk.tournamentRecordWrite(leaderBoadrdId, userId, username, 0);
+                logger.info("user has joined ".concat(leaderBoadrdId, " tournament"));
+                return bucket;
+            }
+            catch (error) {
+                if (error.message.indexOf("version check failed") !== -1)
+                    throw error;
+                if (attempts > 100)
+                    throw error;
+                attempts++;
+            }
+        }
+    }
+    Bucket.joinLeaderboard = joinLeaderboard;
+    function getRecords(nk, bucket, config, time) {
+        try {
+            var tournament = nk.tournamentRecordsList(config.tournamentID, bucket.userIds, config.bucketSize, undefined, time);
+            return JSON.stringify(tournament.records);
+        }
+        catch (error) {
+            throw new Error("failed to getRecords: ".concat(error.message));
+        }
+    }
+    Bucket.getRecords = getRecords;
+    function getBucketRpc(ctx, logger, nk, payload, config) {
+        var userId = ctx.userId;
+        var time = undefined;
+        var input = JSON.parse(payload);
+        if (input) {
+            time = JSON.parse(payload).time;
+        }
+        //get user bucket
+        var bucket = Bucket.getUserBucket(nk, config, userId);
+        //if not exists
+        if (!bucket)
+            throw new Error("user does not exist in this leaderboard");
+        return getRecords(nk, bucket, config, time);
+    }
+    Bucket.getBucketRpc = getBucketRpc;
 })(Bucket || (Bucket = {}));
 var WeeklyGetRecordsRPC = function (ctx, logger, nk, payload) {
-    var _a, _b;
     var config = Bucket.configs.Weekly;
-    var userId = ctx.userId;
-    var leaderBoadrdId = config.tournamentID;
-    var time = undefined;
-    var input = JSON.parse(payload);
-    if (input) {
-        time = JSON.parse(payload).time;
-    }
-    var bucketSize = config.bucketSize;
-    //get user bucket
-    var userBucket = Bucket.getUserBucketRecords(nk, config, userId, time);
-    if (userBucket)
-        return userBucket;
-    //if not exists
-    var attempts = 0;
-    //get last bucket
-    while (true) {
-        try {
-            var _c = Bucket.getLatestBucketId(nk, leaderBoadrdId), latestId = _c.latestId, latestVersion = _c.latestVersion;
-            var _d = Bucket.getBucketById(nk, leaderBoadrdId, latestId), bucket = _d.bucket, version = _d.version;
-            // if full create new bucket
-            if (bucket.userIds.length >= bucketSize) {
-                var tournamentInfo = nk.tournamentsGetId([leaderBoadrdId])[0];
-                var resetTimeUnix = (_b = (_a = tournamentInfo.endActive) !== null && _a !== void 0 ? _a : tournamentInfo.endTime) !== null && _b !== void 0 ? _b : 0;
-                bucket = {
-                    userIds: [],
-                    resetTimeUnix: resetTimeUnix,
-                };
-                latestId = latestId + 1;
-                version = Bucket.createNewBucket(nk, leaderBoadrdId, latestId, latestVersion, bucket);
-                logger.debug("created new bucket: ".concat(leaderBoadrdId, "#").concat(latestId));
-            }
-            //if not full add user to it
-            bucket.userIds.push(userId);
-            Bucket.addUserToBucket(nk, leaderBoadrdId, latestId, version, bucket);
-            Bucket.setUserBucket(nk, userId, leaderBoadrdId, latestId);
-            //change last bucket key
-            // Bucket.setLatestBucketId(nk, latestId.toString(), latestVersion);
-            //add user to leaderboard
-            nk.tournamentRecordWrite(leaderBoadrdId, userId, ctx.username, 0);
-            //get tournament records
-            var tournament = nk.tournamentRecordsList(config.tournamentID, bucket.userIds, bucketSize);
-            return JSON.stringify({
-                records: tournament.records,
-                bucketId: latestId,
-            });
-        }
-        catch (error) {
-            if (attempts > 100)
-                throw error;
-            attempts++;
-        }
-    }
+    return Bucket.getBucketRpc(ctx, logger, nk, payload, config);
 };
 var CupGetRecordsRPC = function (ctx, logger, nk, payload) {
-    var _a, _b;
     var config = Bucket.configs.Cup;
-    var userId = ctx.userId;
-    var leaderBoadrdId = config.tournamentID;
-    var time = undefined;
-    var input = JSON.parse(payload);
-    if (input) {
-        time = JSON.parse(payload).time;
-    }
-    var bucketSize = config.bucketSize;
-    //get user bucket
-    var userBucket = Bucket.getUserBucketRecords(nk, config, userId, time);
-    if (userBucket)
-        return userBucket;
-    //if not exists
-    var attempts = 0;
-    //get last bucket
-    while (true) {
-        try {
-            var _c = Bucket.getLatestBucketId(nk, leaderBoadrdId), latestId = _c.latestId, latestVersion = _c.latestVersion;
-            var _d = Bucket.getBucketById(nk, leaderBoadrdId, latestId), bucket = _d.bucket, version = _d.version;
-            // if full create new bucket
-            if (bucket.userIds.length >= bucketSize) {
-                var tournamentInfo = nk.tournamentsGetId([leaderBoadrdId])[0];
-                var resetTimeUnix = (_b = (_a = tournamentInfo.endActive) !== null && _a !== void 0 ? _a : tournamentInfo.endTime) !== null && _b !== void 0 ? _b : 0;
-                bucket = {
-                    userIds: [],
-                    resetTimeUnix: resetTimeUnix,
-                };
-                latestId = latestId + 1;
-                version = Bucket.createNewBucket(nk, leaderBoadrdId, latestId, latestVersion, bucket);
-                logger.debug("created new bucket: ".concat(leaderBoadrdId, "#").concat(latestId));
-            }
-            //if not full add user to it
-            bucket.userIds.push(userId);
-            Bucket.addUserToBucket(nk, leaderBoadrdId, latestId, version, bucket);
-            Bucket.setUserBucket(nk, userId, leaderBoadrdId, latestId);
-            //change last bucket key
-            // Bucket.setLatestBucketId(nk, latestId.toString(), latestVersion);
-            //add user to leaderboard
-            nk.tournamentRecordWrite(leaderBoadrdId, userId, ctx.username, 0);
-            //get tournament records
-            var tournament = nk.tournamentRecordsList(config.tournamentID, bucket.userIds, bucketSize);
-            return JSON.stringify({
-                records: tournament.records,
-                bucketId: latestId,
-            });
-        }
-        catch (error) {
-            if (attempts > 100)
-                throw error;
-            attempts++;
-        }
-    }
+    return Bucket.getBucketRpc(ctx, logger, nk, payload, config);
 };
 var RushGetRecordsRPC = function (ctx, logger, nk, payload) {
-    var _a, _b;
     var config = Bucket.configs.Rush;
-    var userId = ctx.userId;
-    var leaderBoadrdId = config.tournamentID;
-    var time = undefined;
-    var input = JSON.parse(payload);
-    if (input) {
-        time = JSON.parse(payload).time;
-    }
-    var bucketSize = config.bucketSize;
-    //get user bucket
-    var userBucket = Bucket.getUserBucketRecords(nk, config, userId, time);
-    if (userBucket)
-        return userBucket;
-    //if not exists
-    var attempts = 0;
-    //get last bucket
-    while (true) {
-        try {
-            var _c = Bucket.getLatestBucketId(nk, leaderBoadrdId), latestId = _c.latestId, latestVersion = _c.latestVersion;
-            var _d = Bucket.getBucketById(nk, leaderBoadrdId, latestId), bucket = _d.bucket, version = _d.version;
-            // if full create new bucket
-            if (bucket.userIds.length >= bucketSize) {
-                var tournamentInfo = nk.tournamentsGetId([leaderBoadrdId])[0];
-                var resetTimeUnix = (_b = (_a = tournamentInfo.endActive) !== null && _a !== void 0 ? _a : tournamentInfo.endTime) !== null && _b !== void 0 ? _b : 0;
-                bucket = {
-                    userIds: [],
-                    resetTimeUnix: resetTimeUnix,
-                };
-                latestId = latestId + 1;
-                version = Bucket.createNewBucket(nk, leaderBoadrdId, latestId, latestVersion, bucket);
-                logger.debug("created new bucket: ".concat(leaderBoadrdId, "#").concat(latestId));
-            }
-            //if not full add user to it
-            bucket.userIds.push(userId);
-            Bucket.addUserToBucket(nk, leaderBoadrdId, latestId, version, bucket);
-            Bucket.setUserBucket(nk, userId, leaderBoadrdId, latestId);
-            //change last bucket key
-            // Bucket.setLatestBucketId(nk, latestId.toString(), latestVersion);
-            //add user to leaderboard
-            nk.tournamentRecordWrite(leaderBoadrdId, userId, ctx.username, 0);
-            //get tournament records
-            var tournament = nk.tournamentRecordsList(config.tournamentID, bucket.userIds, bucketSize);
-            return JSON.stringify({
-                records: tournament.records,
-                bucketId: latestId,
-            });
-        }
-        catch (error) {
-            if (attempts > 100)
-                throw error;
-            attempts++;
-        }
-    }
+    return Bucket.getBucketRpc(ctx, logger, nk, payload, config);
 };
 var EndlessGetRecordsRPC = function (ctx, logger, nk, payload) {
-    var _a, _b;
     var config = Bucket.configs.Endless;
-    var userId = ctx.userId;
-    var leaderBoadrdId = config.tournamentID;
-    var time = undefined;
-    var input = JSON.parse(payload);
-    if (input) {
-        time = JSON.parse(payload).time;
-    }
-    var bucketSize = config.bucketSize;
-    //get user bucket
-    var userBucket = Bucket.getUserBucketRecords(nk, config, userId, time);
-    if (userBucket)
-        return userBucket;
-    //if not exists
-    var attempts = 0;
-    //get last bucket
-    while (true) {
-        try {
-            var _c = Bucket.getLatestBucketId(nk, leaderBoadrdId), latestId = _c.latestId, latestVersion = _c.latestVersion;
-            var _d = Bucket.getBucketById(nk, leaderBoadrdId, latestId), bucket = _d.bucket, version = _d.version;
-            // if full create new bucket
-            if (bucket.userIds.length >= bucketSize) {
-                var tournamentInfo = nk.tournamentsGetId([leaderBoadrdId])[0];
-                var resetTimeUnix = (_b = (_a = tournamentInfo.endActive) !== null && _a !== void 0 ? _a : tournamentInfo.endTime) !== null && _b !== void 0 ? _b : 0;
-                bucket = {
-                    userIds: [],
-                    resetTimeUnix: resetTimeUnix,
-                };
-                latestId = latestId + 1;
-                version = Bucket.createNewBucket(nk, leaderBoadrdId, latestId, latestVersion, bucket);
-                logger.debug("created new bucket: ".concat(leaderBoadrdId, "#").concat(latestId));
-            }
-            //if not full add user to it
-            bucket.userIds.push(userId);
-            Bucket.addUserToBucket(nk, leaderBoadrdId, latestId, version, bucket);
-            Bucket.setUserBucket(nk, userId, leaderBoadrdId, latestId);
-            //change last bucket key
-            // Bucket.setLatestBucketId(nk, latestId.toString(), latestVersion);
-            //add user to leaderboard
-            nk.tournamentRecordWrite(leaderBoadrdId, userId, ctx.username, 0);
-            //get tournament records
-            var tournament = nk.tournamentRecordsList(config.tournamentID, bucket.userIds, bucketSize);
-            return JSON.stringify({
-                records: tournament.records,
-                bucketId: latestId,
-            });
-        }
-        catch (error) {
-            if (attempts > 100)
-                throw error;
-            attempts++;
-        }
-    }
+    return Bucket.getBucketRpc(ctx, logger, nk, payload, config);
 };
-var BucketRpcs = {
+var GetRecordsRpcs = {
     Weekly: WeeklyGetRecordsRPC,
     Cup: CupGetRecordsRPC,
     Rush: RushGetRecordsRPC,
     Endless: EndlessGetRecordsRPC,
+};
+// Before Join Leaderboards Hooks
+var beforeJointournament = function (ctx, logger, nk, data) {
+    var tournamentId = data.tournamentId;
+    if (!tournamentId)
+        throw new Error("Invalid tournament id");
+    var config = Bucket.configs[tournamentId];
+    Bucket.joinLeaderboard(nk, logger, ctx, config);
+    return data;
 };
 var Leaderboards;
 (function (Leaderboards) {
