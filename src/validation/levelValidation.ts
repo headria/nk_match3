@@ -218,7 +218,7 @@ namespace LevelValidation {
 
       const coins: WalletItem = {
         id: "Coins",
-        quantity: log.atEnd.coins - log.atStart.coins,
+        quantity: log.atEnd.coins,
       };
 
       const result: WalletItem[] = [...boosters, ...powerUps, coins];
@@ -268,9 +268,9 @@ const levelValidatorRPC: nkruntime.RpcFunction = (
       Leaderboards.UpdateLeaderboards(nk, userId, ctx.username, levelLog);
     }
 
-    cheats.push(
-      ...LevelValidation.Validator.checkLevel(levelLog.levelNumber, lastLevel)
-    );
+    // cheats.push(
+    //   ...LevelValidation.Validator.checkLevel(levelLog.levelNumber, lastLevel)
+    // );
 
     if (cheats.length > 0) {
       GameApi.Cheat.write(nk, levelLog.levelNumber, userId, cheats);
@@ -285,8 +285,9 @@ const levelValidatorRPC: nkruntime.RpcFunction = (
     extractData.map((item: LevelValidation.WalletItem) => {
       try {
         if (typeof wallet[item.id] === "number")
-          wallet[item.id] = item.quantity;
-        else wallet[item.id].quantity = item.quantity;
+          wallet[item.id] = wallet[item.id] - item.quantity;
+        else
+          wallet[item.id].quantity = wallet[item.id].quantity - item.quantity;
       } catch (err: any) {
         logger.error(`[extractData.map] : ${err}`);
       }
