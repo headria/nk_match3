@@ -30,6 +30,51 @@ var InitModule = function (ctx, logger, nk, initializer) {
     //validators
     initializer.registerRpc("level/validate", levelValidatorRPC);
 };
+var Wallet;
+(function (Wallet) {
+    var collection = "Economy";
+    var key = "Wallet";
+    Wallet.InitialWallet = {
+        Heart: {
+            endDate: 0,
+            isUnlimited: false,
+            quantity: 5,
+        },
+        TNT: {
+            endDate: 0,
+            isUnlimited: false,
+            quantity: 3,
+        },
+        DiscoBall: {
+            endDate: 0,
+            isUnlimited: false,
+            quantity: 3,
+        },
+        Rocket: {
+            endDate: 0,
+            isUnlimited: false,
+            quantity: 3,
+        },
+        Hammer: 0,
+        Shuffle: 0,
+        HorizontalRocket: 0,
+        VerticalRocket: 0,
+        Coins: 0,
+        Gems: 0,
+        Score: 0,
+    };
+    function getWalletItems(ctx, nk) {
+        var userId = ctx.userId;
+        var data = nk.storageRead([{ collection: collection, key: key, userId: userId }])[0];
+        var wallet = data.value;
+        return wallet;
+    }
+    Wallet.getWalletItems = getWalletItems;
+    function updateWallet(ctx, nk, changeset) {
+        // nk.walletUpdate();
+    }
+    Wallet.updateWallet = updateWallet;
+})(Wallet || (Wallet = {}));
 var SystemUserId = "00000000-0000-0000-0000-000000000000";
 var Category;
 (function (Category) {
@@ -488,35 +533,6 @@ var cryptoWalletIndex = function (initializer) {
     var maxEntries = 1000000000;
     initializer.registerStorageIndex(name, collection, key, fields, maxEntries);
 };
-var InitialWallet = {
-    Heart: {
-        endDate: 0,
-        isUnlimited: false,
-        quantity: 5,
-    },
-    TNT: {
-        endDate: 0,
-        isUnlimited: false,
-        quantity: 3,
-    },
-    DiscoBall: {
-        endDate: 0,
-        isUnlimited: false,
-        quantity: 3,
-    },
-    Rocket: {
-        endDate: 0,
-        isUnlimited: false,
-        quantity: 3,
-    },
-    Hammer: 0,
-    Shuffle: 0,
-    HorizontalRocket: 0,
-    VerticalRocket: 0,
-    Coins: 0,
-    Gems: 0,
-    Score: 0,
-};
 var initialCrypto = {
     address: null,
     balance: null,
@@ -529,7 +545,7 @@ var InitiateUser = function (ctx, logger, nk, data) {
             {
                 collection: "Economy",
                 key: "Wallet",
-                value: InitialWallet,
+                value: Wallet.InitialWallet,
                 userId: ctx.userId,
                 permissionRead: 1,
                 permissionWrite: 1,
@@ -1287,7 +1303,7 @@ var LevelValidation;
             }); });
             var coins = {
                 id: "Coins",
-                quantity: log.atEnd.coins - log.atStart.coins,
+                quantity: log.atEnd.coins,
             };
             var result = __spreadArray(__spreadArray(__spreadArray([], boosters, true), powerUps, true), [coins], false);
             if (log.atStart.heart != -1) {
@@ -1329,7 +1345,9 @@ var levelValidatorRPC = function (ctx, logger, nk, payload) {
             GameApi.LastLevel.set(nk, userId, lastLevel + 1);
             Leaderboards.UpdateLeaderboards(nk, userId, ctx.username, levelLog);
         }
-        cheats.push.apply(cheats, LevelValidation.Validator.checkLevel(levelLog.levelNumber, lastLevel));
+        // cheats.push(
+        //   ...LevelValidation.Validator.checkLevel(levelLog.levelNumber, lastLevel)
+        // );
         if (cheats.length > 0) {
             GameApi.Cheat.write(nk, levelLog.levelNumber, userId, cheats);
         }
@@ -1341,9 +1359,9 @@ var levelValidatorRPC = function (ctx, logger, nk, payload) {
         extractData.map(function (item) {
             try {
                 if (typeof wallet_1[item.id] === "number")
-                    wallet_1[item.id] = item.quantity;
+                    wallet_1[item.id] = wallet_1[item.id] - item.quantity;
                 else
-                    wallet_1[item.id].quantity = item.quantity;
+                    wallet_1[item.id].quantity = wallet_1[item.id].quantity - item.quantity;
             }
             catch (err) {
                 logger.error("[extractData.map] : ".concat(err));
