@@ -24,8 +24,10 @@ var __spreadArray =
 var InitModule = function (ctx, logger, nk, initializer) {
   //register storage index
   cryptoWalletIndex(initializer);
+  //initialize shop
+  initShop(nk);
   //initialize bucket
-  Bucket.InitBucket(nk);
+  Bucket.InitBucket(nk, logger);
   //initiate user wallet
   initializer.registerAfterAuthenticateDevice(InitiateUser);
   //create Leaderboards
@@ -37,6 +39,53 @@ var InitModule = function (ctx, logger, nk, initializer) {
   //validators
   initializer.registerRpc("level/validate", levelValidatorRPC);
 };
+var Wallet;
+(function (Wallet) {
+  var collection = "Economy";
+  var key = "Wallet";
+  Wallet.InitialWallet = {
+    Heart: {
+      endDate: 0,
+      isUnlimited: false,
+      quantity: 5,
+    },
+    TNT: {
+      endDate: 0,
+      isUnlimited: false,
+      quantity: 3,
+    },
+    DiscoBall: {
+      endDate: 0,
+      isUnlimited: false,
+      quantity: 3,
+    },
+    Rocket: {
+      endDate: 0,
+      isUnlimited: false,
+      quantity: 3,
+    },
+    Hammer: 0,
+    Shuffle: 0,
+    HorizontalRocket: 0,
+    VerticalRocket: 0,
+    Coins: 0,
+    Gems: 0,
+    Score: 0,
+  };
+  function getWalletItems(ctx, nk) {
+    var userId = ctx.userId;
+    var data = nk.storageRead([
+      { collection: collection, key: key, userId: userId },
+    ])[0];
+    var wallet = data.value;
+    return wallet;
+  }
+  Wallet.getWalletItems = getWalletItems;
+  function updateWallet(ctx, nk, changeset) {
+    // nk.walletUpdate();
+  }
+  Wallet.updateWallet = updateWallet;
+})(Wallet || (Wallet = {}));
 var SystemUserId = "00000000-0000-0000-0000-000000000000";
 var Category;
 (function (Category) {
@@ -46,6 +95,7 @@ var Category;
   Category[(Category["RUSH"] = 3)] = "RUSH";
   Category[(Category["CUP"] = 4)] = "CUP";
   Category[(Category["FRIENDS"] = 5)] = "FRIENDS";
+  Category[(Category["ENDLESS"] = 6)] = "ENDLESS";
 })(Category || (Category = {}));
 var MAX_SCORE = 1000000;
 var Bucket;
@@ -62,6 +112,7 @@ var Bucket;
       var id = _a[_i];
       init(nk, initializer, Bucket.configs[id]);
     }
+    initializer.registerBeforeJoinTournament(beforeJointournament);
   };
   var init = function (nk, initializer, config) {
     nk.tournamentCreate(
@@ -83,223 +134,217 @@ var Bucket;
     );
     initializer.registerRpc(
       "leaderboard/getRecords/".concat(config.tournamentID),
-      WeeklyGetRecordsRPC
+      GetRecordsRpcs[config.tournamentID]
     );
   };
-  function InitBucket(nk) {
-    var _a;
-    var collection = Bucket.storage.collection;
+  function InitBucket(nk, logger) {
     var initValue = 1;
-    // Initialize the latest bucket ID
-    try {
-      getLatestBucketId(nk);
-    } catch (error) {
-      var key = Bucket.storage.keys.latest;
-      var valueKey = "id";
-      var value = ((_a = {}), (_a[valueKey] = initValue), _a);
-      nk.storageWrite([
-        {
-          collection: collection,
-          key: key,
-          userId: SystemUserId,
-          value: value,
-          permissionRead: 2,
-          permissionWrite: 0,
-        },
-      ]);
-    }
-    // Initialize the weekly bucket
-    var InitBucketKey = ""
-      .concat(Bucket.configs.weekly.tournamentID, "#")
-      .concat(initValue);
-    var initBucket = { resetTimeUnix: 0, userIds: [] };
-    try {
-      getBucketById(nk, Bucket.configs.weekly.tournamentID, initValue);
-    } catch (error) {
-      nk.storageWrite([
-        {
-          collection: collection,
-          key: InitBucketKey,
-          userId: SystemUserId,
-          value: initBucket,
-          permissionRead: 2,
-          permissionWrite: 0,
-        },
-      ]);
+    for (var _i = 0, _a = Object.keys(Bucket.configs); _i < _a.length; _i++) {
+      var leaderboardId = _a[_i];
+      // Initialize the latest bucket ID
+      try {
+        getLatestBucketId(nk, leaderboardId);
+      } catch (error) {
+        var key = Bucket.storage.keys.latest;
+        var value = { id: initValue };
+        nk.storageWrite([
+          {
+            collection: leaderboardId,
+            key: key,
+            userId: SystemUserId,
+            value: value,
+            permissionRead: 2,
+            permissionWrite: 0,
+          },
+        ]);
+      }
+      // Initialize the weekly bucket
+      var InitBucketKey = "".concat(leaderboardId, "#").concat(initValue);
+      var initBucket = { resetTimeUnix: 0, userIds: [] };
+      try {
+        getBucketById(nk, leaderboardId, initValue);
+      } catch (error) {
+        nk.storageWrite([
+          {
+            collection: Bucket.storage.collection,
+            key: InitBucketKey,
+            userId: SystemUserId,
+            value: initBucket,
+            permissionRead: 2,
+            permissionWrite: 0,
+          },
+        ]);
+      }
     }
   }
   Bucket.InitBucket = InitBucket;
   Bucket.configs = {
-    weekly: {
+    Weekly: {
       tournamentID: "Weekly",
       authoritative: true,
       category: Category.WEEKLY,
-      duration: 7 * 24 * 60 * 60,
+      // duration: 7 * 24 * 60 * 60,
+      duration: 15 * 60,
       description: "",
       bucketSize: 10,
-      endTime: 0,
-      joinRequired: false,
+      endTime: null,
+      joinRequired: true,
       maxNumScore: MAX_SCORE,
       maxSize: 1000000,
       metadata: {},
       operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
-      resetSchedule: "0 0 * * 1",
+      // resetSchedule: "0 0 * * 1",
+      resetSchedule: "*/15 * * * *",
       sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
       startTime: 0,
       title: "Weekly Leaderboard",
     },
+    Cup: {
+      tournamentID: "Cup",
+      authoritative: true,
+      category: Category.CUP,
+      duration: 3 * 24 * 60 * 60,
+      description: "",
+      bucketSize: 50,
+      endTime: null,
+      joinRequired: true,
+      maxNumScore: MAX_SCORE,
+      maxSize: 100000000,
+      metadata: {},
+      operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
+      resetSchedule: "0 0 */3 * *",
+      sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
+      startTime: 0,
+      title: "Pepe Cup",
+    },
+    Rush: {
+      tournamentID: "Rush",
+      authoritative: true,
+      category: Category.RUSH,
+      duration: 12 * 60 * 60,
+      description: "",
+      bucketSize: 10,
+      endTime: null,
+      joinRequired: true,
+      maxNumScore: MAX_SCORE,
+      maxSize: 100000000,
+      metadata: {},
+      operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
+      resetSchedule: "0 */12 * * *",
+      sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
+      startTime: 0,
+      title: "Pepe Rush",
+    },
+    Endless: {
+      tournamentID: "Endless",
+      authoritative: true,
+      category: Category.ENDLESS,
+      duration: 3 * 24 * 60 * 60,
+      description: "",
+      bucketSize: 50,
+      endTime: null,
+      joinRequired: true,
+      maxNumScore: MAX_SCORE,
+      maxSize: 100000000,
+      metadata: {},
+      operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
+      resetSchedule: "0 0 */3 * *",
+      sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
+      startTime: 0,
+      title: "Endless Event",
+    },
   };
-})(Bucket || (Bucket = {}));
-// const WeeklyGetRecordsRPC2: nkruntime.RpcFunction = (
-//   ctx: nkruntime.Context,
-//   logger: nkruntime.Logger,
-//   nk: nkruntime.Nakama
-// ): string => {
-//   const collection = "Buckets";
-//   const key = "Weekly";
-//   const objects = nk.storageRead([
-//     {
-//       collection,
-//       key,
-//       userId: ctx.userId,
-//     },
-//   ]);
-//   // Fetch any existing bucket or create one if none exist
-//   let userBucket: Bucket.UserBucketStorageObject = {
-//     resetTimeUnix: 0,
-//     userIds: [],
-//   };
-//   if (objects.length > 0) {
-//     userBucket = objects[0].value as Bucket.UserBucketStorageObject;
-//   }
-//   // Fetch the tournament leaderboard
-//   const leaderboards = nk.tournamentsGetId([
-//     Bucket.configs.weekly.tournamentID,
-//   ]);
-//   // Leaderboard has reset or no current bucket exists for user
-//   if (
-//     userBucket.resetTimeUnix != leaderboards[0].endActive ||
-//     userBucket.userIds.length < 1
-//   ) {
-//     const pivotID = nk.uuidv4();
-//     const query = nk.sqlQuery("SELECT id FROM users WHERE id > $1 LIMIT $2", [
-//       pivotID,
-//       Bucket.configs.weekly.bucketSize,
-//     ]);
-//     query;
-//     for (const row of query) {
-//       const key = Object.keys(row)[0];
-//       const id = row[key];
-//       if (key === ctx.userId || id === "00000000-0000-0000-0000-000000000000") {
-//         continue;
-//       }
-//       userBucket.userIds.push(id);
-//     }
-//     //not enough users to fill bucket
-//     if (userBucket.userIds.length < Bucket.configs.weekly.bucketSize) {
-//     }
-//     const users = nk.usersGetRandom(Bucket.configs.weekly.bucketSize);
-//     users.forEach(function (user: nkruntime.User) {
-//       userBucket.userIds.push(user.userId);
-//     });
-//     // Set the Reset and Bucket end times to be in sync
-//     userBucket.resetTimeUnix = leaderboards[0].endActive;
-//     // Store generated bucket for the user
-//     nk.storageWrite([
-//       {
-//         collection,
-//         key,
-//         userId: ctx.userId,
-//         value: userBucket,
-//         permissionRead: 0,
-//         permissionWrite: 0,
-//       },
-//     ]);
-//   }
-//   // Add self to the list of leaderboard records to fetch
-//   userBucket.userIds.push(ctx.userId);
-//   const accounts = nk.accountsGetId(userBucket.userIds);
-//   const recordsList = nk.tournamentRecordsList(
-//     Bucket.configs.weekly.tournamentID,
-//     userBucket.userIds,
-//     Bucket.configs.weekly.bucketSize
-//   );
-//   const userIDS = recordsList.records?.map((record) => {
-//     return record.ownerId;
-//   });
-//   for (const acc of accounts) {
-//     const userId = acc.user.userId;
-//     const username = acc.user.username;
-//     if (!userIDS || userIDS.indexOf(userId) === -1) {
-//       nk.tournamentRecordWrite(
-//         Bucket.configs.weekly.tournamentID,
-//         userId,
-//         username,
-//         0
-//       );
-//     }
-//   }
-//   // Get the leaderboard records
-//   const finalRecords = nk.tournamentRecordsList(
-//     Bucket.configs.weekly.tournamentID,
-//     userBucket.userIds,
-//     Bucket.configs.weekly.bucketSize
-//   );
-//   return JSON.stringify(finalRecords.records);
-// };
-var WeeklyGetRecordsRPC = function (ctx, logger, nk) {
-  var collection = Bucket.storage.collection;
-  var key = Bucket.configs.weekly.tournamentID;
-  var userId = ctx.userId;
-  var leaderBoadrdId = Bucket.configs.weekly.tournamentID;
-  var bucketSize = Bucket.configs.weekly.bucketSize;
-  //get user bucket
-  var userBucket = nk.storageRead([
-    { collection: collection, key: key, userId: userId },
-  ]);
-  if (userBucket.length > 0) {
-    var id = userBucket[0].value.id;
-    var bucket = getBucketById(nk, leaderBoadrdId, id).bucket;
-    var records = nk.tournamentRecordsList(key, bucket.userIds, bucketSize);
-    return JSON.stringify(records.records);
-  }
-  //if not exists
-  //get last bucket
-  var attempts = 0;
-  while (true) {
+  function getLatestBucketId(nk, leaderBoadrdId) {
     try {
-      var _a = getLatestBucketId(nk),
-        latestId = _a.latestId,
-        latestVersion = _a.latestVersion;
-      var _b = getBucketById(nk, leaderBoadrdId, latestId),
-        bucket = _b.bucket,
-        version = _b.version;
-      logger.debug("bucket ".concat(bucket, " , version=").concat(version));
-      // if full create new bucket
-      var tournamentInfo = nk.tournamentsGetId([key])[0];
-      var resetTimeUnix = tournamentInfo.nextReset;
-      if (bucket.userIds.length >= bucketSize) {
-        bucket = {
-          userIds: [],
-          resetTimeUnix: 0,
-        };
-        latestId = latestId + 1;
-        version = createNewBucket(
-          nk,
-          leaderBoadrdId,
-          latestId,
-          latestVersion,
-          bucket
-        );
-        logger.debug("created new bucket with version: ".concat(version));
-      }
-      //if not full add user to it
-      bucket.userIds.push(userId);
-      logger.debug("bucket ".concat(bucket, " , version=").concat(version));
+      var collection = leaderBoadrdId;
+      var key = Bucket.storage.keys.latest;
+      var valueKey = "id";
+      var latestBucket = nk.storageRead([
+        { collection: collection, key: key, userId: SystemUserId },
+      ]);
+      var latestVersion = latestBucket[0].version;
+      var latestId = parseInt(latestBucket[0].value[valueKey]);
+      return { latestId: latestId, latestVersion: latestVersion };
+    } catch (error) {
+      throw new Error("failed to getLatestBucketId: ".concat(error.message));
+    }
+  }
+  Bucket.getLatestBucketId = getLatestBucketId;
+  function setLatestBucketId(nk, leaderBoadrdId, newId, version) {
+    try {
+      var collection = leaderBoadrdId;
+      var key = Bucket.storage.keys.latest;
+      var value = { id: newId };
+      var writeObj = {
+        collection: collection,
+        key: key,
+        userId: SystemUserId,
+        value: value,
+        permissionRead: 2,
+        permissionWrite: 0,
+      };
+      if (version) writeObj.version = version;
+      var res = nk.storageWrite([writeObj]);
+      return res[0].version;
+    } catch (error) {
+      throw new Error("failed to setLatestBucketId: ".concat(error.message));
+    }
+  }
+  Bucket.setLatestBucketId = setLatestBucketId;
+  function getBucketById(nk, leaderboard, id) {
+    var collection = Bucket.storage.collection;
+    var key = "".concat(leaderboard, "#").concat(id);
+    try {
+      var res = nk.storageRead([
+        { collection: collection, key: key, userId: SystemUserId },
+      ]);
+      var version = res[0].version;
+      var bucket = res[0].value;
+      return { bucket: bucket, version: version };
+    } catch (error) {
+      throw new Error(
+        "failed to getBucketById: key:"
+          .concat(key, " collection:")
+          .concat(collection, " error: ")
+          .concat(error.message)
+      );
+    }
+  }
+  Bucket.getBucketById = getBucketById;
+  function createNewBucket(nk, leaderBoadrdId, id, latestVersion, data) {
+    var key = "".concat(leaderBoadrdId, "#").concat(id);
+    try {
+      setLatestBucketId(nk, leaderBoadrdId, id, latestVersion);
+      var res = nk.storageWrite([
+        {
+          collection: Bucket.storage.collection,
+          key: key,
+          userId: SystemUserId,
+          value: data,
+          permissionRead: 2,
+          permissionWrite: 0,
+        },
+      ]);
+      var version = res[0].version;
+      return version;
+    } catch (error) {
+      throw new Error(
+        "failed to createNewBucket with id "
+          .concat(key, ": data:")
+          .concat(JSON.stringify(data), " ")
+          .concat(error.message)
+      );
+    }
+  }
+  Bucket.createNewBucket = createNewBucket;
+  function addUserToBucket(nk, leaderBoadrdId, bucketId, version, bucket) {
+    try {
+      var collection = Bucket.storage.collection;
+      var key = "".concat(leaderBoadrdId, "#").concat(bucketId);
       nk.storageWrite([
         {
           collection: collection,
-          key: "".concat(leaderBoadrdId, "#").concat(latestId),
+          key: key,
           version: version,
           userId: SystemUserId,
           value: bucket,
@@ -307,99 +352,168 @@ var WeeklyGetRecordsRPC = function (ctx, logger, nk) {
           permissionWrite: 0,
         },
       ]);
-      setUserBucket(nk, userId, leaderBoadrdId, latestId);
-      //change last bucket key
-      setLatestBucketId(nk, latestId.toString(), latestVersion);
-      //return records
+    } catch (error) {
+      throw new Error("failed to addUserToBucket: ".concat(error.message));
+    }
+  }
+  Bucket.addUserToBucket = addUserToBucket;
+  function setUserBucket(nk, userId, leaderBoadrdId, id) {
+    try {
+      nk.storageWrite([
+        {
+          collection: Bucket.storage.collection,
+          key: leaderBoadrdId,
+          userId: userId,
+          value: { id: id },
+          permissionRead: 2,
+          permissionWrite: 0,
+        },
+      ]);
+    } catch (error) {
+      throw new Error("failed to setUserBucket: ".concat(error.message));
+    }
+  }
+  Bucket.setUserBucket = setUserBucket;
+  function getUserBucket(nk, config, userId) {
+    try {
+      var collection = Bucket.storage.collection;
+      var leaderBoadrdId = config.tournamentID;
+      var userBucket = nk.storageRead([
+        { collection: collection, key: leaderBoadrdId, userId: userId },
+      ]);
+      if (userBucket.length < 1) return null;
+      var id = userBucket[0].value.id;
+      var bucket = Bucket.getBucketById(nk, leaderBoadrdId, id).bucket;
+      return bucket;
+    } catch (error) {
+      throw new Error("failed to getUserBucket: ".concat(error.message));
+    }
+  }
+  Bucket.getUserBucket = getUserBucket;
+  function joinLeaderboard(nk, logger, ctx, config) {
+    var _a, _b;
+    var userId = ctx.userId;
+    var username = ctx.username;
+    var leaderBoadrdId = config.tournamentID;
+    var userBucket = getUserBucket(nk, config, userId);
+    if (userBucket)
+      throw new Error(
+        "User Has already joined "
+          .concat(leaderBoadrdId, " leaderboard ")
+          .concat(userBucket)
+      );
+    var attempts = 0;
+    //get last bucket
+    while (true) {
+      try {
+        var _c = Bucket.getLatestBucketId(nk, leaderBoadrdId),
+          latestId = _c.latestId,
+          latestVersion = _c.latestVersion;
+        var _d = Bucket.getBucketById(nk, leaderBoadrdId, latestId),
+          bucket = _d.bucket,
+          version = _d.version;
+        // if full create new bucket
+        if (bucket.userIds.length >= config.bucketSize) {
+          var tournamentInfo = nk.tournamentsGetId([leaderBoadrdId])[0];
+          var resetTimeUnix =
+            (_b =
+              (_a = tournamentInfo.endActive) !== null && _a !== void 0
+                ? _a
+                : tournamentInfo.endTime) !== null && _b !== void 0
+              ? _b
+              : 0;
+          bucket = {
+            userIds: [],
+            resetTimeUnix: resetTimeUnix,
+          };
+          latestId = latestId + 1;
+          version = Bucket.createNewBucket(
+            nk,
+            leaderBoadrdId,
+            latestId,
+            latestVersion,
+            bucket
+          );
+          logger.debug(
+            "created new bucket: ".concat(leaderBoadrdId, "#").concat(latestId)
+          );
+        }
+        //if not full add user to it
+        bucket.userIds.push(userId);
+        Bucket.addUserToBucket(nk, leaderBoadrdId, latestId, version, bucket);
+        Bucket.setUserBucket(nk, userId, leaderBoadrdId, latestId);
+        //add user to leaderboard
+        nk.tournamentRecordWrite(leaderBoadrdId, userId, username, 0);
+        logger.info("user has joined ".concat(leaderBoadrdId, " tournament"));
+        return bucket;
+      } catch (error) {
+        if (error.message.indexOf("version check failed") !== -1) throw error;
+        if (attempts > 100) throw error;
+        attempts++;
+      }
+    }
+  }
+  Bucket.joinLeaderboard = joinLeaderboard;
+  function getRecords(nk, bucket, config, time) {
+    try {
       var tournament = nk.tournamentRecordsList(
-        Bucket.configs.weekly.tournamentID,
-        bucket.userIds
+        config.tournamentID,
+        bucket.userIds,
+        config.bucketSize,
+        undefined,
+        time
       );
       return JSON.stringify(tournament.records);
     } catch (error) {
-      if (attempts > 100) throw error;
-      attempts++;
+      throw new Error("failed to getRecords: ".concat(error.message));
     }
   }
+  Bucket.getRecords = getRecords;
+  function getBucketRpc(ctx, logger, nk, payload, config) {
+    var userId = ctx.userId;
+    var time = undefined;
+    var input = JSON.parse(payload);
+    if (input) {
+      time = JSON.parse(payload).time;
+    }
+    //get user bucket
+    var bucket = Bucket.getUserBucket(nk, config, userId);
+    //if not exists
+    if (!bucket) throw new Error("user does not exist in this leaderboard");
+    return getRecords(nk, bucket, config, time);
+  }
+  Bucket.getBucketRpc = getBucketRpc;
+})(Bucket || (Bucket = {}));
+var WeeklyGetRecordsRPC = function (ctx, logger, nk, payload) {
+  var config = Bucket.configs.Weekly;
+  return Bucket.getBucketRpc(ctx, logger, nk, payload, config);
 };
-function getLatestBucketId(nk) {
-  var collection = Bucket.storage.collection;
-  var key = Bucket.storage.keys.latest;
-  var valueKey = "id";
-  var latestBucket = nk.storageRead([
-    { collection: collection, key: key, userId: SystemUserId },
-  ]);
-  var latestVersion = latestBucket[0].version;
-  var latestId = parseInt(latestBucket[0].value[valueKey]);
-  return { latestId: latestId, latestVersion: latestVersion };
-}
-function setLatestBucketId(nk, newId, version) {
-  var collection = Bucket.storage.collection;
-  var key = Bucket.storage.keys.latest;
-  var value = { id: newId };
-  var writeObj = {
-    collection: collection,
-    key: key,
-    userId: SystemUserId,
-    value: value,
-    permissionRead: 2,
-    permissionWrite: 0,
-  };
-  if (version) writeObj.version = version;
-  var res = nk.storageWrite([writeObj]);
-  return res[0].version;
-}
-function getBucketById(nk, leaderboard, id) {
-  var collection = Bucket.storage.collection;
-  var key = "".concat(leaderboard, "#").concat(id);
-  var res = nk.storageRead([
-    { collection: collection, key: key, userId: SystemUserId },
-  ]);
-  var version = res[0].version;
-  var bucket = res[0].value;
-  return { bucket: bucket, version: version };
-}
-function createNewBucket(nk, leaderBoadrdId, id, latestVersion, data) {
-  var key = "".concat(leaderBoadrdId, "#").concat(id);
-  var readRes = nk.storageRead([
-    {
-      collection: Bucket.storage.collection,
-      key: key,
-      userId: SystemUserId,
-    },
-  ]);
-  var version;
-  if (readRes.length > 0) {
-    version = readRes[0].version;
-  }
-  {
-    var res = nk.storageWrite([
-      {
-        collection: Bucket.storage.collection,
-        key: key,
-        userId: SystemUserId,
-        value: data,
-        permissionRead: 2,
-        permissionWrite: 0,
-      },
-    ]);
-    setLatestBucketId(nk, id.toString(), latestVersion);
-    version = res[0].version;
-  }
-  return version;
-}
-function setUserBucket(nk, userId, leaderBoadrdId, id) {
-  nk.storageWrite([
-    {
-      collection: Bucket.storage.collection,
-      key: leaderBoadrdId,
-      userId: userId,
-      value: { id: id },
-      permissionRead: 2,
-      permissionWrite: 0,
-    },
-  ]);
-}
+var CupGetRecordsRPC = function (ctx, logger, nk, payload) {
+  var config = Bucket.configs.Cup;
+  return Bucket.getBucketRpc(ctx, logger, nk, payload, config);
+};
+var RushGetRecordsRPC = function (ctx, logger, nk, payload) {
+  var config = Bucket.configs.Rush;
+  return Bucket.getBucketRpc(ctx, logger, nk, payload, config);
+};
+var EndlessGetRecordsRPC = function (ctx, logger, nk, payload) {
+  var config = Bucket.configs.Endless;
+  return Bucket.getBucketRpc(ctx, logger, nk, payload, config);
+};
+var GetRecordsRpcs = {
+  Weekly: WeeklyGetRecordsRPC,
+  Cup: CupGetRecordsRPC,
+  Rush: RushGetRecordsRPC,
+  Endless: EndlessGetRecordsRPC,
+};
+// Before Join Leaderboards Hooks
+var beforeJointournament = function (ctx, logger, nk, data) {
+  var tournamentId = data.tournamentId;
+  if (!tournamentId) throw new Error("Invalid tournament id");
+  var config = Bucket.configs[tournamentId];
+  Bucket.joinLeaderboard(nk, logger, ctx, config);
+  return data;
+};
 var Leaderboards;
 (function (Leaderboards) {
   Leaderboards.configs = {
@@ -466,7 +580,7 @@ var Leaderboards;
   };
   var updateWeekly = function (nk, userId, username, score, subScore) {
     nk.tournamentRecordWrite(
-      Bucket.configs.weekly.tournamentID,
+      Bucket.configs.Weekly.tournamentID,
       userId,
       username,
       score,
@@ -501,35 +615,6 @@ var cryptoWalletIndex = function (initializer) {
   var maxEntries = 1000000000;
   initializer.registerStorageIndex(name, collection, key, fields, maxEntries);
 };
-var InitialWallet = {
-  Heart: {
-    endDate: 0,
-    isUnlimited: false,
-    quantity: 5,
-  },
-  TNT: {
-    endDate: 0,
-    isUnlimited: false,
-    quantity: 3,
-  },
-  DiscoBall: {
-    endDate: 0,
-    isUnlimited: false,
-    quantity: 3,
-  },
-  Rocket: {
-    endDate: 0,
-    isUnlimited: false,
-    quantity: 3,
-  },
-  Hammer: 0,
-  Shuffle: 0,
-  HorizontalRocket: 0,
-  VerticalRocket: 0,
-  Coins: 0,
-  Gems: 0,
-  Score: 0,
-};
 var initialCrypto = {
   address: null,
   balance: null,
@@ -541,7 +626,7 @@ var InitiateUser = function (ctx, logger, nk, data) {
       {
         collection: "Economy",
         key: "Wallet",
-        value: InitialWallet,
+        value: Wallet.InitialWallet,
         userId: ctx.userId,
         permissionRead: 1,
         permissionWrite: 1,
@@ -721,6 +806,456 @@ var GameApi = {
       key: "Wallet",
     }),
     _d),
+};
+var SHOP_ITEMS = [
+  {
+    name: "Admiral Resources",
+    id: "ADMIRAL_RESOURCES",
+    items: [
+      {
+        id: "Hammer",
+        quantity: 10,
+      },
+      {
+        id: "Shuffle",
+        quantity: 10,
+      },
+      {
+        id: "VerticalRocket",
+        quantity: 10,
+      },
+      {
+        id: "HorizontalRocket",
+        quantity: 10,
+      },
+      {
+        id: "Heart",
+        isUnlimited: true,
+        quantity: 0,
+        time: 64800,
+      },
+      {
+        id: "Rocket",
+        isUnlimited: true,
+        quantity: 0,
+        time: 259200,
+      },
+      {
+        id: "DiscoBall",
+        isUnlimited: true,
+        quantity: 0,
+        time: 259200,
+      },
+      {
+        id: "TNT",
+        isUnlimited: true,
+        quantity: 0,
+        time: 259200,
+      },
+      {
+        id: "Coins",
+        quantity: 50000,
+      },
+    ],
+    price: 99.99,
+    type: "Special Offer",
+  },
+  {
+    name: "Astronaut Resources",
+    id: "ASTRONAUT_RESOURCES",
+    items: [
+      {
+        id: "Hammer",
+        quantity: 2,
+      },
+      {
+        id: "Shuffle",
+        quantity: 2,
+      },
+      {
+        id: "VerticalRocket",
+        quantity: 2,
+      },
+      {
+        id: "HorizontalRocket",
+        quantity: 2,
+      },
+      {
+        id: "Heart",
+        isUnlimited: true,
+        quantity: 0,
+        time: 3600,
+      },
+      {
+        id: "Rocket",
+        isUnlimited: true,
+        quantity: 0,
+        time: 3600,
+      },
+      {
+        id: "DiscoBall",
+        isUnlimited: true,
+        quantity: 0,
+        time: 3600,
+      },
+      {
+        id: "TNT",
+        isUnlimited: true,
+        quantity: 0,
+        time: 3600,
+      },
+      {
+        id: "Coins",
+        quantity: 5000,
+      },
+    ],
+    price: 9.99,
+    type: "Special Offer",
+  },
+  {
+    name: "Captain Resources",
+    id: "CAPTAIN_RESOURCES",
+    items: [
+      {
+        id: "Hammer",
+        quantity: 4,
+      },
+      {
+        id: "Shuffle",
+        quantity: 4,
+      },
+      {
+        id: "VerticalRocket",
+        quantity: 4,
+      },
+      {
+        id: "HorizontalRocket",
+        quantity: 4,
+      },
+      {
+        id: "Heart",
+        isUnlimited: true,
+        quantity: 0,
+        time: 7200,
+      },
+      {
+        id: "Rocket",
+        isUnlimited: true,
+        quantity: 0,
+        time: 43200,
+      },
+      {
+        id: "DiscoBall",
+        isUnlimited: true,
+        quantity: 0,
+        time: 43200,
+      },
+      {
+        id: "TNT",
+        isUnlimited: true,
+        quantity: 0,
+        time: 43200,
+      },
+      {
+        id: "Coins",
+        quantity: 10000,
+      },
+    ],
+    price: 22.99,
+    type: "Special Offer",
+  },
+  {
+    name: "Commander Resources",
+    id: "COMMANDER_RESOURCES",
+    items: [
+      {
+        id: "Hammer",
+        quantity: 6,
+      },
+      {
+        id: "Shuffle",
+        quantity: 6,
+      },
+      {
+        id: "VerticalRocket",
+        quantity: 6,
+      },
+      {
+        id: "HorizontalRocket",
+        quantity: 6,
+      },
+      {
+        id: "Heart",
+        isUnlimited: true,
+        quantity: 0,
+        time: 21600,
+      },
+      {
+        id: "Rocket",
+        isUnlimited: true,
+        quantity: 0,
+        time: 64800,
+      },
+      {
+        id: "DiscoBall",
+        isUnlimited: true,
+        quantity: 0,
+        time: 64800,
+      },
+      {
+        id: "TNT",
+        isUnlimited: true,
+        quantity: 0,
+        time: 64800,
+      },
+      {
+        id: "Coins",
+        quantity: 10000,
+      },
+    ],
+    price: 44.99,
+    type: "Special Offer",
+  },
+  {
+    name: "Elder Resources",
+    id: "ELDER_RESOURCES",
+    items: [
+      {
+        id: "Hammer",
+        quantity: 15,
+      },
+      {
+        id: "Shuffle",
+        quantity: 15,
+      },
+      {
+        id: "VerticalRocket",
+        quantity: 15,
+      },
+      {
+        id: "HorizontalRocket",
+        quantity: 15,
+      },
+      {
+        id: "Heart",
+        isUnlimited: true,
+        quantity: 0,
+        time: 86400,
+      },
+      {
+        id: "Rocket",
+        isUnlimited: true,
+        quantity: 0,
+        time: 36000,
+      },
+      {
+        id: "DiscoBall",
+        isUnlimited: true,
+        quantity: 0,
+        time: 36000,
+      },
+      {
+        id: "TNT",
+        isUnlimited: true,
+        quantity: 0,
+        time: 36000,
+      },
+      {
+        id: "Coins",
+        quantity: 65000,
+      },
+    ],
+    price: 110.99,
+    type: "Special Offer",
+  },
+  {
+    name: "Special Offer",
+    id: "SPECIAL_OFFER",
+    items: [
+      {
+        id: "Hammer",
+        quantity: 1,
+      },
+      {
+        id: "Shuffle",
+        quantity: 1,
+      },
+      {
+        id: "VerticalRocket",
+        quantity: 1,
+      },
+      {
+        id: "HorizontalRocket",
+        quantity: 1,
+      },
+      {
+        id: "Heart",
+        isUnlimited: true,
+        quantity: 0,
+        time: 3600,
+      },
+      {
+        id: "Rocket",
+        isUnlimited: true,
+        quantity: 0,
+        time: 3600,
+      },
+      {
+        id: "DiscoBall",
+        isUnlimited: true,
+        quantity: 0,
+        time: 3600,
+      },
+      {
+        id: "TNT",
+        isUnlimited: true,
+        quantity: 0,
+        time: 3600,
+      },
+      {
+        id: "Coins",
+        quantity: 5000,
+      },
+    ],
+    price: 1.99,
+    type: "Special Offer",
+  },
+  {
+    name: "Vice Admiral Resources",
+    id: "VICE_ADMIRAL_RESOURCES",
+    items: [
+      {
+        id: "Hammer",
+        quantity: 8,
+      },
+      {
+        id: "Shuffle",
+        quantity: 8,
+      },
+      {
+        id: "VerticalRocket",
+        quantity: 8,
+      },
+      {
+        id: "HorizontalRocket",
+        quantity: 8,
+      },
+      {
+        id: "Heart",
+        isUnlimited: true,
+        quantity: 0,
+        time: 43200,
+      },
+      {
+        id: "Rocket",
+        isUnlimited: true,
+        quantity: 0,
+        time: 86400,
+      },
+      {
+        id: "DiscoBall",
+        isUnlimited: true,
+        quantity: 0,
+        time: 86400,
+      },
+      {
+        id: "TNT",
+        isUnlimited: true,
+        quantity: 0,
+        time: 86400,
+      },
+      {
+        id: "Coins",
+        quantity: 25000,
+      },
+    ],
+    price: 89.99,
+    type: "Special Offer",
+  },
+  {
+    name: "Currency pack 01",
+    id: "CURRENCY_PACK_01",
+    items: [
+      {
+        id: "Coins",
+        quantity: 1000,
+      },
+    ],
+    price: 1.99,
+    type: "Coin",
+  },
+  {
+    name: "Currency pack 02",
+    id: "CURRENCY_PACK_02",
+    items: [
+      {
+        id: "Coins",
+        quantity: 5000,
+      },
+    ],
+    price: 8.99,
+    type: "Coin",
+  },
+  {
+    name: "Currency pack 03",
+    id: "CURRENCY_PACK_03",
+    items: [
+      {
+        id: "Coins",
+        quantity: 10000,
+      },
+    ],
+    price: 17.99,
+    type: "Coin",
+  },
+  {
+    name: "Currency pack 04",
+    id: "CURRENCY_PACK_04",
+    items: [
+      {
+        id: "Coins",
+        quantity: 25000,
+      },
+    ],
+    price: 34.99,
+    type: "Coin",
+  },
+  {
+    name: "Currency pack 05",
+    id: "CURRENCY_PACK_05",
+    items: [
+      {
+        id: "Coins",
+        quantity: 50000,
+      },
+    ],
+    price: 59.99,
+    type: "Coin",
+  },
+  {
+    name: "Currency pack 06",
+    id: "CURRENCY_PACK_06",
+    items: [
+      {
+        id: "Coins",
+        quantity: 100000,
+      },
+    ],
+    price: 99.99,
+    type: "Coin",
+  },
+];
+var initShop = function (nk) {
+  nk.storageWrite([
+    {
+      collection: "Shop",
+      key: "Items",
+      userId: SystemUserId,
+      value: { items: SHOP_ITEMS },
+      permissionRead: 2,
+      permissionWrite: 0,
+    },
+  ]);
 };
 var LevelValidation;
 (function (LevelValidation) {
@@ -940,7 +1475,7 @@ var LevelValidation;
       });
       var coins = {
         id: "Coins",
-        quantity: log.atEnd.coins - log.atStart.coins,
+        quantity: log.atEnd.coins,
       };
       var result = __spreadArray(
         __spreadArray(__spreadArray([], boosters, true), powerUps, true),
@@ -985,10 +1520,9 @@ var levelValidatorRPC = function (ctx, logger, nk, payload) {
       GameApi.LastLevel.set(nk, userId, lastLevel + 1);
       Leaderboards.UpdateLeaderboards(nk, userId, ctx.username, levelLog);
     }
-    cheats.push.apply(
-      cheats,
-      LevelValidation.Validator.checkLevel(levelLog.levelNumber, lastLevel)
-    );
+    // cheats.push(
+    //   ...LevelValidation.Validator.checkLevel(levelLog.levelNumber, lastLevel)
+    // );
     if (cheats.length > 0) {
       GameApi.Cheat.write(nk, levelLog.levelNumber, userId, cheats);
     }
@@ -1000,8 +1534,10 @@ var levelValidatorRPC = function (ctx, logger, nk, payload) {
     extractData.map(function (item) {
       try {
         if (typeof wallet_1[item.id] === "number")
-          wallet_1[item.id] = item.quantity;
-        else wallet_1[item.id].quantity = item.quantity;
+          wallet_1[item.id] = wallet_1[item.id] - item.quantity;
+        else
+          wallet_1[item.id].quantity =
+            wallet_1[item.id].quantity - item.quantity;
       } catch (err) {
         logger.error("[extractData.map] : ".concat(err));
       }
