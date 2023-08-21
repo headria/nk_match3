@@ -50,7 +50,9 @@ namespace Bucket {
     for (const id of Object.keys(configs)) {
       init(nk, initializer, configs[id]);
     }
+    initializer.registerTournamentReset(tournamentReset);
     initializer.registerBeforeJoinTournament(beforeJointournament);
+    initializer.registerRpc(`leaderboard/getRecords`, GetRecordsRPC);
   };
 
   const init = function (
@@ -75,52 +77,8 @@ namespace Bucket {
       config.maxNumScore,
       config.joinRequired
     );
-    initializer.registerRpc(
-      `leaderboard/getRecords/${config.tournamentID}`,
-      GetRecordsRpcs[config.tournamentID]
-    );
   };
 
-  export function InitBucket(nk: nkruntime.Nakama, logger: nkruntime.Logger) {
-    const initValue = 1;
-    for (const leaderboardId of Object.keys(configs)) {
-      // Initialize the latest bucket ID
-      try {
-        getLatestBucketId(nk, leaderboardId);
-      } catch (error) {
-        const key = storage.keys.latest;
-        const value = { id: initValue };
-        nk.storageWrite([
-          {
-            collection: leaderboardId,
-            key,
-            userId: SystemUserId,
-            value,
-            permissionRead: 2,
-            permissionWrite: 0,
-          },
-        ]);
-      }
-
-      // Initialize the weekly bucket
-      const InitBucketKey = `${leaderboardId}#${initValue}`;
-      const initBucket: Bucket = { resetTimeUnix: 0, userIds: [] };
-      try {
-        getBucketById(nk, leaderboardId, initValue);
-      } catch (error) {
-        nk.storageWrite([
-          {
-            collection: storage.collection,
-            key: InitBucketKey,
-            userId: SystemUserId,
-            value: initBucket,
-            permissionRead: 2,
-            permissionWrite: 0,
-          },
-        ]);
-      }
-    }
-  }
   // Define the bucketed leaderboard storage object
   export interface UserBucketStorageObject {
     resetTimeUnix: number;
@@ -133,7 +91,7 @@ namespace Bucket {
       authoritative: true,
       category: Category.WEEKLY,
       // duration: 7 * 24 * 60 * 60,
-      duration: 15 * 60,
+      duration: 60,
       description: "",
       bucketSize: 10,
       endTime: null,
@@ -143,7 +101,7 @@ namespace Bucket {
       metadata: {},
       operator: nkruntime.Operator.INCREMENTAL,
       // resetSchedule: "0 0 * * 1",
-      resetSchedule: "*/15 * * * *",
+      resetSchedule: "*/1 * * * *",
       sortOrder: nkruntime.SortOrder.DESCENDING,
       startTime: 0,
       title: "Weekly Leaderboard",
@@ -214,8 +172,14 @@ namespace Bucket {
       const latestBucket = nk.storageRead([
         { collection, key, userId: SystemUserId },
       ]);
-      const latestVersion = latestBucket[0].version;
-      const latestId = parseInt(latestBucket[0].value[valueKey]);
+      let latestVersion, latestId;
+      if (latestBucket.length < 1) {
+        latestId = 0;
+        latestVersion = setLatestBucketId(nk, leaderBoadrdId, latestId);
+      } else {
+        latestVersion = latestBucket[0].version;
+        latestId = parseInt(latestBucket[0].value[valueKey]);
+      }
       return { latestId, latestVersion };
     } catch (error: any) {
       throw new Error(`failed to getLatestBucketId: ${error.message}`);
@@ -269,34 +233,44 @@ namespace Bucket {
 
   export function createNewBucket(
     nk: nkruntime.Nakama,
+    logger: nkruntime.Logger,
     leaderBoadrdId: string,
     id: number,
-    latestVersion: string,
-    data: Bucket.Bucket
+    latestBucketVersion: string
   ) {
     let key = `${leaderBoadrdId}#${id}`;
     try {
-      setLatestBucketId(nk, leaderBoadrdId, id, latestVersion);
-
+      let latestVersion = setLatestBucketId(
+        nk,
+        leaderBoadrdId,
+        id,
+        latestBucketVersion
+      );
+      const tournamentInfo = nk.tournamentsGetId([leaderBoadrdId])[0];
+      const resetTimeUnix =
+        tournamentInfo.endActive ?? tournamentInfo.endTime ?? 0;
+      let bucket: Bucket = {
+        userIds: [],
+        resetTimeUnix,
+      };
       const res = nk.storageWrite([
         {
           collection: Bucket.storage.collection,
           key,
           userId: SystemUserId,
-          value: data,
+          value: bucket,
           permissionRead: 2,
           permissionWrite: 0,
         },
       ]);
 
       const version = res[0].version;
+      logger.debug(`created new bucket: ${leaderBoadrdId}#${id}`);
 
-      return version;
+      return { bucket, version, latestVersion };
     } catch (error: any) {
       throw new Error(
-        `failed to createNewBucket with id ${key}: data:${JSON.stringify(
-          data
-        )} ${error.message}`
+        `failed to createNewBucket with id ${key}: ${error.message}`
       );
     }
   }
@@ -377,23 +351,29 @@ namespace Bucket {
     config: Config
   ) {
     const userId = ctx.userId;
-    const username = ctx.username;
     const leaderBoadrdId = config.tournamentID;
     const userBucket = getUserBucket(nk, config, userId);
-    if (userBucket)
-      throw new Error(
-        `User Has already joined ${leaderBoadrdId} leaderboard ${userBucket}`
-      );
 
+    if (userBucket) {
+      throw new Error(`User Has already joined ${leaderBoadrdId} leaderboard`);
+    }
     let attempts = 0;
     //get last bucket
     while (true) {
       try {
-        let { latestId, latestVersion } = Bucket.getLatestBucketId(
-          nk,
-          leaderBoadrdId
-        );
+        const latestRes = Bucket.getLatestBucketId(nk, leaderBoadrdId);
+        let { latestId, latestVersion } = latestRes;
 
+        if (latestId === 0) {
+          const data = Bucket.createNewBucket(
+            nk,
+            logger,
+            leaderBoadrdId,
+            ++latestId,
+            latestVersion
+          );
+          latestVersion = data.latestVersion;
+        }
         let { bucket, version } = Bucket.getBucketById(
           nk,
           leaderBoadrdId,
@@ -402,38 +382,24 @@ namespace Bucket {
 
         // if full create new bucket
         if (bucket.userIds.length >= config.bucketSize) {
-          const tournamentInfo = nk.tournamentsGetId([leaderBoadrdId])[0];
-
-          const resetTimeUnix =
-            tournamentInfo.endActive ?? tournamentInfo.endTime ?? 0;
-          bucket = {
-            userIds: [],
-            resetTimeUnix,
-          };
-          latestId = latestId + 1;
-          version = Bucket.createNewBucket(
+          const data = Bucket.createNewBucket(
             nk,
+            logger,
             leaderBoadrdId,
-            latestId,
-            latestVersion,
-            bucket
+            ++latestId,
+            latestVersion
           );
-
-          logger.debug(`created new bucket: ${leaderBoadrdId}#${latestId}`);
+          version = data.version;
+          latestVersion = data.latestVersion;
+          bucket = data.bucket;
         }
 
         //if not full add user to it
         bucket.userIds.push(userId);
-
         Bucket.addUserToBucket(nk, leaderBoadrdId, latestId, version, bucket);
         Bucket.setUserBucket(nk, userId, leaderBoadrdId, latestId);
-
-        //add user to leaderboard
-        nk.tournamentRecordWrite(leaderBoadrdId, userId, username, 0);
-        logger.info(`user has joined ${leaderBoadrdId} tournament`);
-        return bucket;
+        return;
       } catch (error: any) {
-        if (error.message.indexOf("version check failed") !== -1) throw error;
         if (attempts > 100) throw error;
         attempts++;
       }
@@ -443,16 +409,13 @@ namespace Bucket {
   export function getRecords(
     nk: nkruntime.Nakama,
     bucket: Bucket,
-    config: Config,
-    time?: number
+    config: Config
   ) {
     try {
       const tournament = nk.tournamentRecordsList(
         config.tournamentID,
         bucket.userIds,
-        config.bucketSize,
-        undefined,
-        time
+        config.bucketSize
       );
       return JSON.stringify(tournament.records);
     } catch (error: any) {
@@ -462,71 +425,28 @@ namespace Bucket {
 
   export function getBucketRpc(
     ctx: nkruntime.Context,
-    logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
-    payload: string,
     config: Config
   ) {
     const userId = ctx.userId;
-    let time: number | undefined = undefined;
-    const input = JSON.parse(payload);
-    if (input) {
-      time = JSON.parse(payload).time;
-    }
     //get user bucket
     let bucket = Bucket.getUserBucket(nk, config, userId);
     //if not exists
     if (!bucket) throw new Error("user does not exist in this leaderboard");
 
-    return getRecords(nk, bucket, config, time);
+    return getRecords(nk, bucket, config);
   }
 }
 
-const WeeklyGetRecordsRPC: nkruntime.RpcFunction = (
+const GetRecordsRPC: nkruntime.RpcFunction = (
   ctx: nkruntime.Context,
   logger: nkruntime.Logger,
   nk: nkruntime.Nakama,
   payload: string
 ): string => {
-  const config = Bucket.configs.Weekly;
-  return Bucket.getBucketRpc(ctx, logger, nk, payload, config);
-};
-
-const CupGetRecordsRPC: nkruntime.RpcFunction = (
-  ctx: nkruntime.Context,
-  logger: nkruntime.Logger,
-  nk: nkruntime.Nakama,
-  payload: string
-): string => {
-  const config = Bucket.configs.Cup;
-  return Bucket.getBucketRpc(ctx, logger, nk, payload, config);
-};
-
-const RushGetRecordsRPC: nkruntime.RpcFunction = (
-  ctx: nkruntime.Context,
-  logger: nkruntime.Logger,
-  nk: nkruntime.Nakama,
-  payload: string
-): string => {
-  const config = Bucket.configs.Rush;
-  return Bucket.getBucketRpc(ctx, logger, nk, payload, config);
-};
-
-const EndlessGetRecordsRPC: nkruntime.RpcFunction = (
-  ctx: nkruntime.Context,
-  logger: nkruntime.Logger,
-  nk: nkruntime.Nakama,
-  payload: string
-): string => {
-  const config = Bucket.configs.Endless;
-  return Bucket.getBucketRpc(ctx, logger, nk, payload, config);
-};
-
-const GetRecordsRpcs: { [leaderboard: string]: nkruntime.RpcFunction } = {
-  Weekly: WeeklyGetRecordsRPC,
-  Cup: CupGetRecordsRPC,
-  Rush: RushGetRecordsRPC,
-  Endless: EndlessGetRecordsRPC,
+  const { id } = JSON.parse(payload);
+  const config = Bucket.configs[id];
+  return Bucket.getBucketRpc(ctx, nk, config);
 };
 
 // Before Join Leaderboards Hooks
@@ -543,4 +463,54 @@ const beforeJointournament: nkruntime.BeforeHookFunction<
   const config = Bucket.configs[tournamentId];
   Bucket.joinLeaderboard(nk, logger, ctx, config);
   return data;
+};
+
+const tournamentReset: nkruntime.TournamentResetFunction = (
+  ctx: nkruntime.Context,
+  logger: nkruntime.Logger,
+  nk: nkruntime.Nakama,
+  tournament: nkruntime.Tournament,
+  end: number,
+  reset: number
+) => {
+  logger.debug(`Reseting ${tournament.id} Leaderboard`);
+  const storages = nk.storageList(
+    SystemUserId,
+    Bucket.storage.collection,
+    1000
+  );
+  const buckets = storages.objects?.filter(
+    (o) => o.key.indexOf(tournament.id) !== -1
+  );
+  if (buckets) {
+    const objects = buckets.map((b) => {
+      const item: nkruntime.StorageDeleteRequest = {
+        collection: b.collection,
+        key: b.key,
+        userId: SystemUserId,
+      };
+      return item;
+    });
+
+    nk.storageDelete(objects);
+  }
+
+  const userBuckets = nk.storageList(
+    undefined,
+    Bucket.storage.collection,
+    100000
+  );
+
+  if (userBuckets.objects) {
+    const userObjToDelete = userBuckets.objects.map((r) => {
+      const obj: nkruntime.StorageDeleteRequest = {
+        collection: Bucket.storage.collection,
+        key: tournament.id,
+        userId: r.userId,
+      };
+      return obj;
+    });
+    nk.storageDelete(userObjToDelete);
+  }
+  Bucket.setLatestBucketId(nk, tournament.id, 0);
 };
