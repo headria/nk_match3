@@ -63,15 +63,7 @@ namespace Leaderboards {
     username: string,
     score: number,
     subScore: number
-  ) => {
-    nk.leaderboardRecordWrite(
-      configs.global.leaderboardID,
-      userId,
-      username,
-      score,
-      subScore
-    );
-  };
+  ) => {};
 
   const updateWeekly = (
     nk: nkruntime.Nakama,
@@ -95,7 +87,19 @@ namespace Leaderboards {
     username: string,
     levelLog: LevelValidation.ILevelLog
   ): void => {
-    updateGlobal(nk, userId, username, 1, 0);
-    updateWeekly(nk, userId, username, 1, 0);
+    const score = 1;
+    const subScore = 0;
+    updateGlobal(nk, userId, username, score, subScore);
+    Object.keys(Bucket.configs).map((tournamentId) => {
+      try {
+        nk.tournamentRecordWrite(
+          tournamentId,
+          userId,
+          username,
+          score,
+          subScore
+        );
+      } catch (error) {}
+    });
   };
 }

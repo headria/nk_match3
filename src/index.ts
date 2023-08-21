@@ -10,8 +10,6 @@ const InitModule: nkruntime.InitModule = function (
   //initialize shop
   initShop(nk);
 
-  //initialize bucket
-  Bucket.InitBucket(nk, logger);
   //initiate user wallet
   initializer.registerAfterAuthenticateDevice(InitiateUser);
 
