@@ -474,12 +474,42 @@ const tournamentReset: nkruntime.TournamentResetFunction = (
   reset: number
 ) => {
   logger.debug(`Reseting ${tournament.id} Leaderboard`);
-  const storages = nk.storageList(
+
+  const userBuckets = nk.storageList(
+    undefined,
+    Bucket.storage.collection,
+    100000 // must be fixed
+  );
+
+  if (userBuckets.objects) {
+    const userObjToDelete = userBuckets.objects.map((r) => {
+      const obj: nkruntime.StorageDeleteRequest = {
+        collection: Bucket.storage.collection,
+        key: tournament.id,
+        userId: r.userId,
+      };
+      nk.notificationSend(
+        r.userId,
+        "Leaderboard End",
+        {
+          id: tournament.id,
+          data: Bucket.getBucketById(nk, tournament.id, r.value.id), //optimize
+        },
+        0,
+        null,
+        true
+      );
+      return obj;
+    });
+    nk.storageDelete(userObjToDelete);
+  }
+
+  const storageIds = nk.storageList(
     SystemUserId,
     Bucket.storage.collection,
     1000
   );
-  const buckets = storages.objects?.filter(
+  const buckets = storageIds.objects?.filter(
     (o) => o.key.indexOf(tournament.id) !== -1
   );
   if (buckets) {
@@ -495,22 +525,5 @@ const tournamentReset: nkruntime.TournamentResetFunction = (
     nk.storageDelete(objects);
   }
 
-  const userBuckets = nk.storageList(
-    undefined,
-    Bucket.storage.collection,
-    100000
-  );
-
-  if (userBuckets.objects) {
-    const userObjToDelete = userBuckets.objects.map((r) => {
-      const obj: nkruntime.StorageDeleteRequest = {
-        collection: Bucket.storage.collection,
-        key: tournament.id,
-        userId: r.userId,
-      };
-      return obj;
-    });
-    nk.storageDelete(userObjToDelete);
-  }
   Bucket.setLatestBucketId(nk, tournament.id, 0);
 };
