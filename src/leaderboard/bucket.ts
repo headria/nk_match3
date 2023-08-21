@@ -474,7 +474,7 @@ const tournamentReset: nkruntime.TournamentResetFunction = (
   reset: number
 ) => {
   logger.debug(`Reseting ${tournament.id} Leaderboard`);
-
+  const config = Bucket.configs[tournament.id];
   const userBuckets = nk.storageList(
     undefined,
     Bucket.storage.collection,
@@ -488,12 +488,14 @@ const tournamentReset: nkruntime.TournamentResetFunction = (
         key: tournament.id,
         userId: r.userId,
       };
+      const bucket = Bucket.getBucketById(nk, tournament.id, r.value.id).bucket; //optimize
+      const records = Bucket.getRecords(nk, bucket, config);
       nk.notificationSend(
         r.userId,
         "Leaderboard End",
         {
           id: tournament.id,
-          data: Bucket.getBucketById(nk, tournament.id, r.value.id), //optimize
+          records: records,
         },
         0,
         null,
