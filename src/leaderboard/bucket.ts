@@ -322,22 +322,33 @@ namespace Bucket {
       throw new Error(`failed to setUserBucket: ${error.message}`);
     }
   }
+
+  export function getUserBucketId(
+    nk: nkruntime.Nakama,
+    leaderBoadrdId: string,
+    userId: string
+  ) {
+    const collection = Bucket.storage.collection;
+
+    const userBucket = nk.storageRead([
+      { collection, key: leaderBoadrdId, userId },
+    ]);
+
+    if (userBucket.length < 1) return null;
+    const { id } = userBucket[0].value;
+    return id;
+  }
+
   export function getUserBucket(
     nk: nkruntime.Nakama,
     config: Config,
     userId: string
   ) {
     try {
-      const collection = Bucket.storage.collection;
       const leaderBoadrdId = config.tournamentID;
-      const userBucket = nk.storageRead([
-        { collection, key: leaderBoadrdId, userId },
-      ]);
-
-      if (userBucket.length < 1) return null;
-
-      const { id } = userBucket[0].value;
-      const { bucket } = Bucket.getBucketById(nk, leaderBoadrdId, id);
+      const userBucketId = getUserBucketId(nk, leaderBoadrdId, userId);
+      if (!userBucketId) return null;
+      const { bucket } = Bucket.getBucketById(nk, leaderBoadrdId, userBucketId);
       return bucket;
     } catch (error: any) {
       throw new Error(`failed to getUserBucket: ${error.message}`);
@@ -426,7 +437,7 @@ namespace Bucket {
     }
   }
 
-  export function getBucketRpc(
+  export function getBucketRecordsRpc(
     ctx: nkruntime.Context,
     nk: nkruntime.Nakama,
     config: Config
@@ -474,12 +485,7 @@ namespace Bucket {
               leaderBoardId,
               r.value.id
             ).bucket;
-            const records = Bucket.getBucketRecords(
-              nk,
-              bucket,
-              config,
-              config.duration
-            );
+            const records = Bucket.getBucketRecords(nk, bucket, config);
             nk.notificationSend(
               r.userId,
               "Leaderboard End",
@@ -532,7 +538,7 @@ const GetRecordsRPC: nkruntime.RpcFunction = (
 ): string => {
   const { id } = JSON.parse(payload);
   const config = Bucket.configs[id];
-  return Bucket.getBucketRpc(ctx, nk, config);
+  return Bucket.getBucketRecordsRpc(ctx, nk, config);
 };
 
 // Before Join Leaderboards Hooks
