@@ -112,7 +112,7 @@ var Bucket;
             authoritative: true,
             category: Category.WEEKLY,
             // duration: 7 * 24 * 60 * 60,
-            duration: 60,
+            duration: 1 * 60,
             description: "",
             bucketSize: 10,
             endTime: null,
@@ -245,7 +245,6 @@ var Bucket;
     Bucket.getBucketById = getBucketById;
     function createNewBucket(nk, logger, leaderBoadrdId, id, latestBucketVersion) {
         var _a, _b;
-        logger.info("creating new bucket with id ".concat(id));
         var key = "".concat(leaderBoadrdId, "#").concat(id);
         try {
             var latestVersion = setLatestBucketId(nk, leaderBoadrdId, id, latestBucketVersion);
@@ -313,17 +312,24 @@ var Bucket;
         }
     }
     Bucket.setUserBucket = setUserBucket;
+    function getUserBucketId(nk, leaderBoadrdId, userId) {
+        var collection = Bucket.storage.collection;
+        var userBucket = nk.storageRead([
+            { collection: collection, key: leaderBoadrdId, userId: userId },
+        ]);
+        if (userBucket.length < 1)
+            return null;
+        var id = userBucket[0].value.id;
+        return id;
+    }
+    Bucket.getUserBucketId = getUserBucketId;
     function getUserBucket(nk, config, userId) {
         try {
-            var collection = Bucket.storage.collection;
             var leaderBoadrdId = config.tournamentID;
-            var userBucket = nk.storageRead([
-                { collection: collection, key: leaderBoadrdId, userId: userId },
-            ]);
-            if (userBucket.length < 1)
+            var userBucketId = getUserBucketId(nk, leaderBoadrdId, userId);
+            if (!userBucketId)
                 return null;
-            var id = userBucket[0].value.id;
-            var bucket = Bucket.getBucketById(nk, leaderBoadrdId, id).bucket;
+            var bucket = Bucket.getBucketById(nk, leaderBoadrdId, userBucketId).bucket;
             return bucket;
         }
         catch (error) {
@@ -344,17 +350,13 @@ var Bucket;
             try {
                 var latestRes = Bucket.getLatestBucketId(nk, leaderBoadrdId);
                 var latestId = latestRes.latestId, latestVersion = latestRes.latestVersion;
-                logger.debug("got latest bucket id:".concat(latestId, " ver:").concat(latestVersion));
                 if (latestId === 0) {
-                    logger.debug("Creating First bucket");
                     var data = Bucket.createNewBucket(nk, logger, leaderBoadrdId, ++latestId, latestVersion);
                     latestVersion = data.latestVersion;
                 }
                 var _a = Bucket.getBucketById(nk, leaderBoadrdId, latestId), bucket = _a.bucket, version = _a.version;
                 // if full create new bucket
-                logger.debug("BUCKET SIZE ".concat(bucket.userIds.length));
                 if (bucket.userIds.length >= config.bucketSize) {
-                    logger.debug("".concat(latestId, " is full creating another"));
                     var data = Bucket.createNewBucket(nk, logger, leaderBoadrdId, ++latestId, latestVersion);
                     version = data.version;
                     latestVersion = data.latestVersion;
@@ -363,7 +365,6 @@ var Bucket;
                 //if not full add user to it
                 bucket.userIds.push(userId);
                 Bucket.addUserToBucket(nk, leaderBoadrdId, latestId, version, bucket);
-                logger.debug("added user to bucket ".concat(latestId));
                 Bucket.setUserBucket(nk, userId, leaderBoadrdId, latestId);
                 return;
             }
@@ -375,33 +376,79 @@ var Bucket;
         }
     }
     Bucket.joinLeaderboard = joinLeaderboard;
-    function getRecords(nk, bucket, config) {
+    function getBucketRecords(nk, bucket, config, time) {
         try {
-            var tournament = nk.tournamentRecordsList(config.tournamentID, bucket.userIds, config.bucketSize);
+            var tournament = nk.tournamentRecordsList(config.tournamentID, bucket.userIds, config.bucketSize, undefined, time);
             return JSON.stringify(tournament.records);
         }
         catch (error) {
             throw new Error("failed to getRecords: ".concat(error.message));
         }
     }
-    Bucket.getRecords = getRecords;
-    function getBucketRpc(ctx, nk, config) {
+    Bucket.getBucketRecords = getBucketRecords;
+    function getBucketRecordsRpc(ctx, nk, config) {
         var userId = ctx.userId;
         //get user bucket
         var bucket = Bucket.getUserBucket(nk, config, userId);
         //if not exists
         if (!bucket)
             throw new Error("user does not exist in this leaderboard");
-        return getRecords(nk, bucket, config);
+        return getBucketRecords(nk, bucket, config);
     }
-    Bucket.getBucketRpc = getBucketRpc;
+    Bucket.getBucketRecordsRpc = getBucketRecordsRpc;
+    function deleteUserBuckets(nk, leaderBoardId, logger) {
+        var config = Bucket.configs[leaderBoardId];
+        var bucketCollection = Bucket.storage.collection;
+        var batchSize = 100; // Adjust the batch size as needed
+        var offset;
+        var userObjToDelete = [];
+        do {
+            var userBuckets = nk.storageList(undefined, bucketCollection, batchSize, offset);
+            if (userBuckets.objects && userBuckets.objects.length > 0) {
+                userBuckets.objects.map(function (r) {
+                    if (r.userId === SystemUserId)
+                        return;
+                    var obj = {
+                        collection: bucketCollection,
+                        key: leaderBoardId,
+                        userId: r.userId,
+                    };
+                    if (r.value && r.value.id) {
+                        var bucket = Bucket.getBucketById(nk, leaderBoardId, r.value.id).bucket;
+                        var records = Bucket.getBucketRecords(nk, bucket, config);
+                        logger.debug("records: ".concat(JSON.stringify(records)));
+                        nk.notificationSend(r.userId, "Leaderboard End", {
+                            id: leaderBoardId,
+                            records: records,
+                        }, 1, null, true);
+                        userObjToDelete.push(obj);
+                    }
+                });
+                nk.storageDelete(userObjToDelete);
+            }
+            offset = userBuckets.cursor;
+        } while (offset);
+    }
+    Bucket.deleteUserBuckets = deleteUserBuckets;
+    function deleteBuckets(nk, leaderBoardId) {
+        var _a;
+        var storageIds = nk.storageList(SystemUserId, Bucket.storage.collection, 1000);
+        var bucketsToDelete = (_a = storageIds.objects) === null || _a === void 0 ? void 0 : _a.filter(function (bucket) { return bucket.key.indexOf(leaderBoardId) !== -1; });
+        if (bucketsToDelete && bucketsToDelete.length > 0) {
+            var deleteRequests = bucketsToDelete.map(function (bucket) { return ({
+                collection: bucket.collection,
+                key: bucket.key,
+                userId: SystemUserId,
+            }); });
+            nk.storageDelete(deleteRequests);
+        }
+    }
+    Bucket.deleteBuckets = deleteBuckets;
 })(Bucket || (Bucket = {}));
 var GetRecordsRPC = function (ctx, logger, nk, payload) {
     var id = JSON.parse(payload).id;
     var config = Bucket.configs[id];
-    var res = Bucket.getBucketRpc(ctx, nk, config);
-    logger.debug(res.toString());
-    return res;
+    return Bucket.getBucketRecordsRpc(ctx, nk, config);
 };
 // Before Join Leaderboards Hooks
 var beforeJointournament = function (ctx, logger, nk, data) {
@@ -413,37 +460,8 @@ var beforeJointournament = function (ctx, logger, nk, data) {
     return data;
 };
 var tournamentReset = function (ctx, logger, nk, tournament, end, reset) {
-    var _a;
-    var config = Bucket.configs[tournament.id];
-    logger.debug("Running Reset Leaderboard");
-    var storages = nk.storageList(SystemUserId, Bucket.storage.collection, 1000);
-    var buckets = (_a = storages.objects) === null || _a === void 0 ? void 0 : _a.filter(function (o) { return o.key.indexOf(tournament.id) !== -1; });
-    if (buckets) {
-        var objects = buckets.map(function (b) {
-            var item = {
-                collection: b.collection,
-                key: b.key,
-                userId: SystemUserId,
-            };
-            return item;
-        });
-        logger.debug(JSON.stringify(objects));
-        nk.storageDelete(objects);
-    }
-    var userBuckets = nk.storageList(undefined, Bucket.storage.collection, 100000);
-    if (userBuckets.objects) {
-        logger.debug(JSON.stringify(userBuckets.objects));
-        var userObjToDelete = userBuckets.objects.map(function (r) {
-            var obj = {
-                collection: Bucket.storage.collection,
-                key: tournament.id,
-                userId: r.userId,
-            };
-            return obj;
-        });
-        logger.debug(JSON.stringify(userObjToDelete));
-        nk.storageDelete(userObjToDelete);
-    }
+    Bucket.deleteUserBuckets(nk, tournament.id, logger);
+    Bucket.deleteBuckets(nk, tournament.id);
     Bucket.setLatestBucketId(nk, tournament.id, 0);
 };
 var Leaderboards;

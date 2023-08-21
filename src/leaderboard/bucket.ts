@@ -322,22 +322,33 @@ namespace Bucket {
       throw new Error(`failed to setUserBucket: ${error.message}`);
     }
   }
+
+  export function getUserBucketId(
+    nk: nkruntime.Nakama,
+    leaderBoadrdId: string,
+    userId: string
+  ) {
+    const collection = Bucket.storage.collection;
+
+    const userBucket = nk.storageRead([
+      { collection, key: leaderBoadrdId, userId },
+    ]);
+
+    if (userBucket.length < 1) return null;
+    const { id } = userBucket[0].value;
+    return id;
+  }
+
   export function getUserBucket(
     nk: nkruntime.Nakama,
     config: Config,
     userId: string
   ) {
     try {
-      const collection = Bucket.storage.collection;
       const leaderBoadrdId = config.tournamentID;
-      const userBucket = nk.storageRead([
-        { collection, key: leaderBoadrdId, userId },
-      ]);
-
-      if (userBucket.length < 1) return null;
-
-      const { id } = userBucket[0].value;
-      const { bucket } = Bucket.getBucketById(nk, leaderBoadrdId, id);
+      const userBucketId = getUserBucketId(nk, leaderBoadrdId, userId);
+      if (!userBucketId) return null;
+      const { bucket } = Bucket.getBucketById(nk, leaderBoadrdId, userBucketId);
       return bucket;
     } catch (error: any) {
       throw new Error(`failed to getUserBucket: ${error.message}`);
@@ -406,16 +417,19 @@ namespace Bucket {
     }
   }
 
-  export function getRecords(
+  export function getBucketRecords(
     nk: nkruntime.Nakama,
     bucket: Bucket,
-    config: Config
+    config: Config,
+    time?: number
   ) {
     try {
       const tournament = nk.tournamentRecordsList(
         config.tournamentID,
         bucket.userIds,
-        config.bucketSize
+        config.bucketSize,
+        undefined,
+        time
       );
       return JSON.stringify(tournament.records);
     } catch (error: any) {
@@ -423,7 +437,7 @@ namespace Bucket {
     }
   }
 
-  export function getBucketRpc(
+  export function getBucketRecordsRpc(
     ctx: nkruntime.Context,
     nk: nkruntime.Nakama,
     config: Config
@@ -434,10 +448,88 @@ namespace Bucket {
     //if not exists
     if (!bucket) throw new Error("user does not exist in this leaderboard");
 
-    return getRecords(nk, bucket, config);
+    return getBucketRecords(nk, bucket, config);
+  }
+
+  export function deleteUserBuckets(
+    nk: nkruntime.Nakama,
+    leaderBoardId: string,
+    logger: nkruntime.Logger
+  ) {
+    const config = configs[leaderBoardId];
+    const bucketCollection = Bucket.storage.collection;
+    const batchSize = 100; // Adjust the batch size as needed
+
+    let offset: string | undefined;
+    let userObjToDelete: nkruntime.StorageDeleteRequest[] = [];
+
+    do {
+      const userBuckets = nk.storageList(
+        undefined,
+        bucketCollection,
+        batchSize,
+        offset
+      );
+
+      if (userBuckets.objects && userBuckets.objects.length > 0) {
+        userBuckets.objects.map((r) => {
+          if (r.userId === SystemUserId) return;
+          const obj: nkruntime.StorageDeleteRequest = {
+            collection: bucketCollection,
+            key: leaderBoardId,
+            userId: r.userId,
+          };
+          if (r.value && r.value.id) {
+            const bucket = Bucket.getBucketById(
+              nk,
+              leaderBoardId,
+              r.value.id
+            ).bucket;
+            const records = Bucket.getBucketRecords(nk, bucket, config);
+            nk.notificationSend(
+              r.userId,
+              "Leaderboard End",
+              {
+                id: leaderBoardId,
+                records: records,
+              },
+              1,
+              null,
+              true
+            );
+            userObjToDelete.push(obj);
+          }
+        });
+
+        nk.storageDelete(userObjToDelete);
+      }
+
+      offset = userBuckets.cursor;
+    } while (offset);
+  }
+
+  export function deleteBuckets(nk: nkruntime.Nakama, leaderBoardId: string) {
+    const storageIds = nk.storageList(
+      SystemUserId,
+      Bucket.storage.collection,
+      1000
+    );
+
+    const bucketsToDelete = storageIds.objects?.filter(
+      (bucket) => bucket.key.indexOf(leaderBoardId) !== -1
+    );
+
+    if (bucketsToDelete && bucketsToDelete.length > 0) {
+      const deleteRequests = bucketsToDelete.map((bucket) => ({
+        collection: bucket.collection,
+        key: bucket.key,
+        userId: SystemUserId,
+      }));
+
+      nk.storageDelete(deleteRequests);
+    }
   }
 }
-
 const GetRecordsRPC: nkruntime.RpcFunction = (
   ctx: nkruntime.Context,
   logger: nkruntime.Logger,
@@ -446,7 +538,7 @@ const GetRecordsRPC: nkruntime.RpcFunction = (
 ): string => {
   const { id } = JSON.parse(payload);
   const config = Bucket.configs[id];
-  return Bucket.getBucketRpc(ctx, nk, config);
+  return Bucket.getBucketRecordsRpc(ctx, nk, config);
 };
 
 // Before Join Leaderboards Hooks
@@ -473,59 +565,9 @@ const tournamentReset: nkruntime.TournamentResetFunction = (
   end: number,
   reset: number
 ) => {
-  logger.debug(`Reseting ${tournament.id} Leaderboard`);
-  const config = Bucket.configs[tournament.id];
-  const userBuckets = nk.storageList(
-    undefined,
-    Bucket.storage.collection,
-    100000 // must be fixed
-  );
+  Bucket.deleteUserBuckets(nk, tournament.id, logger);
 
-  if (userBuckets.objects) {
-    const userObjToDelete = userBuckets.objects.map((r) => {
-      const obj: nkruntime.StorageDeleteRequest = {
-        collection: Bucket.storage.collection,
-        key: tournament.id,
-        userId: r.userId,
-      };
-      const bucket = Bucket.getBucketById(nk, tournament.id, r.value.id).bucket; //optimize
-      const records = Bucket.getRecords(nk, bucket, config);
-      nk.notificationSend(
-        r.userId,
-        "Leaderboard End",
-        {
-          id: tournament.id,
-          records: records,
-        },
-        0,
-        null,
-        true
-      );
-      return obj;
-    });
-    nk.storageDelete(userObjToDelete);
-  }
-
-  const storageIds = nk.storageList(
-    SystemUserId,
-    Bucket.storage.collection,
-    1000
-  );
-  const buckets = storageIds.objects?.filter(
-    (o) => o.key.indexOf(tournament.id) !== -1
-  );
-  if (buckets) {
-    const objects = buckets.map((b) => {
-      const item: nkruntime.StorageDeleteRequest = {
-        collection: b.collection,
-        key: b.key,
-        userId: SystemUserId,
-      };
-      return item;
-    });
-
-    nk.storageDelete(objects);
-  }
+  Bucket.deleteBuckets(nk, tournament.id);
 
   Bucket.setLatestBucketId(nk, tournament.id, 0);
 };
