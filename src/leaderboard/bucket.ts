@@ -474,7 +474,12 @@ namespace Bucket {
               leaderBoardId,
               r.value.id
             ).bucket;
-            const records = Bucket.getBucketRecords(nk, bucket, config);
+            const records = Bucket.getBucketRecords(
+              nk,
+              bucket,
+              config,
+              config.duration
+            );
             nk.notificationSend(
               r.userId,
               "Leaderboard End",
