@@ -312,17 +312,24 @@ var Bucket;
         }
     }
     Bucket.setUserBucket = setUserBucket;
+    function getUserBucketId(nk, leaderBoadrdId, userId) {
+        var collection = Bucket.storage.collection;
+        var userBucket = nk.storageRead([
+            { collection: collection, key: leaderBoadrdId, userId: userId },
+        ]);
+        if (userBucket.length < 1)
+            return null;
+        var id = userBucket[0].value.id;
+        return id;
+    }
+    Bucket.getUserBucketId = getUserBucketId;
     function getUserBucket(nk, config, userId) {
         try {
-            var collection = Bucket.storage.collection;
             var leaderBoadrdId = config.tournamentID;
-            var userBucket = nk.storageRead([
-                { collection: collection, key: leaderBoadrdId, userId: userId },
-            ]);
-            if (userBucket.length < 1)
+            var userBucketId = getUserBucketId(nk, leaderBoadrdId, userId);
+            if (!userBucketId)
                 return null;
-            var id = userBucket[0].value.id;
-            var bucket = Bucket.getBucketById(nk, leaderBoadrdId, id).bucket;
+            var bucket = Bucket.getBucketById(nk, leaderBoadrdId, userBucketId).bucket;
             return bucket;
         }
         catch (error) {
@@ -379,7 +386,7 @@ var Bucket;
         }
     }
     Bucket.getBucketRecords = getBucketRecords;
-    function getBucketRpc(ctx, nk, config) {
+    function getBucketRecordsRpc(ctx, nk, config) {
         var userId = ctx.userId;
         //get user bucket
         var bucket = Bucket.getUserBucket(nk, config, userId);
@@ -388,7 +395,7 @@ var Bucket;
             throw new Error("user does not exist in this leaderboard");
         return getBucketRecords(nk, bucket, config);
     }
-    Bucket.getBucketRpc = getBucketRpc;
+    Bucket.getBucketRecordsRpc = getBucketRecordsRpc;
     function deleteUserBuckets(nk, leaderBoardId, logger) {
         var config = Bucket.configs[leaderBoardId];
         var bucketCollection = Bucket.storage.collection;
@@ -409,6 +416,7 @@ var Bucket;
                     if (r.value && r.value.id) {
                         var bucket = Bucket.getBucketById(nk, leaderBoardId, r.value.id).bucket;
                         var records = Bucket.getBucketRecords(nk, bucket, config);
+                        logger.debug("records: ".concat(JSON.stringify(records)));
                         nk.notificationSend(r.userId, "Leaderboard End", {
                             id: leaderBoardId,
                             records: records,
@@ -440,7 +448,7 @@ var Bucket;
 var GetRecordsRPC = function (ctx, logger, nk, payload) {
     var id = JSON.parse(payload).id;
     var config = Bucket.configs[id];
-    return Bucket.getBucketRpc(ctx, nk, config);
+    return Bucket.getBucketRecordsRpc(ctx, nk, config);
 };
 // Before Join Leaderboards Hooks
 var beforeJointournament = function (ctx, logger, nk, data) {
@@ -452,8 +460,6 @@ var beforeJointournament = function (ctx, logger, nk, data) {
     return data;
 };
 var tournamentReset = function (ctx, logger, nk, tournament, end, reset) {
-    logger.debug("reset:".concat(reset, ", end:").concat(end, ", ").concat(JSON.stringify(tournament)));
-    logger.debug("Reseting ".concat(tournament.id, " Leaderboard"));
     Bucket.deleteUserBuckets(nk, tournament.id, logger);
     Bucket.deleteBuckets(nk, tournament.id);
     Bucket.setLatestBucketId(nk, tournament.id, 0);
