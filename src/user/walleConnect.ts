@@ -1,4 +1,4 @@
-namespace Wallet {
+namespace WalletIndex {
   const queryMaker = (address: string) => `+address:${address}`;
   export const get = (
     nk: nkruntime.Nakama,

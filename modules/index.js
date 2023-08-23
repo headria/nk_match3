@@ -15,10 +15,13 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
 var InitModule = function (ctx, logger, nk, initializer) {
     //register storage index
     cryptoWalletIndex(initializer);
+    //Upgrade wallets to latest version
+    upgradeWallets(nk);
     //initialize shop
     initShop(nk);
     //initiate user wallet
     initializer.registerAfterAuthenticateDevice(InitiateUser);
+    initializer.registerBeforeReadStorageObjects(BeforeGetStorage);
     //create Leaderboards
     Leaderboards.initalizeLeaderboards(nk, logger);
     Bucket.initializeLeaderboards(nk, initializer);
@@ -28,10 +31,26 @@ var InitModule = function (ctx, logger, nk, initializer) {
     //validators
     initializer.registerRpc("level/validate", levelValidatorRPC);
 };
+var upgradeWallets = function (nk) {
+    var _a;
+    var cursur;
+    do {
+        var wallets = nk.storageList(null, "Economy", 100);
+        (_a = wallets.objects) === null || _a === void 0 ? void 0 : _a.forEach(function (item) {
+            var wallet = item.value;
+            Object.keys(wallet).forEach(function (key) {
+                if (typeof wallet[key] === "number")
+                    wallet[key] = { quantity: wallet[key] };
+            });
+            Wallet.set(nk, item.userId, wallet, item.version);
+        });
+        cursur = wallets.cursor;
+    } while (cursur);
+};
 var Wallet;
 (function (Wallet) {
-    var collection = "Economy";
-    var key = "Wallet";
+    Wallet.collection = "Economy";
+    Wallet.key = "Wallet";
     Wallet.InitialWallet = {
         Heart: {
             endDate: 0,
@@ -53,26 +72,87 @@ var Wallet;
             isUnlimited: false,
             quantity: 3,
         },
-        Hammer: 0,
-        Shuffle: 0,
-        HorizontalRocket: 0,
-        VerticalRocket: 0,
-        Coins: 0,
-        Gems: 0,
-        Score: 0,
+        Hammer: { quantity: 0 },
+        Shuffle: { quantity: 0 },
+        HorizontalRocket: { quantity: 0 },
+        VerticalRocket: { quantity: 0 },
+        Coins: { quantity: 0 },
+        Gems: { quantity: 0 },
+        Score: { quantity: 0 },
     };
-    function getWalletItems(ctx, nk) {
-        var userId = ctx.userId;
-        var data = nk.storageRead([{ collection: collection, key: key, userId: userId }])[0];
-        var wallet = data.value;
+    function updateWallet(wallet, changeset) {
+        changeset.map(function (cs) {
+            var key = cs.id;
+            var item = wallet[key];
+            if (cs.time !== undefined) {
+                if (!item.endDate)
+                    throw new Error("Cannot add duration to non-unlimited items.");
+                var newEndDate = item.isUnlimited ? item.endDate : Date.now();
+                item.endDate = newEndDate + cs.time * 1000;
+                wallet[key].isUnlimited = true;
+            }
+            if (cs.quantity !== 0) {
+                item.quantity += cs.quantity;
+            }
+            wallet[key] = item;
+        });
         return wallet;
     }
-    Wallet.getWalletItems = getWalletItems;
-    function updateWallet(ctx, nk, changeset) {
-        // nk.walletUpdate();
+    function get(nk, userId) {
+        var data = nk.storageRead([{ collection: Wallet.collection, key: Wallet.key, userId: userId }]);
+        if (data.length < 1)
+            throw new Error("failed to get wallet for ".concat(userId));
+        var wallet = data[0].value;
+        var version = data[0].version;
+        return { wallet: wallet, version: version };
     }
-    Wallet.updateWallet = updateWallet;
+    Wallet.get = get;
+    function set(nk, userId, newWallet, version) {
+        var writeObj = {
+            collection: Wallet.collection,
+            key: Wallet.key,
+            userId: userId,
+            value: newWallet,
+            permissionRead: 1,
+            permissionWrite: 0,
+        };
+        if (version)
+            writeObj.version = version;
+        nk.storageWrite([writeObj]);
+    }
+    Wallet.set = set;
+    function checkExpired(nk, userId) {
+        var _a = get(nk, userId), wallet = _a.wallet, version = _a.version;
+        var hasChanged = false;
+        for (var _i = 0, _b = Object.keys(wallet); _i < _b.length; _i++) {
+            var key_1 = _b[_i];
+            if (wallet[key_1].isUnlimited && Date.now() > wallet[key_1].endDate) {
+                wallet[key_1].isUnlimited = false;
+                hasChanged = true;
+            }
+        }
+        if (hasChanged)
+            set(nk, userId, wallet, version);
+    }
+    Wallet.checkExpired = checkExpired;
+    function update(nk, userId, changeset) {
+        var _a = get(nk, userId), wallet = _a.wallet, version = _a.version;
+        var newWallet = updateWallet(wallet, changeset);
+        set(nk, userId, newWallet, version);
+    }
+    Wallet.update = update;
 })(Wallet || (Wallet = {}));
+//disable unlimited items if they are expired
+var BeforeGetStorage = function (ctx, logger, nk, data) {
+    var _a;
+    (_a = data.objectIds) === null || _a === void 0 ? void 0 : _a.forEach(function (element) {
+        if (element.collection === Wallet.collection &&
+            element.key === Wallet.key) {
+            Wallet.checkExpired(nk, ctx.userId);
+        }
+    });
+    return data;
+};
 var SystemUserId = "00000000-0000-0000-0000-000000000000";
 var Category;
 (function (Category) {
@@ -112,7 +192,7 @@ var Bucket;
             authoritative: true,
             category: Category.WEEKLY,
             // duration: 7 * 24 * 60 * 60,
-            duration: 1 * 60,
+            duration: 15 * 60,
             description: "",
             bucketSize: 10,
             endTime: null,
@@ -122,7 +202,7 @@ var Bucket;
             metadata: {},
             operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
             // resetSchedule: "0 0 * * 1",
-            resetSchedule: "*/1 * * * *",
+            resetSchedule: "*/15 * * * *",
             sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
             startTime: 0,
             title: "Weekly Leaderboard",
@@ -416,7 +496,6 @@ var Bucket;
                     if (r.value && r.value.id) {
                         var bucket = Bucket.getBucketById(nk, leaderBoardId, r.value.id).bucket;
                         var records = Bucket.getBucketRecords(nk, bucket, config);
-                        logger.debug("records: ".concat(JSON.stringify(records)));
                         nk.notificationSend(r.userId, "Leaderboard End", {
                             id: leaderBoardId,
                             records: records,
@@ -545,19 +624,12 @@ var initialCrypto = {
     address: null,
     balance: null,
 };
-var InitiateUser = function (ctx, logger, nk, data) {
+var InitiateUser = function (ctx, logger, nk, data, request) {
     try {
         if (!data.created)
             return;
+        Wallet.set(nk, ctx.userId, Wallet.InitialWallet);
         nk.storageWrite([
-            {
-                collection: "Economy",
-                key: "Wallet",
-                value: Wallet.InitialWallet,
-                userId: ctx.userId,
-                permissionRead: 1,
-                permissionWrite: 1,
-            },
             {
                 collection: "Crypto",
                 key: "Wallet",
@@ -574,10 +646,10 @@ var InitiateUser = function (ctx, logger, nk, data) {
         throw new Error("Failed to initiate user. cause: ".concat(error.message));
     }
 };
-var Wallet;
-(function (Wallet) {
+var WalletIndex;
+(function (WalletIndex) {
     var queryMaker = function (address) { return "+address:".concat(address); };
-    Wallet.get = function (nk, address) {
+    WalletIndex.get = function (nk, address) {
         try {
             var query = queryMaker(address);
             var res = nk.storageIndexList("crypto-wallet", query, 1);
@@ -587,7 +659,7 @@ var Wallet;
             throw new Error("failed to check wallet address existance: ".concat(error.message));
         }
     };
-})(Wallet || (Wallet = {}));
+})(WalletIndex || (WalletIndex = {}));
 var WalletConnect = function (ctx, logger, nk, payload) {
     var data;
     try {
