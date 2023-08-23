@@ -8,14 +8,15 @@ namespace Wallet {
     isUnlimited?: boolean;
   };
 
-  interface ChangeSetItem extends Omit<WalletItem, "endDate" | "isUnlimited"> {
+  export interface ChangeSetItem
+    extends Omit<WalletItem, "endDate" | "isUnlimited"> {
     time?: number;
     id: keyof IWallet;
   }
 
   type ChangeSet = ChangeSetItem[];
 
-  interface IWallet {
+  export interface IWallet {
     Heart: WalletItem;
     TNT: WalletItem;
     DiscoBall: WalletItem;

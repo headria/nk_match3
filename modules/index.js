@@ -15,6 +15,8 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
 var InitModule = function (ctx, logger, nk, initializer) {
     //register storage index
     cryptoWalletIndex(initializer);
+    //Upgrade wallets to latest version
+    upgradeWallets(nk);
     //initialize shop
     initShop(nk);
     //initiate user wallet
@@ -28,6 +30,22 @@ var InitModule = function (ctx, logger, nk, initializer) {
     initializer.registerRpc("user/WalletConnect", WalletConnect);
     //validators
     initializer.registerRpc("level/validate", levelValidatorRPC);
+};
+var upgradeWallets = function (nk) {
+    var _a;
+    var cursur;
+    do {
+        var wallets = nk.storageList(null, "Economy", 100);
+        (_a = wallets.objects) === null || _a === void 0 ? void 0 : _a.forEach(function (item) {
+            var wallet = item.value;
+            Object.keys(wallet).forEach(function (key) {
+                if (typeof wallet[key] === "number")
+                    wallet[key] = { quantity: wallet[key] };
+            });
+            Wallet.set(nk, item.userId, wallet, item.version);
+        });
+        cursur = wallets.cursor;
+    } while (cursur);
 };
 var Wallet;
 (function (Wallet) {
