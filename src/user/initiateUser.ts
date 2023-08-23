@@ -10,19 +10,13 @@ const InitiateUser: nkruntime.AfterHookFunction<
   ctx: nkruntime.Context,
   logger: nkruntime.Logger,
   nk: nkruntime.Nakama,
-  data: nkruntime.Session
+  data: nkruntime.Session,
+  request: nkruntime.AuthenticateDeviceRequest
 ): void => {
   try {
     if (!data.created) return;
+    Wallet.set(nk, ctx.userId, Wallet.InitialWallet);
     nk.storageWrite([
-      {
-        collection: "Economy",
-        key: "Wallet",
-        value: Wallet.InitialWallet,
-        userId: ctx.userId,
-        permissionRead: 1,
-        permissionWrite: 1,
-      },
       {
         collection: "Crypto",
         key: "Wallet",

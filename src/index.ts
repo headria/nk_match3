@@ -13,6 +13,8 @@ const InitModule: nkruntime.InitModule = function (
   //initiate user wallet
   initializer.registerAfterAuthenticateDevice(InitiateUser);
 
+  initializer.registerBeforeReadStorageObjects(BeforeGetStorage);
+
   //create Leaderboards
   Leaderboards.initalizeLeaderboards(nk, logger);
   Bucket.initializeLeaderboards(nk, initializer);
