@@ -82,18 +82,19 @@ var Wallet;
     };
     function updateWallet(wallet, changeset) {
         changeset.map(function (cs) {
-            var _a;
             var key = cs.id;
+            var item = wallet[key];
             if (cs.time !== undefined) {
-                if (!wallet[key].endDate)
+                if (!item.endDate)
                     throw new Error("Cannot add duration to non-unlimited items.");
-                var newEndDate = (_a = wallet[key].endDate) !== null && _a !== void 0 ? _a : Date.now();
-                wallet[key].endDate = newEndDate + cs.time * 1000;
+                var newEndDate = item.isUnlimited ? item.endDate : Date.now();
+                item.endDate = newEndDate + cs.time * 1000;
                 wallet[key].isUnlimited = true;
             }
             if (cs.quantity !== 0) {
-                wallet[key].quantity += cs.quantity;
+                item.quantity += cs.quantity;
             }
+            wallet[key] = item;
         });
         return wallet;
     }

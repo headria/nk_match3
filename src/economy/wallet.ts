@@ -63,16 +63,18 @@ namespace Wallet {
   function updateWallet(wallet: IWallet, changeset: ChangeSet) {
     changeset.map((cs: ChangeSetItem) => {
       const key = cs.id;
+      const item = wallet[key];
       if (cs.time !== undefined) {
-        if (!wallet[key].endDate)
+        if (!item.endDate)
           throw new Error("Cannot add duration to non-unlimited items.");
-        const newEndDate = wallet[key].endDate ?? Date.now();
-        wallet[key].endDate = newEndDate + cs.time * 1000;
+        const newEndDate = item.isUnlimited ? item.endDate : Date.now();
+        item.endDate = newEndDate + cs.time * 1000;
         wallet[key].isUnlimited = true;
       }
       if (cs.quantity !== 0) {
-        wallet[key].quantity += cs.quantity;
+        item.quantity += cs.quantity;
       }
+      wallet[key] = item;
     });
     return wallet;
   }
