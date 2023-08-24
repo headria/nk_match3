@@ -259,6 +259,7 @@ namespace Bucket {
           key,
           userId: SystemUserId,
           value: bucket,
+          version: "*",
           permissionRead: 2,
           permissionWrite: 0,
         },
