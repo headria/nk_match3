@@ -1,5 +1,5 @@
 namespace Rewards {
-  const leaderboard = {
+  export const leaderboard = {
     Weekly: {
       gold: [
         { id: "DiscoBall", quantity: 3 },
