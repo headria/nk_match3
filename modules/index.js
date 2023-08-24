@@ -15,8 +15,6 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
 var InitModule = function (ctx, logger, nk, initializer) {
     //register storage index
     cryptoWalletIndex(initializer);
-    //Upgrade wallets to latest version
-    upgradeWallets(nk);
     //initialize shop
     initShop(nk);
     //initiate user wallet
@@ -31,26 +29,85 @@ var InitModule = function (ctx, logger, nk, initializer) {
     //validators
     initializer.registerRpc("level/validate", levelValidatorRPC);
 };
-var upgradeWallets = function (nk) {
-    var _a;
-    var cursur;
-    do {
-        var wallets = nk.storageList(null, "Economy", 100);
-        (_a = wallets.objects) === null || _a === void 0 ? void 0 : _a.forEach(function (item) {
-            var wallet = item.value;
-            Object.keys(wallet).forEach(function (key) {
-                if (typeof wallet[key] === "number")
-                    wallet[key] = { quantity: wallet[key] };
-            });
-            Wallet.set(nk, item.userId, wallet, item.version);
-        });
-        cursur = wallets.cursor;
-    } while (cursur);
-};
+var Rewards;
+(function (Rewards) {
+    var collection = "Economy";
+    var key = "Rewards";
+    function get(nk, userId) {
+        var data = nk.storageRead([{ collection: collection, key: key, userId: userId }]);
+        if (data.length < 1)
+            throw new Error("failed to get Rewards for ".concat(userId));
+        var rewards = data[0].value;
+        var version = data[0].version;
+        return { rewards: rewards, version: version };
+    }
+    function set(nk, userId, newRewards, version) {
+        var writeObj = {
+            collection: collection,
+            key: key,
+            userId: userId,
+            value: newRewards,
+            permissionRead: 1,
+            permissionWrite: 0,
+        };
+        if (version)
+            writeObj.version = version;
+        nk.storageWrite([writeObj]);
+    }
+    Rewards.set = set;
+    function add(nk, userId, reward) {
+        var _a = get(nk, userId), rewards = _a.rewards, version = _a.version;
+        rewards.push(reward);
+        set(nk, userId, rewards, version);
+    }
+    Rewards.add = add;
+    function remove(nk, userId, rewardId) {
+        var _a = get(nk, userId), rewards = _a.rewards, version = _a.version;
+        var indexToRemove = -1;
+        for (var i = 0; i < rewards.length; i++) {
+            if (rewards[i].id === rewardId) {
+                indexToRemove = i;
+                break;
+            }
+        }
+        if (indexToRemove === -1)
+            throw new Error("No matching rewards found for removal");
+        rewards.splice(indexToRemove, 1);
+        set(nk, userId, rewards, version);
+    }
+    Rewards.remove = remove;
+    function claim(nk, userId, rewardId) {
+        while (true) {
+            try {
+                var _a = get(nk, userId), rewards = _a.rewards, version = _a.version;
+                var rewardIndex = -1;
+                for (var i = 0; i < rewards.length; i++) {
+                    if (rewards[i].id === rewardId) {
+                        rewardIndex = i;
+                        break;
+                    }
+                }
+                if (rewardIndex === -1)
+                    throw new Error("No matching rewards found for claim");
+                var rewardItems = rewards[rewardIndex].items;
+                rewards.splice(rewardIndex, 1);
+                set(nk, userId, rewards, version);
+                Wallet.update(nk, userId, rewardItems);
+                return;
+            }
+            catch (error) {
+                if (error.message.indexOf("version check failed") === -1)
+                    throw error;
+            }
+        }
+    }
+    Rewards.claim = claim;
+})(Rewards || (Rewards = {}));
 var Wallet;
 (function (Wallet) {
     Wallet.collection = "Economy";
     Wallet.key = "Wallet";
+    var unlimitables = ["Heart", "TNT", "DiscoBall", "Rocket"];
     Wallet.InitialWallet = {
         Heart: {
             endDate: 0,
@@ -85,6 +142,7 @@ var Wallet;
             var key = cs.id;
             var item = wallet[key];
             if (cs.time !== undefined) {
+                // change condition with unlimitables
                 if (!item.endDate)
                     throw new Error("Cannot add duration to non-unlimited items.");
                 var newEndDate = item.isUnlimited ? item.endDate : Date.now();
@@ -107,6 +165,10 @@ var Wallet;
         return { wallet: wallet, version: version };
     }
     Wallet.get = get;
+    function init(nk, userId) {
+        set(nk, userId, Wallet.InitialWallet);
+    }
+    Wallet.init = init;
     function set(nk, userId, newWallet, version) {
         var writeObj = {
             collection: Wallet.collection,
@@ -120,7 +182,6 @@ var Wallet;
             writeObj.version = version;
         nk.storageWrite([writeObj]);
     }
-    Wallet.set = set;
     function checkExpired(nk, userId) {
         var _a = get(nk, userId), wallet = _a.wallet, version = _a.version;
         var hasChanged = false;
@@ -136,9 +197,18 @@ var Wallet;
     }
     Wallet.checkExpired = checkExpired;
     function update(nk, userId, changeset) {
-        var _a = get(nk, userId), wallet = _a.wallet, version = _a.version;
-        var newWallet = updateWallet(wallet, changeset);
-        set(nk, userId, newWallet, version);
+        while (true) {
+            try {
+                var _a = get(nk, userId), wallet = _a.wallet, version = _a.version;
+                var newWallet = updateWallet(wallet, changeset);
+                set(nk, userId, newWallet, version);
+                return;
+            }
+            catch (error) {
+                if (error.message.indexOf("version check failed") === -1)
+                    throw error;
+            }
+        }
     }
     Wallet.update = update;
 })(Wallet || (Wallet = {}));
@@ -628,7 +698,7 @@ var InitiateUser = function (ctx, logger, nk, data, request) {
     try {
         if (!data.created)
             return;
-        Wallet.set(nk, ctx.userId, Wallet.InitialWallet);
+        Wallet.init(nk, ctx.userId);
         nk.storageWrite([
             {
                 collection: "Crypto",

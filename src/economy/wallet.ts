@@ -14,6 +14,8 @@ namespace Wallet {
     id: keyof IWallet;
   }
 
+  const unlimitables = ["Heart", "TNT", "DiscoBall", "Rocket"];
+
   type ChangeSet = ChangeSetItem[];
 
   export interface IWallet {
@@ -65,6 +67,7 @@ namespace Wallet {
       const key = cs.id;
       const item = wallet[key];
       if (cs.time !== undefined) {
+        // change condition with unlimitables
         if (!item.endDate)
           throw new Error("Cannot add duration to non-unlimited items.");
         const newEndDate = item.isUnlimited ? item.endDate : Date.now();
@@ -90,7 +93,11 @@ namespace Wallet {
     return { wallet, version };
   }
 
-  export function set(
+  export function init(nk: nkruntime.Nakama, userId: string) {
+    set(nk, userId, InitialWallet);
+  }
+
+  function set(
     nk: nkruntime.Nakama,
     userId: string,
     newWallet: IWallet,
@@ -125,9 +132,16 @@ namespace Wallet {
     userId: string,
     changeset: ChangeSet
   ) {
-    let { wallet, version } = get(nk, userId);
-    const newWallet = updateWallet(wallet, changeset);
-    set(nk, userId, newWallet, version);
+    while (true) {
+      try {
+        let { wallet, version } = get(nk, userId);
+        const newWallet = updateWallet(wallet, changeset);
+        set(nk, userId, newWallet, version);
+        return;
+      } catch (error: any) {
+        if (error.message.indexOf("version check failed") === -1) throw error;
+      }
+    }
   }
 }
 

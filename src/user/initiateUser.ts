@@ -15,7 +15,7 @@ const InitiateUser: nkruntime.AfterHookFunction<
 ): void => {
   try {
     if (!data.created) return;
-    Wallet.set(nk, ctx.userId, Wallet.InitialWallet);
+    Wallet.init(nk, ctx.userId);
     nk.storageWrite([
       {
         collection: "Crypto",
