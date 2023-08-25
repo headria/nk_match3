@@ -235,6 +235,93 @@ var Category;
     Category[Category["ENDLESS"] = 6] = "ENDLESS";
 })(Category || (Category = {}));
 var MAX_SCORE = 1000000;
+var leaderboardRewards = {
+    Weekly: {
+        gold: [
+            { id: "DiscoBall", quantity: 3 },
+            { id: "Heart", quantity: 3 },
+        ],
+        silver: [
+            { id: "DiscoBall", quantity: 2 },
+            { id: "Heart", quantity: 2 },
+        ],
+        bronze: [
+            { id: "DiscoBall", quantity: 1 },
+            { id: "Heart", quantity: 1 },
+        ],
+        normal: [{ id: "DiscoBall", quantity: 1 }],
+    },
+    Rush: {
+        gold: [
+            { id: "DiscoBall", quantity: 3 },
+            { id: "Hammer", quantity: 3 },
+            { id: "Shuffle", quantity: 3 },
+            { id: "Rocket", quantity: 3 },
+            { id: "TNT", quantity: 3 },
+            { id: "VerticalRocket", quantity: 3 },
+            { id: "HorizontalRocket", quantity: 2 },
+            { id: "Coins", quantity: 1000 },
+            { id: "Heart", time: 10800 },
+        ],
+        silver: [
+            { id: "DiscoBall", quantity: 3 },
+            { id: "Hammer", quantity: 3 },
+            { id: "Shuffle", quantity: 3 },
+            { id: "Rocket", quantity: 3 },
+            { id: "TNT", quantity: 3 },
+            { id: "Coins", quantity: 700 },
+            { id: "Heart", time: 7200 },
+        ],
+        bronze: [
+            { id: "DiscoBall", quantity: 2 },
+            { id: "Rocket", quantity: 2 },
+            { id: "TNT", quantity: 2 },
+            { id: "Coins", quantity: 500 },
+            { id: "Heart", time: 3600 },
+        ],
+        normal: [
+            { id: "DiscoBall", quantity: 1 },
+            { id: "TNT", quantity: 1 },
+            { id: "Rocket", quantity: 1 },
+            { id: "Coins", quantity: 200 },
+        ],
+    },
+    Cup: {
+        gold: [
+            { id: "DiscoBall", quantity: 3 },
+            { id: "Hammer", quantity: 3 },
+            { id: "Shuffle", quantity: 3 },
+            { id: "Rocket", quantity: 3 },
+            { id: "TNT", quantity: 3 },
+            { id: "VerticalRocket", quantity: 3 },
+            { id: "HorizontalRocket", quantity: 2 },
+            { id: "Coins", quantity: 1000 },
+            { id: "Heart", time: 10800 },
+        ],
+        silver: [
+            { id: "DiscoBall", quantity: 3 },
+            { id: "Hammer", quantity: 3 },
+            { id: "Shuffle", quantity: 3 },
+            { id: "Rocket", quantity: 3 },
+            { id: "TNT", quantity: 3 },
+            { id: "Coins", quantity: 700 },
+            { id: "Heart", time: 7200 },
+        ],
+        bronze: [
+            { id: "DiscoBall", quantity: 2 },
+            { id: "Rocket", quantity: 2 },
+            { id: "TNT", quantity: 2 },
+            { id: "Coins", quantity: 500 },
+            { id: "Heart", time: 3600 },
+        ],
+        normal: [
+            { id: "DiscoBall", quantity: 1 },
+            { id: "TNT", quantity: 1 },
+            { id: "Rocket", quantity: 1 },
+            { id: "Coins", quantity: 200 },
+        ],
+    },
+};
 var Bucket;
 (function (Bucket) {
     Bucket.storage = {
@@ -269,7 +356,7 @@ var Bucket;
             joinRequired: true,
             maxNumScore: MAX_SCORE,
             maxSize: 1000000,
-            metadata: {},
+            metadata: leaderboardRewards.Weekly,
             operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
             // resetSchedule: "0 0 * * 1",
             resetSchedule: "*/15 * * * *",
@@ -288,7 +375,7 @@ var Bucket;
             joinRequired: true,
             maxNumScore: MAX_SCORE,
             maxSize: 100000000,
-            metadata: {},
+            metadata: leaderboardRewards.Cup,
             operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
             resetSchedule: "0 0 */3 * *",
             sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
@@ -306,7 +393,7 @@ var Bucket;
             joinRequired: true,
             maxNumScore: MAX_SCORE,
             maxSize: 100000000,
-            metadata: {},
+            metadata: leaderboardRewards.Rush,
             operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
             resetSchedule: "0 */12 * * *",
             sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
@@ -410,6 +497,7 @@ var Bucket;
                     key: key,
                     userId: SystemUserId,
                     value: bucket,
+                    version: "*",
                     permissionRead: 2,
                     permissionWrite: 0,
                 },
