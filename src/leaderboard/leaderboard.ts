@@ -63,7 +63,16 @@ namespace Leaderboards {
     username: string,
     score: number,
     subScore: number
-  ) => {};
+  ) => {
+    const leaderboard = Leaderboards.configs.global;
+    nk.leaderboardRecordWrite(
+      leaderboard.leaderboardID,
+      userId,
+      username,
+      score,
+      subScore
+    );
+  };
 
   const updateWeekly = (
     nk: nkruntime.Nakama,
@@ -89,6 +98,8 @@ namespace Leaderboards {
   ): void => {
     const score = 1;
     const subScore = 0;
+    //calculate leaderboard score
+
     updateGlobal(nk, userId, username, score, subScore);
     Object.keys(Bucket.configs).map((tournamentId) => {
       try {

@@ -349,7 +349,7 @@ var Bucket;
             authoritative: true,
             category: Category.WEEKLY,
             // duration: 7 * 24 * 60 * 60,
-            duration: 15 * 60,
+            duration: 1 * 60,
             description: "",
             bucketSize: 10,
             endTime: null,
@@ -359,7 +359,7 @@ var Bucket;
             metadata: leaderboardRewards.Weekly,
             operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
             // resetSchedule: "0 0 * * 1",
-            resetSchedule: "*/15 * * * *",
+            resetSchedule: "*/1 * * * *",
             sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
             startTime: 0,
             title: "Weekly Leaderboard",
@@ -617,7 +617,7 @@ var Bucket;
     function getBucketRecords(nk, bucket, config, time) {
         try {
             var tournament = nk.tournamentRecordsList(config.tournamentID, bucket.userIds, config.bucketSize, undefined, time);
-            return JSON.stringify(tournament.records);
+            return tournament.records;
         }
         catch (error) {
             throw new Error("failed to getRecords: ".concat(error.message));
@@ -631,40 +631,50 @@ var Bucket;
         //if not exists
         if (!bucket)
             throw new Error("user does not exist in this leaderboard");
-        return getBucketRecords(nk, bucket, config);
+        var records = getBucketRecords(nk, bucket, config);
+        return JSON.stringify(records);
     }
     Bucket.getBucketRecordsRpc = getBucketRecordsRpc;
-    function deleteUserBuckets(nk, leaderBoardId, logger) {
-        var config = Bucket.configs[leaderBoardId];
+    function deleteUserBuckets(nk, tournament) {
+        var config = Bucket.configs[tournament.id];
         var bucketCollection = Bucket.storage.collection;
         var batchSize = 100; // Adjust the batch size as needed
-        var offset;
+        var cursur;
         var userObjToDelete = [];
+        var notifications = [];
         do {
-            var userBuckets = nk.storageList(undefined, bucketCollection, batchSize, offset);
+            var userBuckets = nk.storageList(undefined, bucketCollection, batchSize, cursur);
             if (userBuckets.objects && userBuckets.objects.length > 0) {
                 userBuckets.objects.map(function (r) {
                     if (r.userId === SystemUserId)
                         return;
                     var obj = {
                         collection: bucketCollection,
-                        key: leaderBoardId,
+                        key: tournament.id,
                         userId: r.userId,
                     };
                     if (r.value && r.value.id) {
-                        var bucket = Bucket.getBucketById(nk, leaderBoardId, r.value.id).bucket;
-                        var records = Bucket.getBucketRecords(nk, bucket, config);
-                        nk.notificationSend(r.userId, "Leaderboard End", {
-                            id: leaderBoardId,
-                            records: records,
-                        }, 1, null, true);
+                        var bucket = Bucket.getBucketById(nk, tournament.id, r.value.id).bucket;
+                        var records = Bucket.getBucketRecords(nk, bucket, config, tournament.endActive);
+                        notifications.push({
+                            userId: r.userId,
+                            subject: "Leaderboard End",
+                            content: {
+                                id: tournament.id,
+                                records: records,
+                            },
+                            code: 1,
+                            senderId: SystemUserId,
+                            persistent: true,
+                        });
                         userObjToDelete.push(obj);
                     }
                 });
+                nk.notificationsSend(notifications);
                 nk.storageDelete(userObjToDelete);
             }
-            offset = userBuckets.cursor;
-        } while (offset);
+            cursur = userBuckets.cursor;
+        } while (cursur);
     }
     Bucket.deleteUserBuckets = deleteUserBuckets;
     function deleteBuckets(nk, leaderBoardId) {
@@ -697,7 +707,7 @@ var beforeJointournament = function (ctx, logger, nk, data) {
     return data;
 };
 var tournamentReset = function (ctx, logger, nk, tournament, end, reset) {
-    Bucket.deleteUserBuckets(nk, tournament.id, logger);
+    Bucket.deleteUserBuckets(nk, tournament);
     Bucket.deleteBuckets(nk, tournament.id);
     Bucket.setLatestBucketId(nk, tournament.id, 0);
 };
@@ -742,13 +752,17 @@ var Leaderboards;
             new Leaderboard(conf).initialize(nk, logger);
         }
     };
-    var updateGlobal = function (nk, userId, username, score, subScore) { };
+    var updateGlobal = function (nk, userId, username, score, subScore) {
+        var leaderboard = Leaderboards.configs.global;
+        nk.leaderboardRecordWrite(leaderboard.leaderboardID, userId, username, score, subScore);
+    };
     var updateWeekly = function (nk, userId, username, score, subScore) {
         nk.tournamentRecordWrite(Bucket.configs.Weekly.tournamentID, userId, username, score, subScore);
     };
     Leaderboards.UpdateLeaderboards = function (nk, userId, username, levelLog) {
         var score = 1;
         var subScore = 0;
+        //calculate leaderboard score
         updateGlobal(nk, userId, username, score, subScore);
         Object.keys(Bucket.configs).map(function (tournamentId) {
             try {
