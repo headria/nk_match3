@@ -2,7 +2,7 @@ namespace Wallet {
   export const collection = "Economy";
   export const key = "Wallet";
 
-  type WalletItem = {
+  export type WalletItem = {
     quantity: number;
     endDate?: number;
     isUnlimited?: boolean;
@@ -11,26 +11,29 @@ namespace Wallet {
   export interface ChangeSetItem
     extends Omit<WalletItem, "endDate" | "isUnlimited"> {
     time?: number;
-    id: keyof IWallet;
+    id: string;
   }
 
   const unlimitables = ["Heart", "TNT", "DiscoBall", "Rocket"];
 
   type ChangeSet = ChangeSetItem[];
 
-  export interface IWallet {
-    Heart: WalletItem;
-    TNT: WalletItem;
-    DiscoBall: WalletItem;
-    Rocket: WalletItem;
-    Hammer: WalletItem;
-    Shuffle: WalletItem;
-    HorizontalRocket: WalletItem;
-    VerticalRocket: WalletItem;
-    Coins: WalletItem;
-    Gems: WalletItem;
-    Score: WalletItem;
+  interface IWallet {
+    [key: string]: Wallet.WalletItem;
   }
+  // export interface IWallet {
+  //   Heart: WalletItem;
+  //   TNT: WalletItem;
+  //   DiscoBall: WalletItem;
+  //   Rocket: WalletItem;
+  //   Hammer: WalletItem;
+  //   Shuffle: WalletItem;
+  //   HorizontalRocket: WalletItem;
+  //   VerticalRocket: WalletItem;
+  //   Coins: WalletItem;
+  //   Gems: WalletItem;
+  //   Score: WalletItem;
+  // }
 
   export const InitialWallet: IWallet = {
     Heart: {
@@ -64,15 +67,14 @@ namespace Wallet {
 
   function updateWallet(wallet: IWallet, changeset: ChangeSet) {
     changeset.map((cs: ChangeSetItem) => {
-      const key = cs.id;
-      const item = wallet[key];
-      if (cs.time !== undefined) {
-        // change condition with unlimitables
-        if (!item.endDate)
+      const key: string = cs.id;
+      const item: Wallet.WalletItem = wallet[key];
+      if (cs.time) {
+        if (unlimitables.indexOf(key) === -1 || !item.endDate)
           throw new Error("Cannot add duration to non-unlimited items.");
         const newEndDate = item.isUnlimited ? item.endDate : Date.now();
         item.endDate = newEndDate + cs.time * 1000;
-        wallet[key].isUnlimited = true;
+        item.isUnlimited = true;
       }
       if (cs.quantity !== 0) {
         item.quantity += cs.quantity;
@@ -85,7 +87,7 @@ namespace Wallet {
   export function get(
     nk: nkruntime.Nakama,
     userId: string
-  ): { wallet: IWallet | any; version: string } {
+  ): { wallet: IWallet; version: string } {
     const data = nk.storageRead([{ collection, key, userId }]);
     if (data.length < 1) throw new Error(`failed to get wallet for ${userId}`);
     const wallet = data[0].value as IWallet;
@@ -115,13 +117,22 @@ namespace Wallet {
     nk.storageWrite([writeObj]);
   }
 
-  export function checkExpired(nk: nkruntime.Nakama, userId: string) {
+  export function checkExpired(
+    nk: nkruntime.Nakama,
+    logger: nkruntime.Logger,
+    userId: string
+  ) {
     let { wallet, version } = get(nk, userId);
+    logger.debug(JSON.stringify(wallet));
     let hasChanged = false;
     for (const key of Object.keys(wallet)) {
-      if (wallet[key].isUnlimited && Date.now() > wallet[key].endDate) {
-        wallet[key].isUnlimited = false;
-        hasChanged = true;
+      const item = wallet[key] as Wallet.WalletItem; // Type assertion here
+
+      if (item.isUnlimited && item.endDate) {
+        if (Date.now() > item.endDate) {
+          item.isUnlimited = false;
+          hasChanged = true;
+        }
       }
     }
     if (hasChanged) set(nk, userId, wallet, version);
@@ -159,7 +170,7 @@ const BeforeGetStorage: nkruntime.BeforeHookFunction<
       element.collection === Wallet.collection &&
       element.key === Wallet.key
     ) {
-      Wallet.checkExpired(nk, ctx.userId);
+      Wallet.checkExpired(nk, logger, element.userId as string);
     }
   });
   return data;
