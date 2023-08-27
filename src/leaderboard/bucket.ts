@@ -12,8 +12,14 @@ enum Category {
 
 const MAX_SCORE = 1000000;
 
-const leaderboardRewards = {
+const leaderboardRewards: any = {
   Weekly: {
+    config: {
+      gold: 1,
+      silver: 2,
+      bronze: 3,
+      normal: 10,
+    },
     gold: [
       { id: "DiscoBall", quantity: 3 },
       { id: "Heart", quantity: 3 },
@@ -29,6 +35,9 @@ const leaderboardRewards = {
     normal: [{ id: "DiscoBall", quantity: 1 }],
   },
   Rush: {
+    config: {
+      gold: 1,
+    },
     gold: [
       { id: "DiscoBall", quantity: 3 },
       { id: "Hammer", quantity: 3 },
@@ -64,6 +73,12 @@ const leaderboardRewards = {
     ],
   },
   Cup: {
+    config: {
+      gold: 1,
+      silver: 2,
+      bronze: 3,
+      normal: 10,
+    },
     gold: [
       { id: "DiscoBall", quantity: 3 },
       { id: "Hammer", quantity: 3 },
@@ -136,18 +151,14 @@ namespace Bucket {
     initializer: nkruntime.Initializer
   ) => {
     for (const id of Object.keys(configs)) {
-      init(nk, initializer, configs[id]);
+      init(nk, configs[id]);
     }
     initializer.registerTournamentReset(tournamentReset);
     initializer.registerBeforeJoinTournament(beforeJointournament);
     initializer.registerRpc(`leaderboard/getRecords`, GetRecordsRPC);
   };
 
-  const init = function (
-    nk: nkruntime.Nakama,
-    initializer: nkruntime.Initializer,
-    config: Config
-  ) {
+  const init = function (nk: nkruntime.Nakama, config: Config) {
     nk.tournamentCreate(
       config.tournamentID,
       config.authoritative,
@@ -179,7 +190,7 @@ namespace Bucket {
       authoritative: true,
       category: Category.WEEKLY,
       // duration: 7 * 24 * 60 * 60,
-      duration: 15 * 60,
+      duration: 1 * 60,
       description: "",
       bucketSize: 10,
       endTime: null,
@@ -189,7 +200,7 @@ namespace Bucket {
       metadata: leaderboardRewards.Weekly,
       operator: nkruntime.Operator.INCREMENTAL,
       // resetSchedule: "0 0 * * 1",
-      resetSchedule: "*/15 * * * *",
+      resetSchedule: "*/1 * * * *",
       sortOrder: nkruntime.SortOrder.DESCENDING,
       startTime: 0,
       title: "Weekly Leaderboard",
@@ -543,11 +554,12 @@ namespace Bucket {
 
   export function deleteUserBuckets(
     nk: nkruntime.Nakama,
+    logger: nkruntime.Logger,
     tournament: nkruntime.Tournament
   ) {
     const config = configs[tournament.id];
     const bucketCollection = Bucket.storage.collection;
-    const batchSize = 100; // Adjust the batch size as needed
+    const batchSize = 100;
 
     let cursur: string | undefined;
     let userObjToDelete: nkruntime.StorageDeleteRequest[] = [];
@@ -560,37 +572,60 @@ namespace Bucket {
         cursur
       );
 
-      if (userBuckets.objects && userBuckets.objects.length > 0) {
-        userBuckets.objects.map((r) => {
-          if (r.userId === SystemUserId) return;
+      if (userBuckets.objects && userBuckets?.objects.length > 0) {
+        userBuckets.objects.map((b) => {
+          const userId = b.userId;
+          if (userId === SystemUserId) return;
           const obj: nkruntime.StorageDeleteRequest = {
             collection: bucketCollection,
             key: tournament.id,
-            userId: r.userId,
+            userId: userId,
           };
-          if (r.value && r.value.id) {
-            const bucket = Bucket.getBucketById(
+          if (b.value && b.value.id) {
+            const bucketId = b.value.id;
+            const { bucket } = Bucket.getBucketById(
               nk,
               tournament.id,
-              r.value.id
-            ).bucket;
+              bucketId
+            );
             const records = Bucket.getBucketRecords(
               nk,
               bucket,
               config,
               tournament.endActive
             );
-            notifications.push({
-              userId: r.userId,
+            let reward: Rewards.Reward | undefined = undefined;
+            const userRecord = records?.filter((r) => r.ownerId === userId);
+            if (userRecord && userRecord.length > 0) {
+              const rank = userRecord[0].rank;
+              const rewardsConfig = leaderboardRewards[tournament.id].config;
+              const tier = Rewards.getTierByRank(rank, logger, rewardsConfig);
+              if (tier) {
+                const rewardItems = leaderboardRewards[tournament.id][tier];
+                if (rewardItems) {
+                  reward = {
+                    id: tournament.id,
+                    items: rewardItems,
+                  };
+                  Rewards.add(nk, userId, reward);
+                }
+              }
+            }
+
+            let notif = {
+              userId,
               subject: "Leaderboard End",
               content: {
                 id: tournament.id,
                 records: records,
+                reward: reward,
               },
               code: 1,
               senderId: SystemUserId,
               persistent: true,
-            });
+            };
+            notifications.push(notif);
+
             userObjToDelete.push(obj);
           }
         });
@@ -659,7 +694,7 @@ const tournamentReset: nkruntime.TournamentResetFunction = (
   end: number,
   reset: number
 ) => {
-  Bucket.deleteUserBuckets(nk, tournament);
+  Bucket.deleteUserBuckets(nk, logger, tournament);
 
   Bucket.deleteBuckets(nk, tournament.id);
 
