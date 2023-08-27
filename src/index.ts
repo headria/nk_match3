@@ -15,6 +15,8 @@ const InitModule: nkruntime.InitModule = function (
 
   initializer.registerBeforeReadStorageObjects(BeforeGetStorage);
 
+  initializer.registerRpc("rewards/claim", ClaimRewardRPC);
+
   //create Leaderboards
   Leaderboards.initalizeLeaderboards(nk, logger);
   Bucket.initializeLeaderboards(nk, initializer);

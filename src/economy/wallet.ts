@@ -123,7 +123,6 @@ namespace Wallet {
     userId: string
   ) {
     let { wallet, version } = get(nk, userId);
-    logger.debug(JSON.stringify(wallet));
     let hasChanged = false;
     for (const key of Object.keys(wallet)) {
       const item = wallet[key] as Wallet.WalletItem; // Type assertion here

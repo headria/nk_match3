@@ -20,6 +20,7 @@ var InitModule = function (ctx, logger, nk, initializer) {
     //initiate user wallet
     initializer.registerAfterAuthenticateDevice(InitiateUser);
     initializer.registerBeforeReadStorageObjects(BeforeGetStorage);
+    initializer.registerRpc("rewards/claim", ClaimRewardRPC);
     //create Leaderboards
     Leaderboards.initalizeLeaderboards(nk, logger);
     Bucket.initializeLeaderboards(nk, initializer);
@@ -35,18 +36,25 @@ var Rewards;
     var key = "Rewards";
     function get(nk, userId) {
         var data = nk.storageRead([{ collection: collection, key: key, userId: userId }]);
-        if (data.length < 1)
-            throw new Error("failed to get Rewards for ".concat(userId));
-        var rewards = data[0].value;
-        var version = data[0].version;
+        var rewards;
+        var version;
+        if (data.length < 1) {
+            rewards = [];
+            version = undefined;
+        }
+        else {
+            rewards = data[0].value.rewards;
+            version = data[0].version;
+        }
         return { rewards: rewards, version: version };
     }
+    Rewards.get = get;
     function set(nk, userId, newRewards, version) {
         var writeObj = {
             collection: collection,
             key: key,
             userId: userId,
-            value: newRewards,
+            value: { rewards: newRewards },
             permissionRead: 1,
             permissionWrite: 0,
         };
@@ -54,7 +62,6 @@ var Rewards;
             writeObj.version = version;
         nk.storageWrite([writeObj]);
     }
-    Rewards.set = set;
     function add(nk, userId, reward) {
         var _a = get(nk, userId), rewards = _a.rewards, version = _a.version;
         rewards.push(reward);
@@ -75,7 +82,6 @@ var Rewards;
         rewards.splice(indexToRemove, 1);
         set(nk, userId, rewards, version);
     }
-    Rewards.remove = remove;
     function claim(nk, userId, rewardId) {
         while (true) {
             try {
@@ -102,7 +108,27 @@ var Rewards;
         }
     }
     Rewards.claim = claim;
+    function getTierByRank(rank, logger, tierConfig) {
+        var TierRanking = ["gold", "silver", "bronze", "normal"];
+        if (rank > 0) {
+            for (var _i = 0, TierRanking_1 = TierRanking; _i < TierRanking_1.length; _i++) {
+                var tier = TierRanking_1[_i];
+                if (rank <= tierConfig[tier]) {
+                    logger.debug("RANK: ".concat(tier));
+                    return tier;
+                }
+            }
+        }
+        return null;
+    }
+    Rewards.getTierByRank = getTierByRank;
 })(Rewards || (Rewards = {}));
+var ClaimRewardRPC = function (ctx, logger, nk, payload) {
+    var input = JSON.parse(payload);
+    var rewardId = input.id;
+    var userId = ctx.userId;
+    Rewards.claim(nk, userId, rewardId);
+};
 var Wallet;
 (function (Wallet) {
     Wallet.collection = "Economy";
@@ -196,7 +222,6 @@ var Wallet;
     }
     function checkExpired(nk, logger, userId) {
         var _a = get(nk, userId), wallet = _a.wallet, version = _a.version;
-        logger.debug(JSON.stringify(wallet));
         var hasChanged = false;
         for (var _i = 0, _b = Object.keys(wallet); _i < _b.length; _i++) {
             var key_1 = _b[_i];
@@ -314,6 +339,9 @@ var leaderboardRewards = {
     Cup: {
         config: {
             gold: 1,
+            silver: 2,
+            bronze: 3,
+            normal: 10,
         },
         gold: [
             { id: "DiscoBall", quantity: 3 },
@@ -362,13 +390,13 @@ var Bucket;
     Bucket.initializeLeaderboards = function (nk, initializer) {
         for (var _i = 0, _a = Object.keys(Bucket.configs); _i < _a.length; _i++) {
             var id = _a[_i];
-            init(nk, initializer, Bucket.configs[id]);
+            init(nk, Bucket.configs[id]);
         }
         initializer.registerTournamentReset(tournamentReset);
         initializer.registerBeforeJoinTournament(beforeJointournament);
         initializer.registerRpc("leaderboard/getRecords", GetRecordsRPC);
     };
-    var init = function (nk, initializer, config) {
+    var init = function (nk, config) {
         nk.tournamentCreate(config.tournamentID, config.authoritative, config.sortOrder, config.operator, config.duration, config.resetSchedule, config.metadata, config.title, config.description, config.category, config.startTime, config.endTime, config.maxSize, config.maxNumScore, config.joinRequired);
     };
     Bucket.configs = {
@@ -377,7 +405,7 @@ var Bucket;
             authoritative: true,
             category: Category.WEEKLY,
             // duration: 7 * 24 * 60 * 60,
-            duration: 15 * 60,
+            duration: 1 * 60,
             description: "",
             bucketSize: 10,
             endTime: null,
@@ -387,7 +415,7 @@ var Bucket;
             metadata: leaderboardRewards.Weekly,
             operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
             // resetSchedule: "0 0 * * 1",
-            resetSchedule: "*/15 * * * *",
+            resetSchedule: "*/1 * * * *",
             sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
             startTime: 0,
             title: "Weekly Leaderboard",
@@ -663,38 +691,59 @@ var Bucket;
         return JSON.stringify(records);
     }
     Bucket.getBucketRecordsRpc = getBucketRecordsRpc;
-    function deleteUserBuckets(nk, tournament) {
+    function deleteUserBuckets(nk, logger, tournament) {
         var config = Bucket.configs[tournament.id];
         var bucketCollection = Bucket.storage.collection;
-        var batchSize = 100; // Adjust the batch size as needed
+        var batchSize = 100;
         var cursur;
         var userObjToDelete = [];
         var notifications = [];
         do {
             var userBuckets = nk.storageList(undefined, bucketCollection, batchSize, cursur);
-            if (userBuckets.objects && userBuckets.objects.length > 0) {
-                userBuckets.objects.map(function (r) {
-                    if (r.userId === SystemUserId)
+            if (userBuckets.objects && (userBuckets === null || userBuckets === void 0 ? void 0 : userBuckets.objects.length) > 0) {
+                userBuckets.objects.map(function (b) {
+                    var userId = b.userId;
+                    if (userId === SystemUserId)
                         return;
                     var obj = {
                         collection: bucketCollection,
                         key: tournament.id,
-                        userId: r.userId,
+                        userId: userId,
                     };
-                    if (r.value && r.value.id) {
-                        var bucket = Bucket.getBucketById(nk, tournament.id, r.value.id).bucket;
+                    if (b.value && b.value.id) {
+                        var bucketId = b.value.id;
+                        var bucket = Bucket.getBucketById(nk, tournament.id, bucketId).bucket;
                         var records = Bucket.getBucketRecords(nk, bucket, config, tournament.endActive);
-                        notifications.push({
-                            userId: r.userId,
+                        var reward = undefined;
+                        var userRecord = records === null || records === void 0 ? void 0 : records.filter(function (r) { return r.ownerId === userId; });
+                        if (userRecord && userRecord.length > 0) {
+                            var rank = userRecord[0].rank;
+                            var rewardsConfig = leaderboardRewards[tournament.id].config;
+                            var tier = Rewards.getTierByRank(rank, logger, rewardsConfig);
+                            if (tier) {
+                                var rewardItems = leaderboardRewards[tournament.id][tier];
+                                if (rewardItems) {
+                                    reward = {
+                                        id: tournament.id,
+                                        items: rewardItems,
+                                    };
+                                    Rewards.add(nk, userId, reward);
+                                }
+                            }
+                        }
+                        var notif = {
+                            userId: userId,
                             subject: "Leaderboard End",
                             content: {
                                 id: tournament.id,
                                 records: records,
+                                reward: reward,
                             },
                             code: 1,
                             senderId: SystemUserId,
                             persistent: true,
-                        });
+                        };
+                        notifications.push(notif);
                         userObjToDelete.push(obj);
                     }
                 });
@@ -735,7 +784,7 @@ var beforeJointournament = function (ctx, logger, nk, data) {
     return data;
 };
 var tournamentReset = function (ctx, logger, nk, tournament, end, reset) {
-    Bucket.deleteUserBuckets(nk, tournament);
+    Bucket.deleteUserBuckets(nk, logger, tournament);
     Bucket.deleteBuckets(nk, tournament.id);
     Bucket.setLatestBucketId(nk, tournament.id, 0);
 };
@@ -788,10 +837,16 @@ var Leaderboards;
         var score = 1;
         var subScore = 0;
         //calculate leaderboard score
+        var rushScore = levelLog.atEnd.discoBallTargettedTiles;
         updateGlobal(nk, userId, username, score, subScore);
         Object.keys(Bucket.configs).map(function (tournamentId) {
             try {
-                nk.tournamentRecordWrite(tournamentId, userId, username, score, subScore);
+                if (tournamentId === "Rush") {
+                    nk.tournamentRecordWrite(tournamentId, userId, username, rushScore, subScore);
+                }
+                else {
+                    nk.tournamentRecordWrite(tournamentId, userId, username, score, subScore);
+                }
             }
             catch (error) { }
         });
