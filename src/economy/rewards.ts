@@ -104,14 +104,14 @@ namespace Rewards {
 
   export function getTierByRank(
     rank: number,
-    logger: nkruntime.Logger,
     tierConfig: TierConfig
   ): string | null {
     const TierRanking = ["gold", "silver", "bronze", "normal"];
     if (rank > 0) {
       for (const tier of TierRanking) {
-        if (rank <= tierConfig[tier]) {
-          logger.debug(`RANK: ${tier}`);
+        const tierMaxRank = tierConfig[tier];
+        if (!tierMaxRank) break;
+        if (rank <= tierMaxRank) {
           return tier;
         }
       }

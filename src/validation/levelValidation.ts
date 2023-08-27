@@ -1,12 +1,14 @@
 namespace LevelValidation {
+  type BeforeStartValues = {
+    coins: number;
+    heart: number;
+    powerUpsCount: number[];
+    boostersCount: number[];
+  };
   export type ILevelLog = {
     levelNumber: number;
     atStart: {
       tournamentId: string | null;
-      coins: number;
-      heart: number;
-      powerUpsCount: number[];
-      boostersCount: number[];
       selectedBoosters: string[];
       time: number;
     };
@@ -43,13 +45,13 @@ namespace LevelValidation {
   ];
 
   export class Validator {
-    cheatCheck(levelLog: ILevelLog) {
+    cheatCheck(levelLog: ILevelLog, initialValues: BeforeStartValues) {
       try {
         const { atStart, atEnd } = levelLog;
         const detectedCheats: string[] = [
-          ...this.checkHearts(atStart.heart),
+          ...this.checkHearts(initialValues.heart),
           ...this.checkBoosters(
-            atStart.boostersCount,
+            initialValues.boostersCount,
             atEnd.boostersCount,
             atStart.selectedBoosters
           ),
@@ -58,15 +60,15 @@ namespace LevelValidation {
             atEnd.levelMaxMoves,
             atEnd.purchasedMovesCount
           ),
-          ...this.checkTime(atStart.time, atEnd.time),
+          // ...this.checkTime(atStart.time, atEnd.time),
           ...this.checkCoins(
-            atStart.coins,
+            initialValues.coins,
             atEnd.coins,
             atEnd.purchasedMovesCoins,
             atEnd.purchasedPowerUps
           ),
           ...this.checkPowerUps(
-            atStart.powerUpsCount,
+            initialValues.powerUpsCount,
             atEnd.powerUpsCount,
             atEnd.purchasedPowerUps,
             atEnd.usedItems
@@ -157,7 +159,7 @@ namespace LevelValidation {
 
       return endCoins !==
         startCoins - purchasedMovesCoins - purchasedPowerUpsPrice
-        ? ["Invalid Coin Count!"]
+        ? [`Invalid Coin Count! start:${startCoins} end:${endCoins}`]
         : [];
     }
 
@@ -176,10 +178,13 @@ namespace LevelValidation {
         const used = usedItems[index];
 
         if (after !== before + purchased - used) {
-          detectedCheats.push(`Cheat In PowerUps: ${name}`);
+          detectedCheats.push(`${name} before:${before} after:${after}`);
         }
       }
-      return detectedCheats;
+
+      return detectedCheats.length > 0
+        ? ["Cheat in PowerUps: " + detectedCheats.join(", ")]
+        : [];
     }
 
     checkAbilityUsage(
@@ -196,12 +201,15 @@ namespace LevelValidation {
     }
   }
 
-  export function extractData(log: ILevelLog): Wallet.ChangeSetItem[] {
+  export function extractData(
+    log: ILevelLog,
+    initialValues: BeforeStartValues
+  ): Wallet.ChangeSetItem[] {
     try {
       const boosters: Wallet.ChangeSetItem[] = Boosters.reduce(
         (acc: Wallet.ChangeSetItem[], curr) => {
           const finalCount = log.atEnd.boostersCount[curr.index];
-          const initCount = log.atStart.boostersCount[curr.index];
+          const initCount = initialValues.boostersCount[curr.index];
           if (initCount > -1) {
             acc.push({
               id: curr.name,
@@ -215,7 +223,7 @@ namespace LevelValidation {
       const powerUps: Wallet.ChangeSetItem[] = PowerUps.reduce(
         (acc: Wallet.ChangeSetItem[], curr) => {
           const finalCount = log.atEnd.powerUpsCount[curr.index];
-          const initCount = log.atStart.powerUpsCount[curr.index];
+          const initCount = initialValues.powerUpsCount[curr.index];
           const result = finalCount - initCount;
           if (result !== 0) {
             acc.push({
@@ -230,7 +238,7 @@ namespace LevelValidation {
 
       const coins: Wallet.ChangeSetItem = {
         id: "Coins",
-        quantity: log.atEnd.coins - log.atStart.coins,
+        quantity: log.atEnd.coins - initialValues.coins,
       };
 
       const hearts: Wallet.ChangeSetItem = {
@@ -250,6 +258,28 @@ namespace LevelValidation {
       throw new Error(`Error while extracting data from log: ${error.message}`);
     }
   }
+
+  export const initialValues = (nk: nkruntime.Nakama, userId: string) => {
+    const { wallet } = Wallet.get(nk, userId);
+    const boostersCount = [
+      wallet.TNT.isUnlimited ? -1 : wallet.TNT.quantity,
+      wallet.DiscoBall.isUnlimited ? -1 : wallet.DiscoBall.quantity,
+      wallet.Rocket.isUnlimited ? -1 : wallet.Rocket.quantity,
+    ];
+
+    const powerUpsCount = [
+      wallet.Hammer.quantity,
+      wallet.VerticalRocket.quantity,
+      wallet.Shuffle.quantity,
+      wallet.HorizontalRocket.quantity,
+    ];
+    return {
+      boostersCount,
+      coins: wallet.Coins.quantity,
+      powerUpsCount,
+      heart: wallet.Heart.isUnlimited ? -1 : wallet.Heart.quantity,
+    };
+  };
 }
 
 const levelValidatorRPC: nkruntime.RpcFunction = (
@@ -262,6 +292,7 @@ const levelValidatorRPC: nkruntime.RpcFunction = (
     const userId: string = ctx.userId;
     if (!userId) throw new Error("called by a server");
 
+    const initalValues = LevelValidation.initialValues(nk, userId);
     let levelLog: LevelValidation.ILevelLog;
     try {
       levelLog = JSON.parse(payload);
@@ -272,7 +303,12 @@ const levelValidatorRPC: nkruntime.RpcFunction = (
     GameApi.LevelLog.save(nk, userId, levelLog);
 
     const validator = new LevelValidation.Validator();
-    const cheats = validator.cheatCheck(levelLog);
+    const cheats = validator.cheatCheck(levelLog, initalValues);
+
+    if (cheats.length > 0) {
+      GameApi.Cheat.write(nk, levelLog.levelNumber, userId, cheats);
+      return JSON.stringify({ success: false, error: cheats });
+    }
 
     const lastLevel = GameApi.LastLevel.get(nk, userId);
     if (levelLog.atEnd.result === "win") {
@@ -284,15 +320,10 @@ const levelValidatorRPC: nkruntime.RpcFunction = (
     //   ...LevelValidation.Validator.checkLevel(levelLog.levelNumber, lastLevel)
     // );
 
-    if (cheats.length > 0) {
-      GameApi.Cheat.write(nk, levelLog.levelNumber, userId, cheats);
-    }
-
     //update inventory
-    const changeSet = LevelValidation.extractData(levelLog);
-    const wallet = Wallet.get(nk, userId);
-
+    const changeSet = LevelValidation.extractData(levelLog, initalValues);
     Wallet.update(nk, userId, changeSet);
+    return JSON.stringify({ success: true });
   } catch (error: any) {
     throw new Error(`failed to validate level: ${error.message}`);
   }
