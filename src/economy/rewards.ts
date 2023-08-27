@@ -2,25 +2,37 @@ namespace Rewards {
   const collection = "Economy";
   const key = "Rewards";
 
-  type Reward = {
-    id: string;
-    name: string;
-    items: Wallet.ChangeSetItem[];
-  };
-  type Rewards = Reward[];
+  type RewardItem = Wallet.ChangeSetItem;
 
-  function get(
+  export type Reward = {
+    id: string;
+    items: RewardItem[];
+  };
+
+  export type Rewards = Reward[];
+
+  type TierConfig = {
+    [tier: string]: number;
+  };
+
+  export function get(
     nk: nkruntime.Nakama,
     userId: string
-  ): { rewards: Rewards; version: string } {
+  ): { rewards: Rewards; version: string | undefined } {
     const data = nk.storageRead([{ collection, key, userId }]);
-    if (data.length < 1) throw new Error(`failed to get Rewards for ${userId}`);
-    const rewards = data[0].value as Rewards;
-    const version = data[0].version;
+    let rewards: Rewards;
+    let version;
+    if (data.length < 1) {
+      rewards = [];
+      version = undefined;
+    } else {
+      rewards = data[0].value.rewards as Rewards;
+      version = data[0].version;
+    }
     return { rewards, version };
   }
 
-  export function set(
+  function set(
     nk: nkruntime.Nakama,
     userId: string,
     newRewards: Rewards,
@@ -30,7 +42,7 @@ namespace Rewards {
       collection,
       key,
       userId,
-      value: newRewards,
+      value: { rewards: newRewards },
       permissionRead: 1,
       permissionWrite: 0,
     };
@@ -39,18 +51,13 @@ namespace Rewards {
   }
 
   export function add(nk: nkruntime.Nakama, userId: string, reward: Reward) {
-    let { rewards, version } = get(nk, userId);
+    const { rewards, version } = get(nk, userId);
     rewards.push(reward);
     set(nk, userId, rewards, version);
   }
 
-  export function remove(
-    nk: nkruntime.Nakama,
-    userId: string,
-    rewardId: string
-  ) {
+  function remove(nk: nkruntime.Nakama, userId: string, rewardId: string) {
     let { rewards, version } = get(nk, userId);
-
     let indexToRemove = -1;
     for (let i = 0; i < rewards.length; i++) {
       if (rewards[i].id === rewardId) {
@@ -94,4 +101,34 @@ namespace Rewards {
       }
     }
   }
+
+  export function getTierByRank(
+    rank: number,
+    logger: nkruntime.Logger,
+    tierConfig: TierConfig
+  ): string | null {
+    const TierRanking = ["gold", "silver", "bronze", "normal"];
+    if (rank > 0) {
+      for (const tier of TierRanking) {
+        if (rank <= tierConfig[tier]) {
+          logger.debug(`RANK: ${tier}`);
+          return tier;
+        }
+      }
+    }
+    return null;
+  }
 }
+
+const ClaimRewardRPC: nkruntime.RpcFunction = (
+  ctx: nkruntime.Context,
+  logger: nkruntime.Logger,
+  nk: nkruntime.Nakama,
+  payload: string
+): string | void => {
+  const input = JSON.parse(payload);
+  const rewardId: string = input.id;
+  const userId = ctx.userId;
+
+  Rewards.claim(nk, userId, rewardId);
+};
