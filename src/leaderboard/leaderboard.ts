@@ -74,22 +74,6 @@ namespace Leaderboards {
     );
   };
 
-  const updateWeekly = (
-    nk: nkruntime.Nakama,
-    userId: string,
-    username: string,
-    score: number,
-    subScore: number
-  ) => {
-    nk.tournamentRecordWrite(
-      Bucket.configs.Weekly.tournamentID,
-      userId,
-      username,
-      score,
-      subScore
-    );
-  };
-
   export const UpdateLeaderboards = (
     nk: nkruntime.Nakama,
     userId: string,

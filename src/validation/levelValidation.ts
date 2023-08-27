@@ -27,11 +27,6 @@ namespace LevelValidation {
     };
   };
 
-  export type WalletItem = {
-    id: string;
-    quantity: number;
-  };
-
   export const PowerUps = [
     { name: "Hammer", index: 0 },
     { name: "VerticalRocket", index: 1 },
@@ -198,41 +193,54 @@ namespace LevelValidation {
     }
   }
 
-  export function extractData(log: ILevelLog): WalletItem[] {
+  export function extractData(log: ILevelLog): Wallet.ChangeSetItem[] {
     try {
-      const boosters: WalletItem[] = Boosters.reduce((acc: any, curr) => {
-        const quantity = log.atEnd.boostersCount[curr.index];
-        if (quantity > -1) {
-          acc.push({
-            id: curr.name,
-            quantity,
-          });
-        }
-        return acc;
-      }, []);
-
-      const powerUps: WalletItem[] = PowerUps.map((curr) => ({
-        id: curr.name,
-        quantity: log.atEnd.powerUpsCount[curr.index],
-      }));
-
-      const coins: WalletItem = {
+      const boosters: Wallet.ChangeSetItem[] = Boosters.reduce(
+        (acc: Wallet.ChangeSetItem[], curr) => {
+          const finalCount = log.atEnd.boostersCount[curr.index];
+          const initCount = log.atStart.boostersCount[curr.index];
+          if (initCount > -1) {
+            acc.push({
+              id: curr.name,
+              quantity: finalCount - initCount,
+            });
+          }
+          return acc;
+        },
+        []
+      );
+      const powerUps: Wallet.ChangeSetItem[] = PowerUps.reduce(
+        (acc: Wallet.ChangeSetItem[], curr) => {
+          const finalCount = log.atEnd.powerUpsCount[curr.index];
+          const initCount = log.atStart.powerUpsCount[curr.index];
+          const result = finalCount - initCount;
+          if (result !== 0) {
+            acc.push({
+              id: PowerUps[curr.index].name,
+              quantity: result,
+            });
+          }
+          return acc;
+        },
+        []
+      );
+      const coins: Wallet.ChangeSetItem = {
         id: "Coins",
-        quantity: log.atEnd.coins,
+        quantity: log.atEnd.coins - log.atStart.coins,
       };
 
-      const result: WalletItem[] = [...boosters, ...powerUps, coins];
+      const hearts: Wallet.ChangeSetItem = {
+        id: "Heart",
+        quantity: log.atEnd.result !== "win" ? -1 : 0,
+      };
 
-      if (log.atStart.heart != -1) {
-        const hearts =
-          log.atEnd.result !== "win"
-            ? log.atStart.heart - 1
-            : log.atStart.heart;
-        result.push({
-          id: "Heart",
-          quantity: hearts,
-        });
-      }
+      const result: Wallet.ChangeSetItem[] = [
+        ...boosters,
+        ...powerUps,
+        coins,
+        hearts,
+      ];
+
       return result;
     } catch (error: any) {
       throw new Error(`Error while extracting data from log: ${error.message}`);
@@ -277,32 +285,10 @@ const levelValidatorRPC: nkruntime.RpcFunction = (
     }
 
     //update inventory
-    const extractData = LevelValidation.extractData(levelLog);
-    const wallet = nk.storageRead([
-      { collection: "Economy", key: "Wallet", userId },
-    ])[0].value;
+    const changeSet = LevelValidation.extractData(levelLog);
+    const wallet = Wallet.get(nk, userId);
 
-    extractData.map((item: LevelValidation.WalletItem) => {
-      try {
-        if (typeof wallet[item.id] === "number")
-          wallet[item.id] = wallet[item.id] - item.quantity;
-        else
-          wallet[item.id].quantity = wallet[item.id].quantity - item.quantity;
-      } catch (err: any) {
-        logger.error(`[extractData.map] : ${err}`);
-      }
-    });
-    nk.storageWrite([
-      {
-        collection: "Economy",
-        key: "Wallet",
-        userId: ctx.userId,
-        value: wallet,
-
-        permissionRead: 2,
-        permissionWrite: 0,
-      },
-    ]);
+    Wallet.update(nk, userId, changeSet);
   } catch (error: any) {
     throw new Error(`failed to validate level: ${error.message}`);
   }

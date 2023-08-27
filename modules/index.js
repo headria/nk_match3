@@ -108,6 +108,19 @@ var Wallet;
     Wallet.collection = "Economy";
     Wallet.key = "Wallet";
     var unlimitables = ["Heart", "TNT", "DiscoBall", "Rocket"];
+    // export interface IWallet {
+    //   Heart: WalletItem;
+    //   TNT: WalletItem;
+    //   DiscoBall: WalletItem;
+    //   Rocket: WalletItem;
+    //   Hammer: WalletItem;
+    //   Shuffle: WalletItem;
+    //   HorizontalRocket: WalletItem;
+    //   VerticalRocket: WalletItem;
+    //   Coins: WalletItem;
+    //   Gems: WalletItem;
+    //   Score: WalletItem;
+    // }
     Wallet.InitialWallet = {
         Heart: {
             endDate: 0,
@@ -141,13 +154,12 @@ var Wallet;
         changeset.map(function (cs) {
             var key = cs.id;
             var item = wallet[key];
-            if (cs.time !== undefined) {
-                // change condition with unlimitables
-                if (!item.endDate)
+            if (cs.time) {
+                if (unlimitables.indexOf(key) === -1 || !item.endDate)
                     throw new Error("Cannot add duration to non-unlimited items.");
                 var newEndDate = item.isUnlimited ? item.endDate : Date.now();
                 item.endDate = newEndDate + cs.time * 1000;
-                wallet[key].isUnlimited = true;
+                item.isUnlimited = true;
             }
             if (cs.quantity !== 0) {
                 item.quantity += cs.quantity;
@@ -182,14 +194,18 @@ var Wallet;
             writeObj.version = version;
         nk.storageWrite([writeObj]);
     }
-    function checkExpired(nk, userId) {
+    function checkExpired(nk, logger, userId) {
         var _a = get(nk, userId), wallet = _a.wallet, version = _a.version;
+        logger.debug(JSON.stringify(wallet));
         var hasChanged = false;
         for (var _i = 0, _b = Object.keys(wallet); _i < _b.length; _i++) {
             var key_1 = _b[_i];
-            if (wallet[key_1].isUnlimited && Date.now() > wallet[key_1].endDate) {
-                wallet[key_1].isUnlimited = false;
-                hasChanged = true;
+            var item = wallet[key_1]; // Type assertion here
+            if (item.isUnlimited && item.endDate) {
+                if (Date.now() > item.endDate) {
+                    item.isUnlimited = false;
+                    hasChanged = true;
+                }
             }
         }
         if (hasChanged)
@@ -218,7 +234,7 @@ var BeforeGetStorage = function (ctx, logger, nk, data) {
     (_a = data.objectIds) === null || _a === void 0 ? void 0 : _a.forEach(function (element) {
         if (element.collection === Wallet.collection &&
             element.key === Wallet.key) {
-            Wallet.checkExpired(nk, ctx.userId);
+            Wallet.checkExpired(nk, logger, element.userId);
         }
     });
     return data;
@@ -237,6 +253,12 @@ var Category;
 var MAX_SCORE = 1000000;
 var leaderboardRewards = {
     Weekly: {
+        config: {
+            gold: 1,
+            silver: 2,
+            bronze: 3,
+            normal: 10,
+        },
         gold: [
             { id: "DiscoBall", quantity: 3 },
             { id: "Heart", quantity: 3 },
@@ -252,6 +274,9 @@ var leaderboardRewards = {
         normal: [{ id: "DiscoBall", quantity: 1 }],
     },
     Rush: {
+        config: {
+            gold: 1,
+        },
         gold: [
             { id: "DiscoBall", quantity: 3 },
             { id: "Hammer", quantity: 3 },
@@ -287,6 +312,9 @@ var leaderboardRewards = {
         ],
     },
     Cup: {
+        config: {
+            gold: 1,
+        },
         gold: [
             { id: "DiscoBall", quantity: 3 },
             { id: "Hammer", quantity: 3 },
@@ -349,7 +377,7 @@ var Bucket;
             authoritative: true,
             category: Category.WEEKLY,
             // duration: 7 * 24 * 60 * 60,
-            duration: 1 * 60,
+            duration: 15 * 60,
             description: "",
             bucketSize: 10,
             endTime: null,
@@ -359,7 +387,7 @@ var Bucket;
             metadata: leaderboardRewards.Weekly,
             operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
             // resetSchedule: "0 0 * * 1",
-            resetSchedule: "*/1 * * * *",
+            resetSchedule: "*/15 * * * *",
             sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
             startTime: 0,
             title: "Weekly Leaderboard",
@@ -755,9 +783,6 @@ var Leaderboards;
     var updateGlobal = function (nk, userId, username, score, subScore) {
         var leaderboard = Leaderboards.configs.global;
         nk.leaderboardRecordWrite(leaderboard.leaderboardID, userId, username, score, subScore);
-    };
-    var updateWeekly = function (nk, userId, username, score, subScore) {
-        nk.tournamentRecordWrite(Bucket.configs.Weekly.tournamentID, userId, username, score, subScore);
     };
     Leaderboards.UpdateLeaderboards = function (nk, userId, username, levelLog) {
         var score = 1;
@@ -1540,33 +1565,40 @@ var LevelValidation;
     function extractData(log) {
         try {
             var boosters = LevelValidation.Boosters.reduce(function (acc, curr) {
-                var quantity = log.atEnd.boostersCount[curr.index];
-                if (quantity > -1) {
+                var finalCount = log.atEnd.boostersCount[curr.index];
+                var initCount = log.atStart.boostersCount[curr.index];
+                if (initCount > -1) {
                     acc.push({
                         id: curr.name,
-                        quantity: quantity,
+                        quantity: finalCount - initCount,
                     });
                 }
                 return acc;
             }, []);
-            var powerUps = LevelValidation.PowerUps.map(function (curr) { return ({
-                id: curr.name,
-                quantity: log.atEnd.powerUpsCount[curr.index],
-            }); });
+            var powerUps = LevelValidation.PowerUps.reduce(function (acc, curr) {
+                var finalCount = log.atEnd.powerUpsCount[curr.index];
+                var initCount = log.atStart.powerUpsCount[curr.index];
+                var result = finalCount - initCount;
+                if (result !== 0) {
+                    acc.push({
+                        id: LevelValidation.PowerUps[curr.index].name,
+                        quantity: result,
+                    });
+                }
+                return acc;
+            }, []);
             var coins = {
                 id: "Coins",
-                quantity: log.atEnd.coins,
+                quantity: log.atEnd.coins - log.atStart.coins,
             };
-            var result = __spreadArray(__spreadArray(__spreadArray([], boosters, true), powerUps, true), [coins], false);
-            if (log.atStart.heart != -1) {
-                var hearts = log.atEnd.result !== "win"
-                    ? log.atStart.heart - 1
-                    : log.atStart.heart;
-                result.push({
-                    id: "Heart",
-                    quantity: hearts,
-                });
-            }
+            var hearts = {
+                id: "Heart",
+                quantity: log.atEnd.result !== "win" ? -1 : 0,
+            };
+            var result = __spreadArray(__spreadArray(__spreadArray([], boosters, true), powerUps, true), [
+                coins,
+                hearts,
+            ], false);
             return result;
         }
         catch (error) {
@@ -1604,31 +1636,9 @@ var levelValidatorRPC = function (ctx, logger, nk, payload) {
             GameApi.Cheat.write(nk, levelLog.levelNumber, userId, cheats);
         }
         //update inventory
-        var extractData = LevelValidation.extractData(levelLog);
-        var wallet_1 = nk.storageRead([
-            { collection: "Economy", key: "Wallet", userId: userId },
-        ])[0].value;
-        extractData.map(function (item) {
-            try {
-                if (typeof wallet_1[item.id] === "number")
-                    wallet_1[item.id] = wallet_1[item.id] - item.quantity;
-                else
-                    wallet_1[item.id].quantity = wallet_1[item.id].quantity - item.quantity;
-            }
-            catch (err) {
-                logger.error("[extractData.map] : ".concat(err));
-            }
-        });
-        nk.storageWrite([
-            {
-                collection: "Economy",
-                key: "Wallet",
-                userId: ctx.userId,
-                value: wallet_1,
-                permissionRead: 2,
-                permissionWrite: 0,
-            },
-        ]);
+        var changeSet = LevelValidation.extractData(levelLog);
+        var wallet = Wallet.get(nk, userId);
+        Wallet.update(nk, userId, changeSet);
     }
     catch (error) {
         throw new Error("failed to validate level: ".concat(error.message));
