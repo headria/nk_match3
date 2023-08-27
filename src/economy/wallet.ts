@@ -18,9 +18,23 @@ namespace Wallet {
 
   type ChangeSet = ChangeSetItem[];
 
+  type WalletKeys =
+    | "Heart"
+    | "TNT"
+    | "DiscoBall"
+    | "Rocket"
+    | "Hammer"
+    | "Shuffle"
+    | "HorizontalRocket"
+    | "VerticalRocket"
+    | "Coins"
+    | "Gems"
+    | "Score";
+
   interface IWallet {
     [key: string]: Wallet.WalletItem;
   }
+
   // export interface IWallet {
   //   Heart: WalletItem;
   //   TNT: WalletItem;
@@ -117,15 +131,11 @@ namespace Wallet {
     nk.storageWrite([writeObj]);
   }
 
-  export function checkExpired(
-    nk: nkruntime.Nakama,
-    logger: nkruntime.Logger,
-    userId: string
-  ) {
+  export function checkExpired(nk: nkruntime.Nakama, userId: string) {
     let { wallet, version } = get(nk, userId);
     let hasChanged = false;
     for (const key of Object.keys(wallet)) {
-      const item = wallet[key] as Wallet.WalletItem; // Type assertion here
+      const item = wallet[key] as Wallet.WalletItem;
 
       if (item.isUnlimited && item.endDate) {
         if (Date.now() > item.endDate) {
@@ -169,7 +179,7 @@ const BeforeGetStorage: nkruntime.BeforeHookFunction<
       element.collection === Wallet.collection &&
       element.key === Wallet.key
     ) {
-      Wallet.checkExpired(nk, logger, element.userId as string);
+      Wallet.checkExpired(nk, element.userId as string);
     }
   });
   return data;
