@@ -83,17 +83,27 @@ namespace Leaderboards {
     const score = 1;
     const subScore = 0;
     //calculate leaderboard score
-
+    const rushScore = levelLog.atEnd.discoBallTargettedTiles;
     updateGlobal(nk, userId, username, score, subScore);
     Object.keys(Bucket.configs).map((tournamentId) => {
       try {
-        nk.tournamentRecordWrite(
-          tournamentId,
-          userId,
-          username,
-          score,
-          subScore
-        );
+        if (tournamentId === "Rush") {
+          nk.tournamentRecordWrite(
+            tournamentId,
+            userId,
+            username,
+            rushScore,
+            subScore
+          );
+        } else {
+          nk.tournamentRecordWrite(
+            tournamentId,
+            userId,
+            username,
+            score,
+            subScore
+          );
+        }
       } catch (error) {}
     });
   };
