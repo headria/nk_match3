@@ -2,6 +2,7 @@ namespace LevelValidation {
   export type ILevelLog = {
     levelNumber: number;
     atStart: {
+      tournamentId: string | null;
       coins: number;
       heart: number;
       powerUpsCount: number[];
@@ -10,6 +11,7 @@ namespace LevelValidation {
       time: number;
     };
     atEnd: {
+      tournamentId: string | null;
       totalMoves: number;
       levelMaxMoves: number;
       purchasedMovesCount: number;
@@ -23,6 +25,7 @@ namespace LevelValidation {
       boostersCount: number[];
       targetAbilityblocksPoped: number;
       abilitUsedTimes: number;
+      discoBallTargettedTiles: number;
       usedItems: number[];
     };
   };
@@ -224,6 +227,7 @@ namespace LevelValidation {
         },
         []
       );
+
       const coins: Wallet.ChangeSetItem = {
         id: "Coins",
         quantity: log.atEnd.coins - log.atStart.coins,
