@@ -159,7 +159,8 @@ namespace Wallet {
         set(nk, userId, newWallet, version);
         return;
       } catch (error: any) {
-        if (error.message.indexOf("version check failed") === -1) throw error;
+        if (error.message.indexOf("version check failed") === -1)
+          throw new Error(`failed to update Wallet: ${error.message}`);
       }
     }
   }
