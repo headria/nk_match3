@@ -60,10 +60,8 @@ namespace LevelValidation {
             atEnd.levelMaxMoves,
             atEnd.purchasedMovesCount
           ),
-          // ...this.checkTime(atStart.time, atEnd.time),
           ...this.checkCoins(
             initialValues.coins,
-            atEnd.coins,
             atEnd.purchasedMovesCoins,
             atEnd.purchasedPowerUps
           ),
@@ -142,14 +140,8 @@ namespace LevelValidation {
       }
       return [];
     }
-
-    checkTime(startTime: number, endTime: number): string[] {
-      return endTime - startTime < 1000 ? ["Time less than one second"] : [];
-    }
-
     checkCoins(
       startCoins: number,
-      endCoins: number,
       purchasedMovesCoins: number,
       purchasedPowerUps: number[]
     ): string[] {
@@ -157,9 +149,10 @@ namespace LevelValidation {
         Math.floor(purchasedPowerUps.reduce((acc, curr) => acc + curr, 0) / 3) *
         600;
 
-      return endCoins !==
-        startCoins - purchasedMovesCoins - purchasedPowerUpsPrice
-        ? [`Invalid Coin Count! start:${startCoins} end:${endCoins}`]
+      return startCoins < purchasedMovesCoins + purchasedPowerUpsPrice
+        ? [
+            `Invalid Coin Count! start(${startCoins}) < purchasedMoves(${purchasedMovesCoins}) + purchasedPowerUps(${purchasedPowerUpsPrice})`,
+          ]
         : [];
     }
 
@@ -236,9 +229,18 @@ namespace LevelValidation {
         []
       );
 
+      const purchasedPowerUpsPrice =
+        Math.floor(
+          log.atEnd.purchasedPowerUps.reduce((acc, curr) => acc + curr, 0) / 3
+        ) * 600;
+      const coinsDifference =
+        log.atEnd.coinsRewarded -
+        purchasedPowerUpsPrice -
+        log.atEnd.purchasedMovesCoins;
+
       const coins: Wallet.ChangeSetItem = {
         id: "Coins",
-        quantity: log.atEnd.coins - initialValues.coins,
+        quantity: coinsDifference,
       };
 
       const hearts: Wallet.ChangeSetItem = {
@@ -294,14 +296,14 @@ const levelValidatorRPC: nkruntime.RpcFunction = (
 
     const initalValues = LevelValidation.initialValues(nk, userId);
     let levelLog: LevelValidation.ILevelLog;
-    try {
-      levelLog = JSON.parse(payload);
-      if (!levelLog) throw new Error();
-    } catch (error) {
-      throw new Error("Invalid request body");
-    }
+
+    levelLog = JSON.parse(payload);
+    if (!levelLog) throw new Error("Invalid request body");
+
+    //save log in storage
     GameApi.LevelLog.save(nk, userId, levelLog);
 
+    //checking cheats
     const validator = new LevelValidation.Validator();
     const cheats = validator.cheatCheck(levelLog, initalValues);
 
@@ -310,15 +312,10 @@ const levelValidatorRPC: nkruntime.RpcFunction = (
       return JSON.stringify({ success: false, error: cheats });
     }
 
-    const lastLevel = GameApi.LastLevel.get(nk, userId);
     if (levelLog.atEnd.result === "win") {
-      GameApi.LastLevel.set(nk, userId, lastLevel + 1);
+      GameApi.LastLevel.increment(nk, userId);
       Leaderboards.UpdateLeaderboards(nk, userId, ctx.username, levelLog);
     }
-
-    // cheats.push(
-    //   ...LevelValidation.Validator.checkLevel(levelLog.levelNumber, lastLevel)
-    // );
 
     //update inventory
     const changeSet = LevelValidation.extractData(levelLog, initalValues);
