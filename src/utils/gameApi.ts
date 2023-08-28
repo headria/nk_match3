@@ -36,6 +36,10 @@ const GameApi = {
         throw new Error("failed to set Last level: " + error.message);
       }
     }
+    static increment(nk: nkruntime.Nakama, userId: string) {
+      const lastLevel = GameApi.LastLevel.get(nk, userId);
+      GameApi.LastLevel.set(nk, userId, lastLevel + 1);
+    }
   },
   LevelLog: class {
     static Keys = {

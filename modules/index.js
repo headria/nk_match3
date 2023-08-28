@@ -108,13 +108,15 @@ var Rewards;
         }
     }
     Rewards.claim = claim;
-    function getTierByRank(rank, logger, tierConfig) {
+    function getTierByRank(rank, tierConfig) {
         var TierRanking = ["gold", "silver", "bronze", "normal"];
         if (rank > 0) {
             for (var _i = 0, TierRanking_1 = TierRanking; _i < TierRanking_1.length; _i++) {
                 var tier = TierRanking_1[_i];
-                if (rank <= tierConfig[tier]) {
-                    logger.debug("RANK: ".concat(tier));
+                var tierMaxRank = tierConfig[tier];
+                if (!tierMaxRank)
+                    break;
+                if (rank <= tierMaxRank) {
                     return tier;
                 }
             }
@@ -220,12 +222,12 @@ var Wallet;
             writeObj.version = version;
         nk.storageWrite([writeObj]);
     }
-    function checkExpired(nk, logger, userId) {
+    function checkExpired(nk, userId) {
         var _a = get(nk, userId), wallet = _a.wallet, version = _a.version;
         var hasChanged = false;
         for (var _i = 0, _b = Object.keys(wallet); _i < _b.length; _i++) {
             var key_1 = _b[_i];
-            var item = wallet[key_1]; // Type assertion here
+            var item = wallet[key_1];
             if (item.isUnlimited && item.endDate) {
                 if (Date.now() > item.endDate) {
                     item.isUnlimited = false;
@@ -259,7 +261,7 @@ var BeforeGetStorage = function (ctx, logger, nk, data) {
     (_a = data.objectIds) === null || _a === void 0 ? void 0 : _a.forEach(function (element) {
         if (element.collection === Wallet.collection &&
             element.key === Wallet.key) {
-            Wallet.checkExpired(nk, logger, element.userId);
+            Wallet.checkExpired(nk, element.userId);
         }
     });
     return data;
@@ -405,7 +407,7 @@ var Bucket;
             authoritative: true,
             category: Category.WEEKLY,
             // duration: 7 * 24 * 60 * 60,
-            duration: 1 * 60,
+            duration: 15 * 60,
             description: "",
             bucketSize: 10,
             endTime: null,
@@ -415,7 +417,7 @@ var Bucket;
             metadata: leaderboardRewards.Weekly,
             operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
             // resetSchedule: "0 0 * * 1",
-            resetSchedule: "*/1 * * * *",
+            resetSchedule: "*/15 * * * *",
             sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
             startTime: 0,
             title: "Weekly Leaderboard",
@@ -719,7 +721,7 @@ var Bucket;
                         if (userRecord && userRecord.length > 0) {
                             var rank = userRecord[0].rank;
                             var rewardsConfig = leaderboardRewards[tournament.id].config;
-                            var tier = Rewards.getTierByRank(rank, logger, rewardsConfig);
+                            var tier = Rewards.getTierByRank(rank, rewardsConfig);
                             if (tier) {
                                 var rewardItems = leaderboardRewards[tournament.id][tier];
                                 if (rewardItems) {
@@ -1525,10 +1527,10 @@ var LevelValidation;
     var Validator = /** @class */ (function () {
         function Validator() {
         }
-        Validator.prototype.cheatCheck = function (levelLog) {
+        Validator.prototype.cheatCheck = function (levelLog, initialValues) {
             try {
                 var atStart = levelLog.atStart, atEnd = levelLog.atEnd;
-                var detectedCheats = __spreadArray(__spreadArray(__spreadArray(__spreadArray(__spreadArray(__spreadArray(__spreadArray([], this.checkHearts(atStart.heart), true), this.checkBoosters(atStart.boostersCount, atEnd.boostersCount, atStart.selectedBoosters), true), this.checkMoves(atEnd.totalMoves, atEnd.levelMaxMoves, atEnd.purchasedMovesCount), true), this.checkTime(atStart.time, atEnd.time), true), this.checkCoins(atStart.coins, atEnd.coins, atEnd.purchasedMovesCoins, atEnd.purchasedPowerUps), true), this.checkPowerUps(atStart.powerUpsCount, atEnd.powerUpsCount, atEnd.purchasedPowerUps, atEnd.usedItems), true), this.checkAbilityUsage(atEnd.targetAbilityblocksPoped, atEnd.abilitUsedTimes), true);
+                var detectedCheats = __spreadArray(__spreadArray(__spreadArray(__spreadArray(__spreadArray(__spreadArray([], this.checkHearts(initialValues.heart), true), this.checkBoosters(initialValues.boostersCount, atEnd.boostersCount, atStart.selectedBoosters), true), this.checkMoves(atEnd.totalMoves, atEnd.levelMaxMoves, atEnd.purchasedMovesCount), true), this.checkCoins(initialValues.coins, atEnd.coins, atEnd.purchasedMovesCoins, atEnd.purchasedPowerUps), true), this.checkPowerUps(initialValues.powerUpsCount, atEnd.powerUpsCount, atEnd.purchasedPowerUps, atEnd.usedItems), true), this.checkAbilityUsage(atEnd.targetAbilityblocksPoped, atEnd.abilitUsedTimes), true);
                 return detectedCheats;
             }
             catch (error) {
@@ -1589,7 +1591,7 @@ var LevelValidation;
                 600;
             return endCoins !==
                 startCoins - purchasedMovesCoins - purchasedPowerUpsPrice
-                ? ["Invalid Coin Count!"]
+                ? ["Invalid Coin Count! start:".concat(startCoins, " end:").concat(endCoins)]
                 : [];
         };
         Validator.prototype.checkPowerUps = function (startPowerUpsCount, endPowerUpsCount, purchasedPowerUps, usedItems) {
@@ -1602,10 +1604,12 @@ var LevelValidation;
                 var purchased = purchasedPowerUps[index];
                 var used = usedItems[index];
                 if (after !== before + purchased - used) {
-                    detectedCheats.push("Cheat In PowerUps: ".concat(name_2));
+                    detectedCheats.push("".concat(name_2, " before:").concat(before, " after:").concat(after));
                 }
             }
-            return detectedCheats;
+            return detectedCheats.length > 0
+                ? ["Cheat in PowerUps: " + detectedCheats.join(", ")]
+                : [];
         };
         Validator.prototype.checkAbilityUsage = function (targetAbilityblocksPoped, abilitUsedTimes) {
             return abilitUsedTimes > targetAbilityblocksPoped / 10
@@ -1617,11 +1621,11 @@ var LevelValidation;
         return Validator;
     }());
     LevelValidation.Validator = Validator;
-    function extractData(log) {
+    function extractData(log, initialValues) {
         try {
             var boosters = LevelValidation.Boosters.reduce(function (acc, curr) {
                 var finalCount = log.atEnd.boostersCount[curr.index];
-                var initCount = log.atStart.boostersCount[curr.index];
+                var initCount = initialValues.boostersCount[curr.index];
                 if (initCount > -1) {
                     acc.push({
                         id: curr.name,
@@ -1632,7 +1636,7 @@ var LevelValidation;
             }, []);
             var powerUps = LevelValidation.PowerUps.reduce(function (acc, curr) {
                 var finalCount = log.atEnd.powerUpsCount[curr.index];
-                var initCount = log.atStart.powerUpsCount[curr.index];
+                var initCount = initialValues.powerUpsCount[curr.index];
                 var result = finalCount - initCount;
                 if (result !== 0) {
                     acc.push({
@@ -1644,7 +1648,7 @@ var LevelValidation;
             }, []);
             var coins = {
                 id: "Coins",
-                quantity: log.atEnd.coins - log.atStart.coins,
+                quantity: log.atEnd.coins - initialValues.coins,
             };
             var hearts = {
                 id: "Heart",
@@ -1661,12 +1665,34 @@ var LevelValidation;
         }
     }
     LevelValidation.extractData = extractData;
+    LevelValidation.initialValues = function (nk, userId) {
+        var wallet = Wallet.get(nk, userId).wallet;
+        var boostersCount = [
+            wallet.TNT.isUnlimited ? -1 : wallet.TNT.quantity,
+            wallet.DiscoBall.isUnlimited ? -1 : wallet.DiscoBall.quantity,
+            wallet.Rocket.isUnlimited ? -1 : wallet.Rocket.quantity,
+        ];
+        var powerUpsCount = [
+            wallet.Hammer.quantity,
+            wallet.VerticalRocket.quantity,
+            wallet.Shuffle.quantity,
+            wallet.HorizontalRocket.quantity,
+        ];
+        return {
+            boostersCount: boostersCount,
+            coins: wallet.Coins.quantity,
+            powerUpsCount: powerUpsCount,
+            heart: wallet.Heart.isUnlimited ? -1 : wallet.Heart.quantity,
+        };
+    };
 })(LevelValidation || (LevelValidation = {}));
 var levelValidatorRPC = function (ctx, logger, nk, payload) {
     try {
         var userId = ctx.userId;
         if (!userId)
             throw new Error("called by a server");
+        var initalValues = LevelValidation.initialValues(nk, userId);
+        logger.debug(JSON.stringify(initalValues));
         var levelLog = void 0;
         try {
             levelLog = JSON.parse(payload);
@@ -1678,7 +1704,11 @@ var levelValidatorRPC = function (ctx, logger, nk, payload) {
         }
         GameApi.LevelLog.save(nk, userId, levelLog);
         var validator = new LevelValidation.Validator();
-        var cheats = validator.cheatCheck(levelLog);
+        var cheats = validator.cheatCheck(levelLog, initalValues);
+        if (cheats.length > 0) {
+            GameApi.Cheat.write(nk, levelLog.levelNumber, userId, cheats);
+            return JSON.stringify({ success: false, error: cheats });
+        }
         var lastLevel = GameApi.LastLevel.get(nk, userId);
         if (levelLog.atEnd.result === "win") {
             GameApi.LastLevel.set(nk, userId, lastLevel + 1);
@@ -1687,13 +1717,10 @@ var levelValidatorRPC = function (ctx, logger, nk, payload) {
         // cheats.push(
         //   ...LevelValidation.Validator.checkLevel(levelLog.levelNumber, lastLevel)
         // );
-        if (cheats.length > 0) {
-            GameApi.Cheat.write(nk, levelLog.levelNumber, userId, cheats);
-        }
         //update inventory
-        var changeSet = LevelValidation.extractData(levelLog);
-        var wallet = Wallet.get(nk, userId);
+        var changeSet = LevelValidation.extractData(levelLog, initalValues);
         Wallet.update(nk, userId, changeSet);
+        return JSON.stringify({ success: true });
     }
     catch (error) {
         throw new Error("failed to validate level: ".concat(error.message));

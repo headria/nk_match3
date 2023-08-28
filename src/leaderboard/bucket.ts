@@ -599,7 +599,7 @@ namespace Bucket {
             if (userRecord && userRecord.length > 0) {
               const rank = userRecord[0].rank;
               const rewardsConfig = leaderboardRewards[tournament.id].config;
-              const tier = Rewards.getTierByRank(rank, logger, rewardsConfig);
+              const tier = Rewards.getTierByRank(rank, rewardsConfig);
               if (tier) {
                 const rewardItems = leaderboardRewards[tournament.id][tier];
                 if (rewardItems) {
