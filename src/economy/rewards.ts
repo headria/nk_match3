@@ -7,6 +7,9 @@ namespace Rewards {
   export type Reward = {
     id: string;
     items: RewardItem[];
+    claimed?: boolean;
+    addTime?: number;
+    claimTime?: number;
   };
 
   export type Rewards = Reward[];
@@ -46,31 +49,25 @@ namespace Rewards {
       permissionRead: 1,
       permissionWrite: 0,
     };
-    if (version) writeObj.version = version;
+    writeObj.version = version ? version : "*";
     nk.storageWrite([writeObj]);
   }
-
+  //add new reward
   export function add(nk: nkruntime.Nakama, userId: string, reward: Reward) {
     const { rewards, version } = get(nk, userId);
+    reward.claimed = false;
+    reward.addTime = Date.now();
     rewards.push(reward);
     set(nk, userId, rewards, version);
   }
 
-  function remove(nk: nkruntime.Nakama, userId: string, rewardId: string) {
-    let { rewards, version } = get(nk, userId);
-    let indexToRemove = -1;
-    for (let i = 0; i < rewards.length; i++) {
-      if (rewards[i].id === rewardId) {
-        indexToRemove = i;
-        break;
-      }
-    }
-
-    if (indexToRemove === -1)
-      throw new Error("No matching rewards found for removal");
-
-    rewards.splice(indexToRemove, 1);
-    set(nk, userId, rewards, version);
+  export function addNcliam(
+    nk: nkruntime.Nakama,
+    userId: string,
+    reward: Reward
+  ) {
+    add(nk, userId, reward);
+    claim(nk, userId, reward.id);
   }
 
   export function claim(
@@ -81,10 +78,11 @@ namespace Rewards {
     while (true) {
       try {
         let { rewards, version } = get(nk, userId);
-
         let rewardIndex = -1;
-        for (let i = 0; i < rewards.length; i++) {
-          if (rewards[i].id === rewardId) {
+        //reverse order for accessing latest rewards
+        for (let i = rewards.length - 1; i >= 0; i--) {
+          const reward = rewards[i];
+          if (reward.id === rewardId && reward.claimed === false) {
             rewardIndex = i;
             break;
           }
@@ -92,12 +90,16 @@ namespace Rewards {
         if (rewardIndex === -1)
           throw new Error("No matching rewards found for claim");
         const rewardItems = rewards[rewardIndex].items;
-        rewards.splice(rewardIndex, 1);
-        set(nk, userId, rewards, version);
+
         Wallet.update(nk, userId, rewardItems);
+
+        rewards[rewardIndex].claimed = true;
+        rewards[rewardIndex].claimTime = Date.now();
+        set(nk, userId, rewards, version);
         return;
       } catch (error: any) {
-        if (error.message.indexOf("version check failed") === -1) throw error;
+        if (error.message.indexOf("version check failed") === -1)
+          throw new Error(`Failed to claim reward: ${error.message}`);
       }
     }
   }
@@ -126,9 +128,12 @@ const ClaimRewardRPC: nkruntime.RpcFunction = (
   nk: nkruntime.Nakama,
   payload: string
 ): string | void => {
-  const input = JSON.parse(payload);
-  const rewardId: string = input.id;
+  if (!ctx.userId) throw new Error("Called By Server");
   const userId = ctx.userId;
+
+  const input = JSON.parse(payload);
+  logger.debug(input.id);
+  const rewardId = input.id;
 
   Rewards.claim(nk, userId, rewardId);
 };
