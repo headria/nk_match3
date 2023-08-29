@@ -5,16 +5,14 @@ const InitModule: nkruntime.InitModule = function (
   initializer: nkruntime.Initializer
 ) {
   //register storage index
-  cryptoWalletIndex(initializer);
+  StorageIndex.registerIndexes(initializer);
 
   //initialize shop
   initShop(nk);
 
   //initiate user wallet
   initializer.registerAfterAuthenticateDevice(InitiateUser);
-
   initializer.registerBeforeReadStorageObjects(BeforeGetStorage);
-
   initializer.registerRpc("rewards/claim", ClaimRewardRPC);
 
   //create Leaderboards
@@ -23,8 +21,8 @@ const InitModule: nkruntime.InitModule = function (
 
   //Register Leaderboards rpcs
   initializer.registerRpc("leaderboard/setRecord/pmc", updateScore);
-
   initializer.registerRpc("user/WalletConnect", WalletConnect);
+
   //validators
   initializer.registerRpc("level/validate", levelValidatorRPC);
 };

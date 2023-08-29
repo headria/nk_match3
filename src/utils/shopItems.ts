@@ -438,14 +438,17 @@ const SHOP_ITEMS = [
 ];
 
 const initShop = (nk: nkruntime.Nakama) => {
-  nk.storageWrite([
-    {
-      collection: "Shop",
-      key: "Items",
-      userId: SystemUserId,
-      value: { items: SHOP_ITEMS },
-      permissionRead: 2,
-      permissionWrite: 0,
-    },
-  ]);
+  try {
+    nk.storageWrite([
+      {
+        collection: "Shop",
+        key: "Items",
+        userId: SystemUserId,
+        value: { items: SHOP_ITEMS },
+        version: "*",
+        permissionRead: 2,
+        permissionWrite: 0,
+      },
+    ]);
+  } catch (error) {}
 };
