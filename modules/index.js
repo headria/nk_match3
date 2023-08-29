@@ -30,93 +30,6 @@ var InitModule = function (ctx, logger, nk, initializer) {
     //validators
     initializer.registerRpc("level/validate", levelValidatorRPC);
 };
-var BattlePassRewards = {
-    1: {
-        requiredKey: 1,
-        free: [{ id: "DISCO_BALL", quantity: 1 }],
-        premium: [{ id: "DISCO_BALL", quantity: 2 }],
-    },
-    2: {
-        requiredKey: 2,
-        free: [{ id: "TNT", quantity: 1 }],
-        premium: [{ id: "DISCO_BALL", quantity: 2 }],
-    },
-    3: {
-        requiredKey: 5,
-        free: [{ id: "TNT", quantity: 1 }],
-        premium: [
-            { id: "DISCO_BALL", quantity: 2 },
-            { id: "TNT", quantity: 1 },
-        ],
-    },
-};
-var BattlePass;
-(function (BattlePass) {
-    var rawData = {
-        collectedKeys: 0,
-        premium: false,
-        step: 0,
-    };
-    var config = {
-        leaderboardID: "BattlePass",
-        authoritative: true,
-        metadata: {},
-        operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
-        resetSchedule: "0 0 * 1 *",
-        sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
-    };
-    function addScore(nk, userId, username, score) {
-        try {
-            nk.leaderboardRecordWrite(config.leaderboardID, userId, username, score);
-        }
-        catch (error) {
-            throw new Error("failed to update battlePass score. cause: ".concat(error.message));
-        }
-    }
-    BattlePass.addScore = addScore;
-    function get(nk, account) {
-        var _a;
-        var data = (_a = account.user.metadata) === null || _a === void 0 ? void 0 : _a[config.leaderboardID];
-        if (!data) {
-            set(nk, account, 0, 0, false);
-            return rawData;
-        }
-        return data;
-    }
-    BattlePass.get = get;
-    function set(nk, account, collectedKeys, step, premium) {
-        try {
-            var key = config.leaderboardID;
-            var metadata = account.user.metadata;
-            var userId = account.user.userId;
-            var username = account.user.username;
-            var data = metadata[key] ? metadata[key] : rawData;
-            if (collectedKeys)
-                data.collectedKeys = collectedKeys;
-            if (step)
-                data.step = step;
-            if (premium)
-                data.premium = premium;
-            nk.accountUpdateId(userId, username, null, null, null, null, null, data);
-        }
-        catch (error) {
-            throw new Error("failed to set Battlepass data in metadata: ".concat(error.message));
-        }
-    }
-    BattlePass.set = set;
-    function addKeys(nk, account, keys) {
-        var data = get(nk, account);
-        set(nk, account, data.collectedKeys + keys);
-    }
-    BattlePass.addKeys = addKeys;
-    function getStepByKeys(keys) {
-        Object.keys(BattlePassRewards).reduce(function (acc, curr) {
-            var step = BattlePassRewards[curr];
-            return 0;
-        }, 0);
-    }
-    BattlePass.getStepByKeys = getStepByKeys;
-})(BattlePass || (BattlePass = {}));
 var Rewards;
 (function (Rewards) {
     var collection = "Economy";
@@ -145,33 +58,37 @@ var Rewards;
             permissionRead: 1,
             permissionWrite: 0,
         };
-        writeObj.version = version ? version : "*";
+        if (version)
+            writeObj.version = version;
         nk.storageWrite([writeObj]);
     }
     function add(nk, userId, reward) {
         var _a = get(nk, userId), rewards = _a.rewards, version = _a.version;
-        reward.claimed = false;
         rewards.push(reward);
         set(nk, userId, rewards, version);
     }
     Rewards.add = add;
-    function addNcliam(nk, userId, reward) {
+    function remove(nk, userId, rewardId) {
         var _a = get(nk, userId), rewards = _a.rewards, version = _a.version;
-        reward.claimed = true;
-        rewards.push(reward);
+        var indexToRemove = -1;
+        for (var i = 0; i < rewards.length; i++) {
+            if (rewards[i].id === rewardId) {
+                indexToRemove = i;
+                break;
+            }
+        }
+        if (indexToRemove === -1)
+            throw new Error("No matching rewards found for removal");
+        rewards.splice(indexToRemove, 1);
         set(nk, userId, rewards, version);
-        claim(nk, userId, reward.id);
     }
-    Rewards.addNcliam = addNcliam;
     function claim(nk, userId, rewardId) {
         while (true) {
             try {
                 var _a = get(nk, userId), rewards = _a.rewards, version = _a.version;
                 var rewardIndex = -1;
-                //reverse order for accessing latest rewards
-                for (var i = rewards.length; i >= 0; i--) {
-                    var reward = rewards[i];
-                    if (reward.id === rewardId && reward.claimed === false) {
+                for (var i = 0; i < rewards.length; i++) {
+                    if (rewards[i].id === rewardId) {
                         rewardIndex = i;
                         break;
                     }
@@ -179,9 +96,9 @@ var Rewards;
                 if (rewardIndex === -1)
                     throw new Error("No matching rewards found for claim");
                 var rewardItems = rewards[rewardIndex].items;
-                Wallet.update(nk, userId, rewardItems);
-                rewards[rewardIndex].claimed = true;
+                rewards.splice(rewardIndex, 1);
                 set(nk, userId, rewards, version);
+                Wallet.update(nk, userId, rewardItems);
                 return;
             }
             catch (error) {
