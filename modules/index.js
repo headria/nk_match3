@@ -30,6 +30,93 @@ var InitModule = function (ctx, logger, nk, initializer) {
     //validators
     initializer.registerRpc("level/validate", levelValidatorRPC);
 };
+var BattlePassRewards = {
+    1: {
+        requiredKey: 1,
+        free: [{ id: "DISCO_BALL", quantity: 1 }],
+        premium: [{ id: "DISCO_BALL", quantity: 2 }],
+    },
+    2: {
+        requiredKey: 2,
+        free: [{ id: "TNT", quantity: 1 }],
+        premium: [{ id: "DISCO_BALL", quantity: 2 }],
+    },
+    3: {
+        requiredKey: 5,
+        free: [{ id: "TNT", quantity: 1 }],
+        premium: [
+            { id: "DISCO_BALL", quantity: 2 },
+            { id: "TNT", quantity: 1 },
+        ],
+    },
+};
+var BattlePass;
+(function (BattlePass) {
+    var rawData = {
+        collectedKeys: 0,
+        premium: false,
+        step: 0,
+    };
+    var config = {
+        leaderboardID: "BattlePass",
+        authoritative: true,
+        metadata: {},
+        operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
+        resetSchedule: "0 0 * 1 *",
+        sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
+    };
+    function addScore(nk, userId, username, score) {
+        try {
+            nk.leaderboardRecordWrite(config.leaderboardID, userId, username, score);
+        }
+        catch (error) {
+            throw new Error("failed to update battlePass score. cause: ".concat(error.message));
+        }
+    }
+    BattlePass.addScore = addScore;
+    function get(nk, account) {
+        var _a;
+        var data = (_a = account.user.metadata) === null || _a === void 0 ? void 0 : _a[config.leaderboardID];
+        if (!data) {
+            set(nk, account, 0, 0, false);
+            return rawData;
+        }
+        return data;
+    }
+    BattlePass.get = get;
+    function set(nk, account, collectedKeys, step, premium) {
+        try {
+            var key = config.leaderboardID;
+            var metadata = account.user.metadata;
+            var userId = account.user.userId;
+            var username = account.user.username;
+            var data = metadata[key] ? metadata[key] : rawData;
+            if (collectedKeys)
+                data.collectedKeys = collectedKeys;
+            if (step)
+                data.step = step;
+            if (premium)
+                data.premium = premium;
+            nk.accountUpdateId(userId, username, null, null, null, null, null, data);
+        }
+        catch (error) {
+            throw new Error("failed to set Battlepass data in metadata: ".concat(error.message));
+        }
+    }
+    BattlePass.set = set;
+    function addKeys(nk, account, keys) {
+        var data = get(nk, account);
+        set(nk, account, data.collectedKeys + keys);
+    }
+    BattlePass.addKeys = addKeys;
+    function getStepByKeys(keys) {
+        Object.keys(BattlePassRewards).reduce(function (acc, curr) {
+            var step = BattlePassRewards[curr];
+            return 0;
+        }, 0);
+    }
+    BattlePass.getStepByKeys = getStepByKeys;
+})(BattlePass || (BattlePass = {}));
 var Rewards;
 (function (Rewards) {
     var collection = "Economy";
@@ -58,37 +145,33 @@ var Rewards;
             permissionRead: 1,
             permissionWrite: 0,
         };
-        if (version)
-            writeObj.version = version;
+        writeObj.version = version ? version : "*";
         nk.storageWrite([writeObj]);
     }
     function add(nk, userId, reward) {
         var _a = get(nk, userId), rewards = _a.rewards, version = _a.version;
+        reward.claimed = false;
         rewards.push(reward);
         set(nk, userId, rewards, version);
     }
     Rewards.add = add;
-    function remove(nk, userId, rewardId) {
+    function addNcliam(nk, userId, reward) {
         var _a = get(nk, userId), rewards = _a.rewards, version = _a.version;
-        var indexToRemove = -1;
-        for (var i = 0; i < rewards.length; i++) {
-            if (rewards[i].id === rewardId) {
-                indexToRemove = i;
-                break;
-            }
-        }
-        if (indexToRemove === -1)
-            throw new Error("No matching rewards found for removal");
-        rewards.splice(indexToRemove, 1);
+        reward.claimed = true;
+        rewards.push(reward);
         set(nk, userId, rewards, version);
+        claim(nk, userId, reward.id);
     }
+    Rewards.addNcliam = addNcliam;
     function claim(nk, userId, rewardId) {
         while (true) {
             try {
                 var _a = get(nk, userId), rewards = _a.rewards, version = _a.version;
                 var rewardIndex = -1;
-                for (var i = 0; i < rewards.length; i++) {
-                    if (rewards[i].id === rewardId) {
+                //reverse order for accessing latest rewards
+                for (var i = rewards.length; i >= 0; i--) {
+                    var reward = rewards[i];
+                    if (reward.id === rewardId && reward.claimed === false) {
                         rewardIndex = i;
                         break;
                     }
@@ -96,9 +179,9 @@ var Rewards;
                 if (rewardIndex === -1)
                     throw new Error("No matching rewards found for claim");
                 var rewardItems = rewards[rewardIndex].items;
-                rewards.splice(rewardIndex, 1);
-                set(nk, userId, rewards, version);
                 Wallet.update(nk, userId, rewardItems);
+                rewards[rewardIndex].claimed = true;
+                set(nk, userId, rewards, version);
                 return;
             }
             catch (error) {
@@ -249,7 +332,7 @@ var Wallet;
             }
             catch (error) {
                 if (error.message.indexOf("version check failed") === -1)
-                    throw error;
+                    throw new Error("failed to update Wallet: ".concat(error.message));
             }
         }
     }
@@ -980,6 +1063,10 @@ var GameApi = {
                     throw new Error("failed to set Last level: " + error.message);
                 }
             };
+            class_1.increment = function (nk, userId) {
+                var lastLevel = GameApi.LastLevel.get(nk, userId);
+                GameApi.LastLevel.set(nk, userId, lastLevel + 1);
+            };
             return class_1;
         }()),
         __setFunctionName(_a, "LastLevel"),
@@ -1530,7 +1617,7 @@ var LevelValidation;
         Validator.prototype.cheatCheck = function (levelLog, initialValues) {
             try {
                 var atStart = levelLog.atStart, atEnd = levelLog.atEnd;
-                var detectedCheats = __spreadArray(__spreadArray(__spreadArray(__spreadArray(__spreadArray(__spreadArray([], this.checkHearts(initialValues.heart), true), this.checkBoosters(initialValues.boostersCount, atEnd.boostersCount, atStart.selectedBoosters), true), this.checkMoves(atEnd.totalMoves, atEnd.levelMaxMoves, atEnd.purchasedMovesCount), true), this.checkCoins(initialValues.coins, atEnd.coins, atEnd.purchasedMovesCoins, atEnd.purchasedPowerUps), true), this.checkPowerUps(initialValues.powerUpsCount, atEnd.powerUpsCount, atEnd.purchasedPowerUps, atEnd.usedItems), true), this.checkAbilityUsage(atEnd.targetAbilityblocksPoped, atEnd.abilitUsedTimes), true);
+                var detectedCheats = __spreadArray(__spreadArray(__spreadArray(__spreadArray(__spreadArray(__spreadArray([], this.checkHearts(initialValues.heart), true), this.checkBoosters(initialValues.boostersCount, atEnd.boostersCount, atStart.selectedBoosters), true), this.checkMoves(atEnd.totalMoves, atEnd.levelMaxMoves, atEnd.purchasedMovesCount), true), this.checkCoins(initialValues.coins, atEnd.purchasedMovesCoins, atEnd.purchasedPowerUps), true), this.checkPowerUps(initialValues.powerUpsCount, atEnd.powerUpsCount, atEnd.purchasedPowerUps, atEnd.usedItems), true), this.checkAbilityUsage(atEnd.targetAbilityblocksPoped, atEnd.abilitUsedTimes), true);
                 return detectedCheats;
             }
             catch (error) {
@@ -1583,15 +1670,13 @@ var LevelValidation;
             }
             return [];
         };
-        Validator.prototype.checkTime = function (startTime, endTime) {
-            return endTime - startTime < 1000 ? ["Time less than one second"] : [];
-        };
-        Validator.prototype.checkCoins = function (startCoins, endCoins, purchasedMovesCoins, purchasedPowerUps) {
+        Validator.prototype.checkCoins = function (startCoins, purchasedMovesCoins, purchasedPowerUps) {
             var purchasedPowerUpsPrice = Math.floor(purchasedPowerUps.reduce(function (acc, curr) { return acc + curr; }, 0) / 3) *
                 600;
-            return endCoins !==
-                startCoins - purchasedMovesCoins - purchasedPowerUpsPrice
-                ? ["Invalid Coin Count! start:".concat(startCoins, " end:").concat(endCoins)]
+            return startCoins < purchasedMovesCoins + purchasedPowerUpsPrice
+                ? [
+                    "Invalid Coin Count! start(".concat(startCoins, ") < purchasedMoves(").concat(purchasedMovesCoins, ") + purchasedPowerUps(").concat(purchasedPowerUpsPrice, ")"),
+                ]
                 : [];
         };
         Validator.prototype.checkPowerUps = function (startPowerUpsCount, endPowerUpsCount, purchasedPowerUps, usedItems) {
@@ -1626,10 +1711,11 @@ var LevelValidation;
             var boosters = LevelValidation.Boosters.reduce(function (acc, curr) {
                 var finalCount = log.atEnd.boostersCount[curr.index];
                 var initCount = initialValues.boostersCount[curr.index];
-                if (initCount > -1) {
+                var result = finalCount - initCount;
+                if (initCount > 0) {
                     acc.push({
                         id: curr.name,
-                        quantity: finalCount - initCount,
+                        quantity: result,
                     });
                 }
                 return acc;
@@ -1646,13 +1732,18 @@ var LevelValidation;
                 }
                 return acc;
             }, []);
+            var purchasedPowerUpsPrice = Math.floor(log.atEnd.purchasedPowerUps.reduce(function (acc, curr) { return acc + curr; }, 0) / 3) * 600;
+            var coinsDifference = log.atEnd.coinsRewarded -
+                purchasedPowerUpsPrice -
+                log.atEnd.purchasedMovesCoins;
             var coins = {
                 id: "Coins",
-                quantity: log.atEnd.coins - initialValues.coins,
+                quantity: coinsDifference,
             };
+            var heartCount = log.atEnd.result !== "win" && initialValues.heart > 0 ? -1 : 0;
             var hearts = {
                 id: "Heart",
-                quantity: log.atEnd.result !== "win" ? -1 : 0,
+                quantity: heartCount,
             };
             var result = __spreadArray(__spreadArray(__spreadArray([], boosters, true), powerUps, true), [
                 coins,
@@ -1692,31 +1783,23 @@ var levelValidatorRPC = function (ctx, logger, nk, payload) {
         if (!userId)
             throw new Error("called by a server");
         var initalValues = LevelValidation.initialValues(nk, userId);
-        logger.debug(JSON.stringify(initalValues));
         var levelLog = void 0;
-        try {
-            levelLog = JSON.parse(payload);
-            if (!levelLog)
-                throw new Error();
-        }
-        catch (error) {
+        levelLog = JSON.parse(payload);
+        if (!levelLog)
             throw new Error("Invalid request body");
-        }
+        //save log in storage
         GameApi.LevelLog.save(nk, userId, levelLog);
+        //checking cheats
         var validator = new LevelValidation.Validator();
         var cheats = validator.cheatCheck(levelLog, initalValues);
         if (cheats.length > 0) {
             GameApi.Cheat.write(nk, levelLog.levelNumber, userId, cheats);
             return JSON.stringify({ success: false, error: cheats });
         }
-        var lastLevel = GameApi.LastLevel.get(nk, userId);
         if (levelLog.atEnd.result === "win") {
-            GameApi.LastLevel.set(nk, userId, lastLevel + 1);
+            GameApi.LastLevel.increment(nk, userId);
             Leaderboards.UpdateLeaderboards(nk, userId, ctx.username, levelLog);
         }
-        // cheats.push(
-        //   ...LevelValidation.Validator.checkLevel(levelLog.levelNumber, lastLevel)
-        // );
         //update inventory
         var changeSet = LevelValidation.extractData(levelLog, initalValues);
         Wallet.update(nk, userId, changeSet);
