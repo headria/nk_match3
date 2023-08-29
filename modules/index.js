@@ -15,7 +15,6 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
 var InitModule = function (ctx, logger, nk, initializer) {
     //register storage index
     cryptoWalletIndex(initializer);
-    nonFullHearts(initializer);
     //initialize shop
     initShop(nk);
     //initiate user wallet
@@ -59,21 +58,32 @@ var Rewards;
             permissionRead: 1,
             permissionWrite: 0,
         };
-        if (version)
-            writeObj.version = version;
+        writeObj.version = version ? version : "*";
         nk.storageWrite([writeObj]);
     }
     //add new reward
     function add(nk, userId, reward) {
         var _a = get(nk, userId), rewards = _a.rewards, version = _a.version;
-
+        reward.claimed = false;
+        reward.addTime = Date.now();
+        rewards.push(reward);
+        set(nk, userId, rewards, version);
     }
+    Rewards.add = add;
+    function addNcliam(nk, userId, reward) {
+        add(nk, userId, reward);
+        claim(nk, userId, reward.id);
+    }
+    Rewards.addNcliam = addNcliam;
     function claim(nk, userId, rewardId) {
         while (true) {
             try {
                 var _a = get(nk, userId), rewards = _a.rewards, version = _a.version;
                 var rewardIndex = -1;
-
+                //reverse order for accessing latest rewards
+                for (var i = rewards.length - 1; i >= 0; i--) {
+                    var reward = rewards[i];
+                    if (reward.id === rewardId && reward.claimed === false) {
                         rewardIndex = i;
                         break;
                     }
@@ -81,9 +91,10 @@ var Rewards;
                 if (rewardIndex === -1)
                     throw new Error("No matching rewards found for claim");
                 var rewardItems = rewards[rewardIndex].items;
-
-                set(nk, userId, rewards, version);
                 Wallet.update(nk, userId, rewardItems);
+                rewards[rewardIndex].claimed = true;
+                rewards[rewardIndex].claimTime = Date.now();
+                set(nk, userId, rewards, version);
                 return;
             }
             catch (error) {
