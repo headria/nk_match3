@@ -206,7 +206,7 @@ namespace LevelValidation {
           const result = finalCount - initCount;
           if (initCount > 0) {
             acc.push({
-              id: curr.name,
+              id: curr.name as keyof Wallet.IWallet,
               quantity: result,
             });
           }
@@ -221,7 +221,7 @@ namespace LevelValidation {
           const result = finalCount - initCount;
           if (result !== 0) {
             acc.push({
-              id: PowerUps[curr.index].name,
+              id: PowerUps[curr.index].name as keyof Wallet.IWallet,
               quantity: result,
             });
           }

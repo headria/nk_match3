@@ -14,7 +14,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
 };
 var InitModule = function (ctx, logger, nk, initializer) {
     //register storage index
-    cryptoWalletIndex(initializer);
+
     //initialize shop
     initShop(nk);
     //initiate user wallet
@@ -30,6 +30,93 @@ var InitModule = function (ctx, logger, nk, initializer) {
     //validators
     initializer.registerRpc("level/validate", levelValidatorRPC);
 };
+var BattlePassRewards = {
+    1: {
+        requiredKey: 1,
+        free: [{ id: "DISCO_BALL", quantity: 1 }],
+        premium: [{ id: "DISCO_BALL", quantity: 2 }],
+    },
+    2: {
+        requiredKey: 2,
+        free: [{ id: "TNT", quantity: 1 }],
+        premium: [{ id: "DISCO_BALL", quantity: 2 }],
+    },
+    3: {
+        requiredKey: 5,
+        free: [{ id: "TNT", quantity: 1 }],
+        premium: [
+            { id: "DISCO_BALL", quantity: 2 },
+            { id: "TNT", quantity: 1 },
+        ],
+    },
+};
+var BattlePass;
+(function (BattlePass) {
+    var rawData = {
+        collectedKeys: 0,
+        premium: false,
+        step: 0,
+    };
+    var config = {
+        leaderboardID: "BattlePass",
+        authoritative: true,
+        metadata: {},
+        operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
+        resetSchedule: "0 0 * 1 *",
+        sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
+    };
+    function addScore(nk, userId, username, score) {
+        try {
+            nk.leaderboardRecordWrite(config.leaderboardID, userId, username, score);
+        }
+        catch (error) {
+            throw new Error("failed to update battlePass score. cause: ".concat(error.message));
+        }
+    }
+    BattlePass.addScore = addScore;
+    function get(nk, account) {
+        var _a;
+        var data = (_a = account.user.metadata) === null || _a === void 0 ? void 0 : _a[config.leaderboardID];
+        if (!data) {
+            set(nk, account, 0, 0, false);
+            return rawData;
+        }
+        return data;
+    }
+    BattlePass.get = get;
+    function set(nk, account, collectedKeys, step, premium) {
+        try {
+            var key = config.leaderboardID;
+            var metadata = account.user.metadata;
+            var userId = account.user.userId;
+            var username = account.user.username;
+            var data = metadata[key] ? metadata[key] : rawData;
+            if (collectedKeys)
+                data.collectedKeys = collectedKeys;
+            if (step)
+                data.step = step;
+            if (premium)
+                data.premium = premium;
+            nk.accountUpdateId(userId, username, null, null, null, null, null, data);
+        }
+        catch (error) {
+            throw new Error("failed to set Battlepass data in metadata: ".concat(error.message));
+        }
+    }
+    BattlePass.set = set;
+    function addKeys(nk, account, keys) {
+        var data = get(nk, account);
+        set(nk, account, data.collectedKeys + keys);
+    }
+    BattlePass.addKeys = addKeys;
+    function getStepByKeys(keys) {
+        Object.keys(BattlePassRewards).reduce(function (acc, curr) {
+            var step = BattlePassRewards[curr];
+            return 0;
+        }, 0);
+    }
+    BattlePass.getStepByKeys = getStepByKeys;
+})(BattlePass || (BattlePass = {}));
 var Rewards;
 (function (Rewards) {
     var collection = "Economy";
@@ -134,20 +221,10 @@ var Wallet;
 (function (Wallet) {
     Wallet.collection = "Economy";
     Wallet.key = "Wallet";
+    // const HeartFillInterval = 20 * 60 * 1000; // every 20 minutes
+    var HeartFillInterval = 60 * 1000; // every 1 minute
+    var MAX_HEARTS = 5;
     var unlimitables = ["Heart", "TNT", "DiscoBall", "Rocket"];
-    // export interface IWallet {
-    //   Heart: WalletItem;
-    //   TNT: WalletItem;
-    //   DiscoBall: WalletItem;
-    //   Rocket: WalletItem;
-    //   Hammer: WalletItem;
-    //   Shuffle: WalletItem;
-    //   HorizontalRocket: WalletItem;
-    //   VerticalRocket: WalletItem;
-    //   Coins: WalletItem;
-    //   Gems: WalletItem;
-    //   Score: WalletItem;
-    // }
     Wallet.InitialWallet = {
         Heart: {
             endDate: 0,
@@ -189,8 +266,8 @@ var Wallet;
                 wallet[key].isUnlimited = true;
             }
             if (cs.quantity && cs.quantity !== 0) {
-                if (key === "Heart" && item.quantity + cs.quantity > 5) {
-                    wallet[key].quantity = 5;
+                if (key === "Heart" && item.quantity + cs.quantity > MAX_HEARTS) {
+                    wallet[key].quantity = MAX_HEARTS;
                 }
                 else {
                     wallet[key].quantity += cs.quantity;
@@ -230,23 +307,6 @@ var Wallet;
             throw new Error("failed to set wallet: wallet: ".concat(JSON.stringify(wallet), " error:").concat(error.message));
         }
     }
-    function checkExpired(nk, userId) {
-        var _a = get(nk, userId), wallet = _a.wallet, version = _a.version;
-        var hasChanged = false;
-        for (var _i = 0, _b = Object.keys(wallet); _i < _b.length; _i++) {
-            var key_1 = _b[_i];
-            var item = wallet[key_1];
-            if (item.isUnlimited && item.endDate) {
-                if (Date.now() > item.endDate) {
-                    item.isUnlimited = false;
-                    hasChanged = true;
-                }
-            }
-        }
-        if (hasChanged)
-            set(nk, userId, wallet, version);
-    }
-    Wallet.checkExpired = checkExpired;
     function update(nk, userId, changeset) {
         while (true) {
             try {
@@ -262,6 +322,61 @@ var Wallet;
         }
     }
     Wallet.update = update;
+    function checkExpired(nk, wallet, version, userId) {
+        try {
+            var hasChanged = false;
+            for (var _i = 0, _a = Object.keys(wallet); _i < _a.length; _i++) {
+                var key_1 = _a[_i];
+                var item = wallet[key_1];
+                if (item.isUnlimited && item.endDate) {
+                    if (Date.now() > item.endDate) {
+                        item.isUnlimited = false;
+                        hasChanged = true;
+                    }
+                }
+            }
+            if (hasChanged)
+                set(nk, userId, wallet, version);
+        }
+        catch (error) {
+            throw new Error("failed to check expired: ".concat(error.message));
+        }
+    }
+    Wallet.checkExpired = checkExpired;
+    function heartFillUp(nk, logger, wallet, userId) {
+        try {
+            var hearts = wallet.Heart.quantity;
+            if (hearts >= MAX_HEARTS)
+                return;
+            var account = nk.accountGetId(userId);
+            var metadata = account.user.metadata;
+            if (!metadata.Heart || metadata.Heart.next === 0) {
+                metadata.Heart = { next: Date.now() + HeartFillInterval };
+                nk.accountUpdateId(userId, null, null, null, null, null, null, metadata);
+            }
+            var nextHeart = metadata.Heart.next;
+            // logger.debug(`next fill up ${(nextHeart - Date.now()) / 1000}`);
+            if (Date.now() < nextHeart)
+                return;
+            var count = 0;
+            while (nextHeart < Date.now()) {
+                count++;
+                nextHeart += HeartFillInterval;
+                if (count + hearts === MAX_HEARTS) {
+                    nextHeart = 0;
+                    break;
+                }
+            }
+            var changeSet = [{ id: "Heart", quantity: count }];
+            update(nk, userId, changeSet);
+            metadata.Heart.next = nextHeart;
+            nk.accountUpdateId(userId, null, null, null, null, null, null, metadata);
+        }
+        catch (error) {
+            throw new Error("Heart fillup failed: ".concat(error.message));
+        }
+    }
+    Wallet.heartFillUp = heartFillUp;
 })(Wallet || (Wallet = {}));
 //disable unlimited items if they are expired
 var BeforeGetStorage = function (ctx, logger, nk, data) {
@@ -269,7 +384,10 @@ var BeforeGetStorage = function (ctx, logger, nk, data) {
     (_a = data.objectIds) === null || _a === void 0 ? void 0 : _a.forEach(function (element) {
         if (element.collection === Wallet.collection &&
             element.key === Wallet.key) {
-            Wallet.checkExpired(nk, element.userId);
+            var userId = element.userId;
+            var _a = Wallet.get(nk, userId), wallet = _a.wallet, version = _a.version;
+            Wallet.heartFillUp(nk, logger, wallet, userId);
+            Wallet.checkExpired(nk, wallet, version, userId);
         }
     });
     return data;
@@ -857,22 +975,27 @@ var updateScore = function (ctx, logger, nk, payload) {
         logger.error(error.message);
     }
 };
-var cryptoWalletIndex = function (initializer) {
-    var name = "crypto-wallet";
-    var collection = "Crypto";
-    var key = "Wallet";
-    var fields = ["address"];
-    var maxEntries = 1000000000;
-    initializer.registerStorageIndex(name, collection, key, fields, maxEntries);
-};
-var nonFullHearts = function (initializer) {
-    var name = "nonFullHearts";
-    var collection = "Economy";
-    var key = "Wallet";
-    var fields = ["Heart"];
-    var maxEntries = 1000000000;
-    initializer.registerStorageIndex(name, collection, key, fields, maxEntries);
-};
+var StorageIndex;
+(function (StorageIndex) {
+    var MAX_ENTRIES = 1000000000;
+    var configs = {
+        cryptoWallet: {
+            name: "crypto-wallet",
+            collection: "Crypto",
+            storageKey: "Wallet",
+            fields: ["address"],
+            maxEntries: MAX_ENTRIES,
+        },
+    };
+    function registerIndexes(initializer) {
+        for (var key in configs) {
+            var config = configs[key];
+            var collection = config.collection, fields = config.fields, maxEntries = config.maxEntries, name_1 = config.name, storageKey = config.storageKey;
+            initializer.registerStorageIndex(name_1, collection, storageKey, fields, maxEntries);
+        }
+    }
+    StorageIndex.registerIndexes = registerIndexes;
+})(StorageIndex || (StorageIndex = {}));
 var initialCrypto = {
     address: null,
     balance: null,
@@ -1503,16 +1626,20 @@ var SHOP_ITEMS = [
     },
 ];
 var initShop = function (nk) {
-    nk.storageWrite([
-        {
-            collection: "Shop",
-            key: "Items",
-            userId: SystemUserId,
-            value: { items: SHOP_ITEMS },
-            permissionRead: 2,
-            permissionWrite: 0,
-        },
-    ]);
+    try {
+        nk.storageWrite([
+            {
+                collection: "Shop",
+                key: "Items",
+                userId: SystemUserId,
+                value: { items: SHOP_ITEMS },
+                version: "*",
+                permissionRead: 2,
+                permissionWrite: 0,
+            },
+        ]);
+    }
+    catch (error) { }
 };
 var LevelValidation;
 (function (LevelValidation) {
@@ -1552,19 +1679,19 @@ var LevelValidation;
             var detectedCheats = [];
             for (var _i = 0, Boosters_1 = LevelValidation.Boosters; _i < Boosters_1.length; _i++) {
                 var booster = Boosters_1[_i];
-                var name_1 = booster.name, index = booster.index;
+                var name_2 = booster.name, index = booster.index;
                 var startCount = startCounts[index];
                 var endCount = endCounts[index];
-                if (selectedBoosters.indexOf(name_1) !== -1) {
+                if (selectedBoosters.indexOf(name_2) !== -1) {
                     if (startCount === 0) {
-                        detectedCheats.push("Used a Booster Without Having it: ".concat(name_1));
+                        detectedCheats.push("Used a Booster Without Having it: ".concat(name_2));
                     }
                     else if (startCount !== -1 && startCount <= endCount) {
-                        detectedCheats.push("Used a booster without reducing quantity: ".concat(name_1));
+                        detectedCheats.push("Used a booster without reducing quantity: ".concat(name_2));
                     }
                 }
                 else if (startCount < -1 || endCount > startCount || endCount < -1) {
-                    detectedCheats.push("Invalid Booster Count! ".concat(name_1, " = { before: ").concat(startCount, " after: ").concat(endCount, " }"));
+                    detectedCheats.push("Invalid Booster Count! ".concat(name_2, " = { before: ").concat(startCount, " after: ").concat(endCount, " }"));
                 }
             }
             return detectedCheats;
@@ -1599,13 +1726,13 @@ var LevelValidation;
             var detectedCheats = [];
             for (var _i = 0, PowerUps_1 = LevelValidation.PowerUps; _i < PowerUps_1.length; _i++) {
                 var powerUp = PowerUps_1[_i];
-                var name_2 = powerUp.name, index = powerUp.index;
+                var name_3 = powerUp.name, index = powerUp.index;
                 var before = startPowerUpsCount[index];
                 var after = endPowerUpsCount[index];
                 var purchased = purchasedPowerUps[index];
                 var used = usedItems[index];
                 if (after !== before + purchased - used) {
-                    detectedCheats.push("".concat(name_2, " before:").concat(before, " after:").concat(after));
+                    detectedCheats.push("".concat(name_3, " before:").concat(before, " after:").concat(after));
                 }
             }
             return detectedCheats.length > 0
