@@ -74,7 +74,7 @@ namespace Wallet {
     Shuffle: { quantity: 0 },
     HorizontalRocket: { quantity: 0 },
     VerticalRocket: { quantity: 0 },
-    Coins: { quantity: 0 },
+    Coins: { quantity: 1000 },
     Gems: { quantity: 0 },
     Score: { quantity: 0 },
   };
@@ -91,7 +91,11 @@ namespace Wallet {
         item.isUnlimited = true;
       }
       if (cs.quantity !== 0) {
-        item.quantity += cs.quantity;
+        if (cs.id === "Heart" && item.quantity + cs.quantity > 5) {
+          item.quantity = 5;
+        } else {
+          item.quantity += cs.quantity;
+        }
       }
       wallet[key] = item;
     });
