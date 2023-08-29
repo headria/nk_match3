@@ -74,7 +74,7 @@ namespace Wallet {
     Shuffle: { quantity: 0 },
     HorizontalRocket: { quantity: 0 },
     VerticalRocket: { quantity: 0 },
-    Coins: { quantity: 0 },
+    Coins: { quantity: 1000 },
     Gems: { quantity: 0 },
     Score: { quantity: 0 },
   };
@@ -84,16 +84,19 @@ namespace Wallet {
       const key: string = cs.id;
       const item: Wallet.WalletItem = wallet[key];
       if (cs.time) {
-        if (unlimitables.indexOf(key) === -1 || !item.endDate)
+        if (unlimitables.indexOf(key) === -1 || item.endDate === undefined)
           throw new Error("Cannot add duration to non-unlimited items.");
-        const newEndDate = item.isUnlimited ? item.endDate : Date.now();
-        item.endDate = newEndDate + cs.time * 1000;
-        item.isUnlimited = true;
+        const endDate = item.isUnlimited ? item.endDate : Date.now();
+        wallet[key].endDate = endDate + cs.time * 1000;
+        wallet[key].isUnlimited = true;
       }
-      if (cs.quantity !== 0) {
-        item.quantity += cs.quantity;
+      if (cs.quantity && cs.quantity !== 0) {
+        if (key === "Heart" && item.quantity + cs.quantity > 5) {
+          wallet[key].quantity = 5;
+        } else {
+          wallet[key].quantity += cs.quantity;
+        }
       }
-      wallet[key] = item;
     });
     return wallet;
   }
@@ -116,19 +119,27 @@ namespace Wallet {
   function set(
     nk: nkruntime.Nakama,
     userId: string,
-    newWallet: IWallet,
+    wallet: IWallet,
     version?: string
   ) {
-    const writeObj: nkruntime.StorageWriteRequest = {
-      collection,
-      key,
-      userId,
-      value: newWallet,
-      permissionRead: 1,
-      permissionWrite: 0,
-    };
-    if (version) writeObj.version = version;
-    nk.storageWrite([writeObj]);
+    try {
+      const writeObj: nkruntime.StorageWriteRequest = {
+        collection,
+        key,
+        userId,
+        value: wallet,
+        permissionRead: 1,
+        permissionWrite: 0,
+      };
+      if (version) writeObj.version = version;
+      nk.storageWrite([writeObj]);
+    } catch (error: any) {
+      throw new Error(
+        `failed to set wallet: wallet: ${JSON.stringify(wallet)} error:${
+          error.message
+        }`
+      );
+    }
   }
 
   export function checkExpired(nk: nkruntime.Nakama, userId: string) {
