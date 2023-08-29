@@ -203,10 +203,11 @@ namespace LevelValidation {
         (acc: Wallet.ChangeSetItem[], curr) => {
           const finalCount = log.atEnd.boostersCount[curr.index];
           const initCount = initialValues.boostersCount[curr.index];
-          if (initCount > -1) {
+          const result = finalCount - initCount;
+          if (initCount > 0) {
             acc.push({
               id: curr.name,
-              quantity: finalCount - initCount,
+              quantity: result,
             });
           }
           return acc;
@@ -242,10 +243,11 @@ namespace LevelValidation {
         id: "Coins",
         quantity: coinsDifference,
       };
-
+      const heartCount =
+        log.atEnd.result !== "win" && initialValues.heart > 0 ? -1 : 0;
       const hearts: Wallet.ChangeSetItem = {
         id: "Heart",
-        quantity: log.atEnd.result !== "win" ? -1 : 0,
+        quantity: heartCount,
       };
 
       const result: Wallet.ChangeSetItem[] = [
