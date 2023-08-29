@@ -14,7 +14,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
 };
 var InitModule = function (ctx, logger, nk, initializer) {
     //register storage index
-    StorageIndex.registerIndexes(initializer);
+
     //initialize shop
     initShop(nk);
     //initiate user wallet
