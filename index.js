@@ -68,33 +68,25 @@ var Rewards;
       permissionRead: 1,
       permissionWrite: 0,
     };
-    if (version) writeObj.version = version;
+    writeObj.version = version ? version : "*";
     nk.storageWrite([writeObj]);
   }
+  //add new reward
   function add(nk, userId, reward) {
     var _a = get(nk, userId),
       rewards = _a.rewards,
       version = _a.version;
+    reward.claimed = false;
+    reward.addTime = Date.now();
     rewards.push(reward);
     set(nk, userId, rewards, version);
   }
   Rewards.add = add;
-  function remove(nk, userId, rewardId) {
-    var _a = get(nk, userId),
-      rewards = _a.rewards,
-      version = _a.version;
-    var indexToRemove = -1;
-    for (var i = 0; i < rewards.length; i++) {
-      if (rewards[i].id === rewardId) {
-        indexToRemove = i;
-        break;
-      }
-    }
-    if (indexToRemove === -1)
-      throw new Error("No matching rewards found for removal");
-    rewards.splice(indexToRemove, 1);
-    set(nk, userId, rewards, version);
+  function addNcliam(nk, userId, reward) {
+    add(nk, userId, reward);
+    claim(nk, userId, reward.id);
   }
+  Rewards.addNcliam = addNcliam;
   function claim(nk, userId, rewardId) {
     while (true) {
       try {
@@ -102,8 +94,10 @@ var Rewards;
           rewards = _a.rewards,
           version = _a.version;
         var rewardIndex = -1;
-        for (var i = 0; i < rewards.length; i++) {
-          if (rewards[i].id === rewardId) {
+        //reverse order for accessing latest rewards
+        for (var i = rewards.length - 1; i >= 0; i--) {
+          var reward = rewards[i];
+          if (reward.id === rewardId && reward.claimed === false) {
             rewardIndex = i;
             break;
           }
@@ -111,12 +105,14 @@ var Rewards;
         if (rewardIndex === -1)
           throw new Error("No matching rewards found for claim");
         var rewardItems = rewards[rewardIndex].items;
-        rewards.splice(rewardIndex, 1);
-        set(nk, userId, rewards, version);
         Wallet.update(nk, userId, rewardItems);
+        rewards[rewardIndex].claimed = true;
+        rewards[rewardIndex].claimTime = Date.now();
+        set(nk, userId, rewards, version);
         return;
       } catch (error) {
-        if (error.message.indexOf("version check failed") === -1) throw error;
+        if (error.message.indexOf("version check failed") === -1)
+          throw new Error("Failed to claim reward: ".concat(error.message));
       }
     }
   }
@@ -142,9 +138,11 @@ var Rewards;
   Rewards.getTierByRank = getTierByRank;
 })(Rewards || (Rewards = {}));
 var ClaimRewardRPC = function (ctx, logger, nk, payload) {
-  var input = JSON.parse(payload);
-  var rewardId = input.id;
+  if (!ctx.userId) throw new Error("Called By Server");
   var userId = ctx.userId;
+  var input = JSON.parse(payload);
+  logger.debug(input.id);
+  var rewardId = input.id;
   Rewards.claim(nk, userId, rewardId);
 };
 var Wallet;
@@ -190,7 +188,7 @@ var Wallet;
     Shuffle: { quantity: 0 },
     HorizontalRocket: { quantity: 0 },
     VerticalRocket: { quantity: 0 },
-    Coins: { quantity: 0 },
+    Coins: { quantity: 1000 },
     Gems: { quantity: 0 },
     Score: { quantity: 0 },
   };
@@ -199,16 +197,19 @@ var Wallet;
       var key = cs.id;
       var item = wallet[key];
       if (cs.time) {
-        if (unlimitables.indexOf(key) === -1 || !item.endDate)
+        if (unlimitables.indexOf(key) === -1 || item.endDate === undefined)
           throw new Error("Cannot add duration to non-unlimited items.");
-        var newEndDate = item.isUnlimited ? item.endDate : Date.now();
-        item.endDate = newEndDate + cs.time * 1000;
-        item.isUnlimited = true;
+        var endDate = item.isUnlimited ? item.endDate : Date.now();
+        wallet[key].endDate = endDate + cs.time * 1000;
+        wallet[key].isUnlimited = true;
       }
-      if (cs.quantity !== 0) {
-        item.quantity += cs.quantity;
+      if (cs.quantity && cs.quantity !== 0) {
+        if (key === "Heart" && item.quantity + cs.quantity > 5) {
+          wallet[key].quantity = 5;
+        } else {
+          wallet[key].quantity += cs.quantity;
+        }
       }
-      wallet[key] = item;
     });
     return wallet;
   }
@@ -227,17 +228,25 @@ var Wallet;
     set(nk, userId, Wallet.InitialWallet);
   }
   Wallet.init = init;
-  function set(nk, userId, newWallet, version) {
-    var writeObj = {
-      collection: Wallet.collection,
-      key: Wallet.key,
-      userId: userId,
-      value: newWallet,
-      permissionRead: 1,
-      permissionWrite: 0,
-    };
-    if (version) writeObj.version = version;
-    nk.storageWrite([writeObj]);
+  function set(nk, userId, wallet, version) {
+    try {
+      var writeObj = {
+        collection: Wallet.collection,
+        key: Wallet.key,
+        userId: userId,
+        value: wallet,
+        permissionRead: 1,
+        permissionWrite: 0,
+      };
+      if (version) writeObj.version = version;
+      nk.storageWrite([writeObj]);
+    } catch (error) {
+      throw new Error(
+        "failed to set wallet: wallet: "
+          .concat(JSON.stringify(wallet), " error:")
+          .concat(error.message)
+      );
+    }
   }
   function checkExpired(nk, userId) {
     var _a = get(nk, userId),
@@ -337,28 +346,6 @@ var leaderboardRewards = {
       { id: "HorizontalRocket", quantity: 2 },
       { id: "Coins", quantity: 1000 },
       { id: "Heart", time: 10800 },
-    ],
-    silver: [
-      { id: "DiscoBall", quantity: 3 },
-      { id: "Hammer", quantity: 3 },
-      { id: "Shuffle", quantity: 3 },
-      { id: "Rocket", quantity: 3 },
-      { id: "TNT", quantity: 3 },
-      { id: "Coins", quantity: 700 },
-      { id: "Heart", time: 7200 },
-    ],
-    bronze: [
-      { id: "DiscoBall", quantity: 2 },
-      { id: "Rocket", quantity: 2 },
-      { id: "TNT", quantity: 2 },
-      { id: "Coins", quantity: 500 },
-      { id: "Heart", time: 3600 },
-    ],
-    normal: [
-      { id: "DiscoBall", quantity: 1 },
-      { id: "TNT", quantity: 1 },
-      { id: "Rocket", quantity: 1 },
-      { id: "Coins", quantity: 200 },
     ],
   },
   Cup: {
@@ -465,7 +452,8 @@ var Bucket;
       tournamentID: "Cup",
       authoritative: true,
       category: Category.CUP,
-      duration: 3 * 24 * 60 * 60,
+      // duration: 3 * 24 * 60 * 60,
+      duration: 15 * 60,
       description: "",
       bucketSize: 50,
       endTime: null,
@@ -474,7 +462,8 @@ var Bucket;
       maxSize: 100000000,
       metadata: leaderboardRewards.Cup,
       operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
-      resetSchedule: "0 0 */3 * *",
+      resetSchedule: "*/15 * * * *",
+      // resetSchedule: "0 0 */3 * *",
       sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
       startTime: 0,
       title: "Pepe Cup",
@@ -483,7 +472,8 @@ var Bucket;
       tournamentID: "Rush",
       authoritative: true,
       category: Category.RUSH,
-      duration: 12 * 60 * 60,
+      // duration: 12 * 60 * 60,
+      duration: 15 * 60,
       description: "",
       bucketSize: 10,
       endTime: null,
@@ -492,7 +482,7 @@ var Bucket;
       maxSize: 100000000,
       metadata: leaderboardRewards.Rush,
       operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
-      resetSchedule: "0 */12 * * *",
+      resetSchedule: "*/15 * * * *",
       sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
       startTime: 0,
       title: "Pepe Rush",
@@ -501,7 +491,8 @@ var Bucket;
       tournamentID: "Endless",
       authoritative: true,
       category: Category.ENDLESS,
-      duration: 3 * 24 * 60 * 60,
+      // duration: 3 * 24 * 60 * 60,
+      duration: 15 * 60,
       description: "",
       bucketSize: 50,
       endTime: null,
@@ -510,7 +501,8 @@ var Bucket;
       maxSize: 100000000,
       metadata: {},
       operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
-      resetSchedule: "0 0 */3 * *",
+      // resetSchedule: "0 0 */3 * *",
+      resetSchedule: "*/15 * * * *",
       sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
       startTime: 0,
       title: "Endless Event",
@@ -1019,6 +1011,14 @@ var cryptoWalletIndex = function (initializer) {
   var collection = "Crypto";
   var key = "Wallet";
   var fields = ["address"];
+  var maxEntries = 1000000000;
+  initializer.registerStorageIndex(name, collection, key, fields, maxEntries);
+};
+var nonFullHearts = function (initializer) {
+  var name = "nonFullHearts";
+  var collection = "Economy";
+  var key = "Wallet";
+  var fields = ["Heart"];
   var maxEntries = 1000000000;
   initializer.registerStorageIndex(name, collection, key, fields, maxEntries);
 };
