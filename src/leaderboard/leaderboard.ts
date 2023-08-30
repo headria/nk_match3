@@ -89,14 +89,20 @@ namespace Leaderboards {
     const rushScore = levelLog.atEnd.discoBallTargettedTiles || 0;
     const score = Levels.difficulty[levelNumber] || 0;
     if (score === 0) return;
-    updateGlobal(nk, userId, username, score);
+    updateGlobal(nk, userId, username, 1);
 
     Object.keys(Bucket.configs).map((tournamentId) => {
       try {
-        if (tournamentId === "Rush") {
-          nk.tournamentRecordWrite(tournamentId, userId, username, rushScore);
-        } else {
-          nk.tournamentRecordWrite(tournamentId, userId, username, score);
+        switch (tournamentId) {
+          case "Rush":
+            nk.tournamentRecordWrite(tournamentId, userId, username, rushScore);
+            break;
+          case "Weekly":
+            nk.tournamentRecordWrite(tournamentId, userId, username, 1);
+            break;
+          default:
+            nk.tournamentRecordWrite(tournamentId, userId, username, score);
+            break;
         }
       } catch (error) {}
     });
