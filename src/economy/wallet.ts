@@ -10,6 +10,7 @@ namespace Wallet {
     quantity: number;
     endDate?: number;
     isUnlimited?: boolean;
+    next?: number;
   };
 
   const unlimitables = ["Heart", "TNT", "DiscoBall", "Rocket"];
@@ -40,6 +41,7 @@ namespace Wallet {
       endDate: 0,
       isUnlimited: false,
       quantity: 5,
+      next: 0,
     },
     TNT: {
       endDate: 0,
@@ -118,7 +120,9 @@ namespace Wallet {
         permissionWrite: 0,
       };
       if (version) writeObj.version = version;
-      nk.storageWrite([writeObj]);
+      const res = nk.storageWrite([writeObj]);
+      const newVersion = res[0].version;
+      return newVersion;
     } catch (error: any) {
       throw new Error(
         `failed to set wallet: wallet: ${JSON.stringify(wallet)} error:${
@@ -137,8 +141,7 @@ namespace Wallet {
       try {
         let { wallet, version } = get(nk, userId);
         const newWallet = updateWallet(wallet, changeset);
-        set(nk, userId, newWallet, version);
-        return;
+        return set(nk, userId, newWallet, version);
       } catch (error: any) {
         if (error.message.indexOf("version check failed") === -1)
           throw new Error(`failed to update Wallet: ${error.message}`);
@@ -173,67 +176,53 @@ namespace Wallet {
   export function heartFillUp(
     nk: nkruntime.Nakama,
     logger: nkruntime.Logger,
-    wallet: IWallet,
     userId: string
   ) {
     try {
-      const hearts = wallet.Heart.quantity;
+      while (true) {
+        let { wallet, version } = get(nk, userId);
+        const hearts = wallet.Heart.quantity;
+        let nextHeart = wallet.Heart?.next;
 
-      const account = nk.accountGetId(userId);
-      let metadata = account.user.metadata as MetaData.MetaData;
-
-      if (hearts >= MAX_HEARTS) {
-        if (metadata.Heart.next !== 0) {
-          metadata.Heart.next = 0;
-          nk.accountUpdateId(
-            userId,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            metadata
-          );
+        if (hearts >= MAX_HEARTS) {
+          if (nextHeart && nextHeart !== 0) {
+            wallet.Heart.next = 0;
+            set(nk, userId, wallet, version);
+          }
+          return;
         }
+
+        if (!nextHeart || nextHeart === 0) {
+          logger.debug("Reseting");
+          wallet.Heart.next = Date.now() + HeartFillInterval;
+          nextHeart = wallet.Heart.next;
+          version = set(nk, userId, wallet, version);
+        }
+
+        logger.debug(
+          `Hearts: ${hearts} next fill up ${(nextHeart - Date.now()) / 1000}`
+        );
+
+        if (Date.now() < nextHeart) return;
+
+        let count = 0;
+        while (nextHeart < Date.now()) {
+          count++;
+          nextHeart += HeartFillInterval;
+          if (count + hearts === MAX_HEARTS) {
+            nextHeart = 0;
+            break;
+          }
+        }
+        const changeSet: ChangeSet = [{ id: "Heart", quantity: count }];
+        wallet.Heart.next = nextHeart;
+        wallet = updateWallet(wallet, changeSet);
+        set(nk, userId, wallet, version);
         return;
       }
-
-      if (!metadata.Heart || metadata.Heart.next === 0) {
-        metadata.Heart = { next: Date.now() + HeartFillInterval };
-        nk.accountUpdateId(
-          userId,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          metadata
-        );
-      }
-
-      let nextHeart = metadata.Heart.next;
-      // logger.debug(`next fill up ${(nextHeart - Date.now()) / 1000}`);
-
-      if (Date.now() < nextHeart) return;
-
-      let count = 0;
-      while (nextHeart < Date.now()) {
-        count++;
-        nextHeart += HeartFillInterval;
-        if (count + hearts === MAX_HEARTS) {
-          nextHeart = 0;
-          break;
-        }
-      }
-      const changeSet: ChangeSet = [{ id: "Heart", quantity: count }];
-      update(nk, userId, changeSet);
-
-      metadata.Heart.next = nextHeart;
-      nk.accountUpdateId(userId, null, null, null, null, null, null, metadata);
     } catch (error: any) {
-      throw new Error(`Heart fillup failed: ${error.message}`);
+      if (error.message.indexOf("version check") === -1)
+        throw new Error(`Heart fillup failed: ${error.message}`);
     }
   }
 }
@@ -255,7 +244,7 @@ const BeforeGetStorage: nkruntime.BeforeHookFunction<
       const userId = element.userId as string;
       let { wallet, version } = Wallet.get(nk, userId);
 
-      Wallet.heartFillUp(nk, logger, wallet, userId);
+      Wallet.heartFillUp(nk, logger, userId);
       Wallet.checkExpired(nk, wallet, version, userId);
     }
   });
