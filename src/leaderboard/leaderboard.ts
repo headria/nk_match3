@@ -62,16 +62,20 @@ namespace Leaderboards {
     userId: string,
     username: string,
     score: number,
-    subScore: number
+    subScore?: number
   ) => {
-    const leaderboard = Leaderboards.configs.global;
-    nk.leaderboardRecordWrite(
-      leaderboard.leaderboardID,
-      userId,
-      username,
-      score,
-      subScore
-    );
+    try {
+      const leaderboard = Leaderboards.configs.global;
+      nk.leaderboardRecordWrite(
+        leaderboard.leaderboardID,
+        userId,
+        username,
+        score,
+        subScore
+      );
+    } catch (error: any) {
+      throw new Error(`failed to update global Leaderboard: ${error.message}`);
+    }
   };
 
   export const UpdateLeaderboards = (
@@ -80,29 +84,25 @@ namespace Leaderboards {
     username: string,
     levelLog: LevelValidation.ILevelLog
   ): void => {
-    const score = 1;
-    const subScore = 0;
+    const { levelNumber } = levelLog;
     //calculate leaderboard score
-    const rushScore = levelLog.atEnd.discoBallTargettedTiles;
-    updateGlobal(nk, userId, username, score, subScore);
+    const rushScore = levelLog.atEnd.discoBallTargettedTiles || 0;
+    const score = Levels.difficulty[levelNumber] || 0;
+    if (score === 0) return;
+    updateGlobal(nk, userId, username, 1);
+
     Object.keys(Bucket.configs).map((tournamentId) => {
       try {
-        if (tournamentId === "Rush") {
-          nk.tournamentRecordWrite(
-            tournamentId,
-            userId,
-            username,
-            rushScore,
-            subScore
-          );
-        } else {
-          nk.tournamentRecordWrite(
-            tournamentId,
-            userId,
-            username,
-            score,
-            subScore
-          );
+        switch (tournamentId) {
+          case "Rush":
+            nk.tournamentRecordWrite(tournamentId, userId, username, rushScore);
+            break;
+          case "Weekly":
+            nk.tournamentRecordWrite(tournamentId, userId, username, 1);
+            break;
+          default:
+            nk.tournamentRecordWrite(tournamentId, userId, username, score);
+            break;
         }
       } catch (error) {}
     });

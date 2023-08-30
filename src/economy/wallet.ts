@@ -3,7 +3,7 @@ namespace Wallet {
   export const key = "Wallet";
 
   // const HeartFillInterval = 20 * 60 * 1000; // every 20 minutes
-  const HeartFillInterval = 60 * 1000; // every 1 minute
+  const HeartFillInterval = 5 * 60 * 1000; // every 5 minute
   const MAX_HEARTS = 5;
 
   export type WalletItem = {
