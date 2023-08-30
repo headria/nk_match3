@@ -1,5 +1,5 @@
 namespace Leaderboards {
-  type LeaderboardConfig = {
+  export type LeaderboardConfig = {
     leaderboardID: string;
     authoritative: boolean;
     sortOrder?: nkruntime.SortOrder | undefined;

@@ -303,6 +303,7 @@ namespace Bucket {
     const key = `${leaderboard}#${id}`;
     try {
       const res = nk.storageRead([{ collection, key, userId: SystemUserId }]);
+      if (res.length < 1) throw new Error(`Bucket ${key} doesn't exists`);
       const version = res[0].version;
       const bucket: any = res[0].value;
       return { bucket, version };
