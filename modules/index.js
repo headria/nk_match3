@@ -346,10 +346,15 @@ var Wallet;
     function heartFillUp(nk, logger, wallet, userId) {
         try {
             var hearts = wallet.Heart.quantity;
-            if (hearts >= MAX_HEARTS)
-                return;
             var account = nk.accountGetId(userId);
             var metadata = account.user.metadata;
+            if (hearts >= MAX_HEARTS) {
+                if (metadata.Heart.next !== 0) {
+                    metadata.Heart.next = 0;
+                    nk.accountUpdateId(userId, null, null, null, null, null, null, metadata);
+                }
+                return;
+            }
             if (!metadata.Heart || metadata.Heart.next === 0) {
                 metadata.Heart = { next: Date.now() + HeartFillInterval };
                 nk.accountUpdateId(userId, null, null, null, null, null, null, metadata);

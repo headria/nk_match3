@@ -179,10 +179,25 @@ namespace Wallet {
     try {
       const hearts = wallet.Heart.quantity;
 
-      if (hearts >= MAX_HEARTS) return;
-
       const account = nk.accountGetId(userId);
       let metadata = account.user.metadata as MetaData.MetaData;
+
+      if (hearts >= MAX_HEARTS) {
+        if (metadata.Heart.next !== 0) {
+          metadata.Heart.next = 0;
+          nk.accountUpdateId(
+            userId,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            metadata
+          );
+        }
+        return;
+      }
 
       if (!metadata.Heart || metadata.Heart.next === 0) {
         metadata.Heart = { next: Date.now() + HeartFillInterval };
