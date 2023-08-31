@@ -39,6 +39,238 @@ var InitModule = function (ctx, logger, nk, initializer) {
   //validators
   initializer.registerRpc("level/validate", levelValidatorRPC);
 };
+var Levels;
+(function (Levels) {
+  Levels.difficulty = {
+    1: 1,
+    2: 1,
+    3: 1,
+    4: 1,
+    5: 1,
+    6: 1,
+    7: 1,
+    8: 1,
+    9: 1,
+    10: 1,
+    11: 1,
+    12: 2,
+    13: 3,
+    14: 2,
+    15: 2,
+    16: 2,
+    17: 3,
+    18: 2,
+    19: 3,
+    20: 2,
+    21: 3,
+    22: 2,
+    23: 3,
+    24: 2,
+    25: 2,
+    26: 2,
+    27: 3,
+    28: 2,
+    29: 3,
+    30: 2,
+    31: 4,
+    32: 3,
+    33: 4,
+    34: 3,
+    35: 2,
+    36: 2,
+    37: 3,
+    38: 4,
+    39: 4,
+    40: 3,
+    41: 4,
+    42: 3,
+    43: 3,
+    44: 2,
+    45: 3,
+    46: 2,
+    47: 3,
+    48: 4,
+    49: 3,
+    50: 2,
+    51: 2,
+    52: 3,
+    53: 2,
+    54: 2,
+    55: 2,
+    56: 2,
+    57: 3,
+    58: 2,
+    59: 2,
+    60: 4,
+    61: 3,
+    62: 3,
+    63: 3,
+    64: 2,
+    65: 3,
+    66: 2,
+    67: 2,
+    68: 2,
+    69: 2,
+    70: 3,
+    71: 2,
+    72: 3,
+    73: 2,
+    74: 3,
+    75: 2,
+    76: 2,
+    77: 3,
+    78: 2,
+    79: 2,
+    80: 3,
+    81: 4,
+    82: 4,
+    83: 3,
+    84: 4,
+    85: 4,
+    86: 4,
+    87: 2,
+    88: 4,
+    89: 3,
+    90: 2,
+    91: 3,
+    92: 3,
+    93: 3,
+    94: 2,
+    95: 3,
+    96: 3,
+    97: 4,
+    98: 2,
+    99: 3,
+    100: 4,
+    101: 3,
+    102: 2,
+    103: 2,
+    104: 2,
+    105: 4,
+    106: 2,
+    107: 3,
+    108: 2,
+    109: 3,
+    110: 4,
+    111: 2,
+    112: 3,
+    113: 2,
+    114: 3,
+    115: 2,
+    116: 3,
+    117: 2,
+    118: 2,
+    119: 4,
+    120: 2,
+    121: 3,
+    122: 2,
+    123: 3,
+    124: 2,
+    125: 3,
+    126: 2,
+    127: 2,
+    128: 2,
+    129: 3,
+    130: 4,
+    131: 3,
+    132: 3,
+    133: 2,
+    134: 3,
+    135: 4,
+    136: 2,
+    137: 3,
+    138: 2,
+    139: 3,
+    140: 3,
+    141: 3,
+    142: 3,
+    143: 2,
+    144: 3,
+    145: 3,
+    146: 2,
+    147: 2,
+    148: 3,
+    149: 4,
+    150: 4,
+    151: 2,
+    152: 2,
+    153: 3,
+    154: 2,
+    155: 2,
+    156: 3,
+    157: 3,
+    158: 2,
+    159: 3,
+    160: 3,
+    161: 2,
+    162: 3,
+    163: 2,
+    164: 3,
+    165: 3,
+    166: 3,
+    167: 3,
+    168: 3,
+    169: 3,
+    170: 3,
+    171: 2,
+    172: 2,
+    173: 2,
+    174: 3,
+    175: 2,
+    176: 2,
+    177: 2,
+    178: 3,
+    179: 3,
+    180: 4,
+    181: 3,
+    182: 2,
+    183: 3,
+    184: 3,
+    185: 4,
+    186: 3,
+    187: 4,
+    188: 2,
+    189: 3,
+    190: 4,
+    191: 3,
+    192: 3,
+    193: 4,
+    194: 2,
+    195: 3,
+    196: 2,
+    197: 2,
+    198: 3,
+    199: 3,
+    200: 1,
+    201: 3,
+    202: 2,
+    203: 3,
+    204: 3,
+    205: 2,
+    206: 4,
+    207: 4,
+    208: 4,
+    209: 4,
+    210: 3,
+    211: 4,
+    212: 2,
+    213: 2,
+    214: 4,
+    215: 2,
+    216: 3,
+    217: 2,
+    218: 4,
+    219: 3,
+    220: 4,
+    221: 3,
+    222: 2,
+    223: 2,
+    224: 4,
+    225: 2,
+    226: 2,
+    227: 4,
+  };
+})(Levels || (Levels = {}));
 var Rewards;
 (function (Rewards) {
   var collection = "Economy";
@@ -150,7 +382,7 @@ var Wallet;
   Wallet.collection = "Economy";
   Wallet.key = "Wallet";
   // const HeartFillInterval = 20 * 60 * 1000; // every 20 minutes
-  var HeartFillInterval = 60 * 1000; // every 1 minute
+  var HeartFillInterval = 5 * 60 * 1000; // every 5 minute
   var MAX_HEARTS = 5;
   var unlimitables = ["Heart", "TNT", "DiscoBall", "Rocket"];
   Wallet.InitialWallet = {
@@ -158,6 +390,7 @@ var Wallet;
       endDate: 0,
       isUnlimited: false,
       quantity: 5,
+      next: 0,
     },
     TNT: {
       endDate: 0,
@@ -229,7 +462,9 @@ var Wallet;
         permissionWrite: 0,
       };
       if (version) writeObj.version = version;
-      nk.storageWrite([writeObj]);
+      var res = nk.storageWrite([writeObj]);
+      var newVersion = res[0].version;
+      return newVersion;
     } catch (error) {
       throw new Error(
         "failed to set wallet: wallet: "
@@ -245,8 +480,7 @@ var Wallet;
           wallet = _a.wallet,
           version = _a.version;
         var newWallet = updateWallet(wallet, changeset);
-        set(nk, userId, newWallet, version);
-        return;
+        return set(nk, userId, newWallet, version);
       } catch (error) {
         if (error.message.indexOf("version check failed") === -1)
           throw new Error("failed to update Wallet: ".concat(error.message));
@@ -273,58 +507,53 @@ var Wallet;
     }
   }
   Wallet.checkExpired = checkExpired;
-  function heartFillUp(nk, logger, wallet, userId) {
+  function heartFillUp(nk, logger, userId) {
+    var _a;
     try {
-      var hearts = wallet.Heart.quantity;
-      var account = nk.accountGetId(userId);
-      var metadata = account.user.metadata;
-      if (hearts >= MAX_HEARTS) {
-        if (metadata.Heart.next !== 0) {
-          metadata.Heart.next = 0;
-          nk.accountUpdateId(
-            userId,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            metadata
-          );
+      while (true) {
+        var _b = get(nk, userId),
+          wallet = _b.wallet,
+          version = _b.version;
+        var hearts = wallet.Heart.quantity;
+        var nextHeart =
+          (_a = wallet.Heart) === null || _a === void 0 ? void 0 : _a.next;
+        if (hearts >= MAX_HEARTS) {
+          if (nextHeart && nextHeart !== 0) {
+            wallet.Heart.next = 0;
+            set(nk, userId, wallet, version);
+          }
+          return;
         }
+        if (!nextHeart || nextHeart === 0) {
+          logger.debug("Reseting");
+          wallet.Heart.next = Date.now() + HeartFillInterval;
+          nextHeart = wallet.Heart.next;
+          version = set(nk, userId, wallet, version);
+        }
+        logger.debug(
+          "Hearts: "
+            .concat(hearts, " next fill up ")
+            .concat((nextHeart - Date.now()) / 1000)
+        );
+        if (Date.now() < nextHeart) return;
+        var count = 0;
+        while (nextHeart < Date.now()) {
+          count++;
+          nextHeart += HeartFillInterval;
+          if (count + hearts === MAX_HEARTS) {
+            nextHeart = 0;
+            break;
+          }
+        }
+        var changeSet = [{ id: "Heart", quantity: count }];
+        wallet.Heart.next = nextHeart;
+        wallet = updateWallet(wallet, changeSet);
+        set(nk, userId, wallet, version);
         return;
       }
-      if (!metadata.Heart || metadata.Heart.next === 0) {
-        metadata.Heart = { next: Date.now() + HeartFillInterval };
-        nk.accountUpdateId(
-          userId,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          metadata
-        );
-      }
-      var nextHeart = metadata.Heart.next;
-      // logger.debug(`next fill up ${(nextHeart - Date.now()) / 1000}`);
-      if (Date.now() < nextHeart) return;
-      var count = 0;
-      while (nextHeart < Date.now()) {
-        count++;
-        nextHeart += HeartFillInterval;
-        if (count + hearts === MAX_HEARTS) {
-          nextHeart = 0;
-          break;
-        }
-      }
-      var changeSet = [{ id: "Heart", quantity: count }];
-      update(nk, userId, changeSet);
-      metadata.Heart.next = nextHeart;
-      nk.accountUpdateId(userId, null, null, null, null, null, null, metadata);
     } catch (error) {
-      throw new Error("Heart fillup failed: ".concat(error.message));
+      if (error.message.indexOf("version check") === -1)
+        throw new Error("Heart fillup failed: ".concat(error.message));
     }
   }
   Wallet.heartFillUp = heartFillUp;
@@ -343,7 +572,7 @@ var BeforeGetStorage = function (ctx, logger, nk, data) {
           var _a = Wallet.get(nk, userId),
             wallet = _a.wallet,
             version = _a.version;
-          Wallet.heartFillUp(nk, logger, wallet, userId);
+          Wallet.heartFillUp(nk, logger, userId);
           Wallet.checkExpired(nk, wallet, version, userId);
         }
       });
@@ -610,6 +839,8 @@ var Bucket;
       var res = nk.storageRead([
         { collection: collection, key: key, userId: SystemUserId },
       ]);
+      if (res.length < 1)
+        throw new Error("Bucket ".concat(key, " doesn't exists"));
       var version = res[0].version;
       var bucket = res[0].value;
       return { bucket: bucket, version: version };
@@ -1004,39 +1235,40 @@ var Leaderboards;
     }
   };
   var updateGlobal = function (nk, userId, username, score, subScore) {
-    var leaderboard = Leaderboards.configs.global;
-    nk.leaderboardRecordWrite(
-      leaderboard.leaderboardID,
-      userId,
-      username,
-      score,
-      subScore
-    );
+    try {
+      var leaderboard = Leaderboards.configs.global;
+      nk.leaderboardRecordWrite(
+        leaderboard.leaderboardID,
+        userId,
+        username,
+        score,
+        subScore
+      );
+    } catch (error) {
+      throw new Error(
+        "failed to update global Leaderboard: ".concat(error.message)
+      );
+    }
   };
   Leaderboards.UpdateLeaderboards = function (nk, userId, username, levelLog) {
-    var score = 1;
-    var subScore = 0;
+    var levelNumber = levelLog.levelNumber;
     //calculate leaderboard score
-    var rushScore = levelLog.atEnd.discoBallTargettedTiles;
-    updateGlobal(nk, userId, username, score, subScore);
+    var rushScore = levelLog.atEnd.discoBallTargettedTiles || 0;
+    var score = Levels.difficulty[levelNumber] || 0;
+    if (score === 0) return;
+    updateGlobal(nk, userId, username, 1);
     Object.keys(Bucket.configs).map(function (tournamentId) {
       try {
-        if (tournamentId === "Rush") {
-          nk.tournamentRecordWrite(
-            tournamentId,
-            userId,
-            username,
-            rushScore,
-            subScore
-          );
-        } else {
-          nk.tournamentRecordWrite(
-            tournamentId,
-            userId,
-            username,
-            score,
-            subScore
-          );
+        switch (tournamentId) {
+          case "Rush":
+            nk.tournamentRecordWrite(tournamentId, userId, username, rushScore);
+            break;
+          case "Weekly":
+            nk.tournamentRecordWrite(tournamentId, userId, username, 1);
+            break;
+          default:
+            nk.tournamentRecordWrite(tournamentId, userId, username, score);
+            break;
         }
       } catch (error) {}
     });
