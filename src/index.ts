@@ -9,7 +9,7 @@ const InitModule: nkruntime.InitModule = function (
 
   //initialize shop
   initShop(nk);
-
+  VirtualShop.init(initializer, nk);
   //initiate user wallet
   initializer.registerAfterAuthenticateDevice(InitiateUser);
   initializer.registerBeforeReadStorageObjects(BeforeGetStorage);
@@ -20,7 +20,6 @@ const InitModule: nkruntime.InitModule = function (
   Bucket.initializeLeaderboards(nk, initializer);
 
   //Register Leaderboards rpcs
-  initializer.registerRpc("leaderboard/setRecord/pmc", updateScore);
   initializer.registerRpc("user/WalletConnect", WalletConnect);
 
   //validators
