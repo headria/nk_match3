@@ -61,7 +61,8 @@ namespace Rewards {
       permissionWrite: 0,
     };
     writeObj.version = version ? version : "*";
-    nk.storageWrite([writeObj]);
+    const res = nk.storageWrite([writeObj]);
+    return res[0].version;
   }
   //add new reward
   export function add(nk: nkruntime.Nakama, userId: string, reward: Reward) {
@@ -78,9 +79,21 @@ namespace Rewards {
     reward: Reward
   ) {
     add(nk, userId, reward);
-    claim(nk, userId, reward.id);
+    return claim(nk, userId, reward.id);
   }
 
+  function rewardIndex(id: string, rewards: Rewards) {
+    let rewardIndex = -1;
+    //reverse order for accessing latest rewards
+    for (let i = rewards.length - 1; i >= 0; i--) {
+      const reward = rewards[i];
+      if (reward.id === id && reward.claimed === false) {
+        rewardIndex = i;
+        break;
+      }
+    }
+    return rewardIndex;
+  }
   export function claim(
     nk: nkruntime.Nakama,
     userId: string,
@@ -89,28 +102,17 @@ namespace Rewards {
     while (true) {
       try {
         let { rewards, version } = get(nk, userId);
-        let rewardIndex = -1;
-        //reverse order for accessing latest rewards
-        for (let i = rewards.length - 1; i >= 0; i--) {
-          const reward = rewards[i];
-          if (reward.id === rewardId && reward.claimed === false) {
-            rewardIndex = i;
-            break;
-          }
-        }
-        if (rewardIndex === -1)
-          throw new Error("No matching rewards found for claim");
-        const rewardItems = rewards[rewardIndex].items;
-
-        Wallet.update(nk, userId, rewardItems);
-
-        rewards[rewardIndex].claimed = true;
-        rewards[rewardIndex].claimTime = Date.now();
+        const index = rewardIndex(rewardId, rewards);
+        if (index === -1) return { code: Res.Code.notFound };
+        const rewardItems = rewards[index].items;
+        const { wallet } = Wallet.update(nk, userId, rewardItems);
+        rewards[index].claimed = true;
+        rewards[index].claimTime = Date.now();
         set(nk, userId, rewards, version);
-        return;
+        return { code: Res.Code.success, data: wallet };
       } catch (error: any) {
         if (error.message.indexOf("version check failed") === -1)
-          throw new Error(`Failed to claim reward: ${error.message}`);
+          return { code: Res.Code.error, error: error.message };
       }
     }
   }
@@ -139,11 +141,18 @@ const ClaimRewardRPC: nkruntime.RpcFunction = (
   nk: nkruntime.Nakama,
   payload: string
 ): string | void => {
-  if (!ctx.userId) throw new Error("Called By Server");
   const userId = ctx.userId;
-
-  const input = JSON.parse(payload);
-  logger.debug(input.id);
-  const rewardId = input.id;
-  Rewards.claim(nk, userId, rewardId);
+  if (!userId) return Res.CalledByServer();
+  let rewardId: string;
+  try {
+    const input = JSON.parse(payload);
+    rewardId = input.id;
+  } catch (error: any) {
+    return Res.BadRequest(error);
+  }
+  const res = Rewards.claim(nk, userId, rewardId);
+  if (res.code === Res.Code.notFound) return Res.notFound("reward");
+  res.code === Res.Code.success
+    ? Res.Success(res.data, "reward claimed")
+    : Res.Error(logger, "failed to claim reward", res.error);
 };
