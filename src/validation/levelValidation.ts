@@ -254,7 +254,6 @@ const levelValidatorRPC: nkruntime.RpcFunction = (
 
     const initalValues = LevelValidation.initialValues(nk, userId);
     let levelLog: LevelValidation.ILevelLog;
-    logger.debug(`init: ${JSON.stringify(initalValues)}`);
 
     levelLog = JSON.parse(payload);
     if (!levelLog) return Res.BadRequest();
@@ -283,7 +282,6 @@ const levelValidatorRPC: nkruntime.RpcFunction = (
 
     //update inventory
     const changeSet = LevelValidation.extractData(levelLog, initalValues);
-    logger.debug(`Extracted: ${JSON.stringify(changeSet)}`);
     const { wallet } = Wallet.update(nk, userId, changeSet);
     return Res.Success(wallet);
   } catch (error: any) {
