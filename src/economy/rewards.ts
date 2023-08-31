@@ -2,7 +2,7 @@ namespace Rewards {
   const collection = "Economy";
   const key = "Rewards";
 
-  type RewardItem = Wallet.ChangeSetItem;
+  export type RewardItem = Wallet.ChangeSetItem;
 
   export type Reward = {
     id: string;
@@ -14,9 +14,20 @@ namespace Rewards {
 
   export type Rewards = Reward[];
 
-  type TierConfig = {
-    [tier: string]: number;
+  type Tier = "gold" | "silver" | "bronze" | "normal";
+
+  export type TierConfig = {
+    [tier in Tier]?: number;
   };
+
+  type TierRewards = {
+    [tier in Tier]?: RewardItem[];
+  };
+
+  export type LeaderboardReaward = {
+    joinRewards?: Reward;
+    config: TierConfig;
+  } & TierRewards;
 
   export function get(
     nk: nkruntime.Nakama,
@@ -107,8 +118,8 @@ namespace Rewards {
   export function getTierByRank(
     rank: number,
     tierConfig: TierConfig
-  ): string | null {
-    const TierRanking = ["gold", "silver", "bronze", "normal"];
+  ): Tier | null {
+    const TierRanking: Tier[] = ["gold", "silver", "bronze", "normal"];
     if (rank > 0) {
       for (const tier of TierRanking) {
         const tierMaxRank = tierConfig[tier];
@@ -134,6 +145,5 @@ const ClaimRewardRPC: nkruntime.RpcFunction = (
   const input = JSON.parse(payload);
   logger.debug(input.id);
   const rewardId = input.id;
-
   Rewards.claim(nk, userId, rewardId);
 };
