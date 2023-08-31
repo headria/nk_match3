@@ -246,7 +246,7 @@ namespace Bucket {
       authoritative: true,
       category: Category.ENDLESS,
       // duration: 3 * 24 * 60 * 60,
-      duration: 15 * 60,
+      duration: 10 * 60,
       description: "",
       bucketSize: 50,
       endTime: null,
@@ -256,7 +256,7 @@ namespace Bucket {
       metadata: {},
       operator: nkruntime.Operator.INCREMENTAL,
       // resetSchedule: "0 0 */3 * *",
-      resetSchedule: "*/15 * * * *",
+      resetSchedule: "*/10 * * * *",
       sortOrder: nkruntime.SortOrder.DESCENDING,
       startTime: 0,
       title: "Endless Event",
@@ -548,13 +548,20 @@ namespace Bucket {
     config: Config
   ) {
     const userId = ctx.userId;
+    if (!userId) return Res.CalledByServer();
     //get user bucket
     let bucket = Bucket.getUserBucket(nk, config, userId);
     //if not exists
-    if (!bucket) throw new Error("user does not exist in this leaderboard");
+    if (!bucket)
+      return Res.response(
+        false,
+        Res.Code.dosentExist,
+        null,
+        "user does not exist in this leaderboard"
+      );
 
     const records = getBucketRecords(nk, bucket, config);
-    return JSON.stringify(records);
+    return Res.Success(records);
   }
 
   export function deleteUserBuckets(
@@ -577,67 +584,70 @@ namespace Bucket {
           batchSize,
           cursur
         );
+        if (!userBuckets.objects || userBuckets?.objects.length < 1) return;
+        const leaderboardBuckets = userBuckets.objects.filter(
+          (o) => o.key === leaderBoadrdId
+        );
+        leaderboardBuckets.map((b) => {
+          const userId = b.userId;
+          if (userId === SystemUserId) return;
 
-        if (userBuckets.objects && userBuckets?.objects.length > 0) {
-          userBuckets.objects.map((b) => {
-            const userId = b.userId;
-            if (userId === SystemUserId) return;
-            const obj: nkruntime.StorageDeleteRequest = {
-              collection: bucketCollection,
-              key: leaderBoadrdId,
-              userId: userId,
-            };
-            if (b.value && b.value.id) {
-              const bucketId = b.value.id;
-              const { bucket } = Bucket.getBucketById(
-                nk,
-                leaderBoadrdId,
-                bucketId
-              );
-              const records = Bucket.getBucketRecords(
-                nk,
-                bucket,
-                config,
-                tournament.endActive
-              );
-              let reward: Rewards.Reward | undefined = undefined;
-              const userRecord = records?.filter((r) => r.ownerId === userId);
-              if (userRecord && userRecord.length > 0) {
-                const rank = userRecord[0].rank;
-                const rewardsConfig = leaderboardRewards[leaderBoadrdId].config;
-                const tier = Rewards.getTierByRank(rank, rewardsConfig);
-                if (tier) {
-                  const rewardItems = leaderboardRewards[leaderBoadrdId][tier];
-                  if (rewardItems) {
-                    reward = {
-                      id: tournament.id,
-                      items: rewardItems,
-                    };
-                    Rewards.add(nk, userId, reward);
-                  }
+          const obj: nkruntime.StorageDeleteRequest = {
+            collection: bucketCollection,
+            key: leaderBoadrdId,
+            userId: userId,
+          };
+          if (b.value && b.value.id) {
+            const bucketId = b.value.id;
+
+            const { bucket } = Bucket.getBucketById(
+              nk,
+              leaderBoadrdId,
+              bucketId
+            );
+            const records = Bucket.getBucketRecords(
+              nk,
+              bucket,
+              config,
+              tournament.endActive
+            );
+            let reward: Rewards.Reward | undefined = undefined;
+            const userRecord = records?.filter((r) => r.ownerId === userId);
+            if (userRecord && userRecord.length > 0) {
+              const rank = userRecord[0].rank;
+              const rewardsConfig = leaderboardRewards[leaderBoadrdId].config;
+              const tier = Rewards.getTierByRank(rank, rewardsConfig);
+              if (tier) {
+                const rewardItems = leaderboardRewards[leaderBoadrdId][tier];
+                if (rewardItems) {
+                  reward = {
+                    id: tournament.id,
+                    items: rewardItems,
+                  };
+                  Rewards.add(nk, userId, reward);
                 }
               }
-
-              let notif = {
-                userId,
-                subject: "Leaderboard End",
-                content: {
-                  id: tournament.id,
-                  records: records,
-                  reward: reward,
-                },
-                code: 1,
-                senderId: SystemUserId,
-                persistent: true,
-              };
-              notifications.push(notif);
-
-              userObjToDelete.push(obj);
             }
-          });
-          nk.notificationsSend(notifications);
-          nk.storageDelete(userObjToDelete);
-        }
+
+            let notif = {
+              userId,
+              subject: "Leaderboard End",
+              content: {
+                id: tournament.id,
+                records: records,
+                reward: reward,
+              },
+              code: 1,
+              senderId: SystemUserId,
+              persistent: true,
+            };
+            notifications.push(notif);
+
+            userObjToDelete.push(obj);
+          }
+        });
+        nk.notificationsSend(notifications);
+        nk.storageDelete(userObjToDelete);
 
         cursur = userBuckets.cursor;
       } while (cursur);
@@ -682,9 +692,20 @@ const GetRecordsRPC: nkruntime.RpcFunction = (
   nk: nkruntime.Nakama,
   payload: string
 ): string => {
-  const { id } = JSON.parse(payload);
-  const config = Bucket.configs[id as BucketedLeaderboards];
-  return Bucket.getBucketRecordsRpc(ctx, nk, config);
+  if (!ctx.userId) return Res.CalledByServer();
+  let id: string;
+  try {
+    const input = JSON.parse(payload);
+    id = input.id;
+  } catch (error: any) {
+    return Res.BadRequest(error);
+  }
+  try {
+    const config = Bucket.configs[id as BucketedLeaderboards];
+    return Bucket.getBucketRecordsRpc(ctx, nk, config);
+  } catch (error: any) {
+    return Res.Error(logger, "failed to get records", error);
+  }
 };
 
 // Before Join Leaderboards Hooks
