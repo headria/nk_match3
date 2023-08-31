@@ -29,11 +29,12 @@ namespace Wallet {
     Score: WalletItem;
   }
 
-  export interface ChangeSetItem
-    extends Omit<WalletItem, "endDate" | "isUnlimited"> {
-    time?: number;
+  export type ChangeSetItem = {
     id: keyof IWallet;
-  }
+    quantity?: number;
+    time?: number;
+  };
+
   type ChangeSet = ChangeSetItem[];
 
   export const InitialWallet: IWallet = {
