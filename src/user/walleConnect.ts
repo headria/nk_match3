@@ -22,12 +22,14 @@ const WalletConnect: nkruntime.RpcFunction = (
   nk: nkruntime.Nakama,
   payload: string
 ): string | void => {
+  const userId = ctx.userId;
+  if (!userId) return Res.CalledByServer();
   let data: { [address: string]: string };
   try {
     data = JSON.parse(payload);
     if (!data || !data.address) throw Error();
   } catch (error) {
-    throw new Error("invalid request body");
+    return Res.BadRequest(error);
   }
   let address = data.address;
   try {
@@ -35,14 +37,14 @@ const WalletConnect: nkruntime.RpcFunction = (
       {
         collection: "Crypto",
         key: "Wallet",
-        userId: ctx.userId,
+        userId: userId,
         value: { address: address, balance: 0 },
         permissionRead: 2,
         permissionWrite: 0,
       },
     ]);
-    return;
+    return Res.Success(undefined, "wallet has been connected");
   } catch (error: any) {
-    throw new Error(`Error While Connecting Wallet: ${error.message}`);
+    return Res.Error(logger, `Error While Connecting Wallet`, error);
   }
 };

@@ -10,21 +10,21 @@ namespace LevelValidation {
     atStart: {
       tournamentId: string | null;
       selectedBoosters: string[];
-      time: number;
+      // time: number;
     };
     atEnd: {
       tournamentId: string | null;
       totalMoves: number;
       levelMaxMoves: number;
       purchasedMovesCount: number;
-      purchasedMovesCoins: number;
-      time: number;
+      // purchasedMovesCoins: number;
+      // time: number;
       result: string;
-      coins: number;
+      // coins: number;
       coinsRewarded: number;
-      powerUpsCount: number[];
-      purchasedPowerUps: number[];
-      boostersCount: number[];
+      // powerUpsCount: number[];
+      // purchasedPowerUps: number[];
+      // boostersCount: number[];
       targetAbilityblocksPoped: number;
       abilitUsedTimes: number;
       discoBallTargettedTiles: number;
@@ -52,7 +52,6 @@ namespace LevelValidation {
           ...this.checkHearts(initialValues.heart),
           ...this.checkBoosters(
             initialValues.boostersCount,
-            atEnd.boostersCount,
             atStart.selectedBoosters
           ),
           ...this.checkMoves(
@@ -60,17 +59,7 @@ namespace LevelValidation {
             atEnd.levelMaxMoves,
             atEnd.purchasedMovesCount
           ),
-          ...this.checkCoins(
-            initialValues.coins,
-            atEnd.purchasedMovesCoins,
-            atEnd.purchasedPowerUps
-          ),
-          ...this.checkPowerUps(
-            initialValues.powerUpsCount,
-            atEnd.powerUpsCount,
-            atEnd.purchasedPowerUps,
-            atEnd.usedItems
-          ),
+          ...this.checkPowerUps(initialValues.powerUpsCount, atEnd.usedItems),
           ...this.checkAbilityUsage(
             atEnd.targetAbilityblocksPoped,
             atEnd.abilitUsedTimes
@@ -90,30 +79,13 @@ namespace LevelValidation {
       else return [];
     }
 
-    checkBoosters(
-      startCounts: number[],
-      endCounts: number[],
-      selectedBoosters: string[]
-    ): string[] {
+    checkBoosters(startCounts: number[], selectedBoosters: string[]): string[] {
       const detectedCheats: string[] = [];
       for (const booster of Boosters) {
         const { name, index } = booster;
         const startCount = startCounts[index];
-        const endCount = endCounts[index];
-
-        if (selectedBoosters.indexOf(name) !== -1) {
-          if (startCount === 0) {
-            detectedCheats.push(`Used a Booster Without Having it: ${name}`);
-          } else if (startCount !== -1 && startCount <= endCount) {
-            detectedCheats.push(
-              `Used a booster without reducing quantity: ${name}`
-            );
-          }
-        } else if (startCount < -1 || endCount > startCount || endCount < -1) {
-          detectedCheats.push(
-            `Invalid Booster Count! ${name} = { before: ${startCount} after: ${endCount} }`
-          );
-        }
+        if (selectedBoosters.indexOf(name) !== -1 && startCount === 0)
+          detectedCheats.push(`Used a Booster Without Having it: ${name}`);
       }
       return detectedCheats;
     }
@@ -156,22 +128,15 @@ namespace LevelValidation {
         : [];
     }
 
-    checkPowerUps(
-      startPowerUpsCount: number[],
-      endPowerUpsCount: number[],
-      purchasedPowerUps: number[],
-      usedItems: number[]
-    ): string[] {
+    checkPowerUps(startPowerUpsCount: number[], usedItems: number[]): string[] {
       const detectedCheats: string[] = [];
       for (const powerUp of PowerUps) {
         const { name, index } = powerUp;
         const before = startPowerUpsCount[index];
-        const after = endPowerUpsCount[index];
-        const purchased = purchasedPowerUps[index];
         const used = usedItems[index];
 
-        if (after !== before + purchased - used) {
-          detectedCheats.push(`${name} before:${before} after:${after}`);
+        if (before < used) {
+          detectedCheats.push(`${name} before:${before} used:${used}`);
         }
       }
 
@@ -201,10 +166,10 @@ namespace LevelValidation {
     try {
       const boosters: Wallet.ChangeSetItem[] = Boosters.reduce(
         (acc: Wallet.ChangeSetItem[], curr) => {
-          const finalCount = log.atEnd.boostersCount[curr.index];
+          const selected = log.atStart.selectedBoosters.indexOf(curr.name);
           const initCount = initialValues.boostersCount[curr.index];
-          const result = finalCount - initCount;
-          if (initCount > 0) {
+          const result = selected !== -1 ? -1 : 0;
+          if (initCount > 0 && result !== 0) {
             acc.push({
               id: curr.name as keyof Wallet.IWallet,
               quantity: result,
@@ -216,9 +181,9 @@ namespace LevelValidation {
       );
       const powerUps: Wallet.ChangeSetItem[] = PowerUps.reduce(
         (acc: Wallet.ChangeSetItem[], curr) => {
-          const finalCount = log.atEnd.powerUpsCount[curr.index];
+          const usedCount = log.atEnd.usedItems[curr.index];
           const initCount = initialValues.powerUpsCount[curr.index];
-          const result = finalCount - initCount;
+          const result = initCount - (initCount + usedCount);
           if (result !== 0) {
             acc.push({
               id: PowerUps[curr.index].name as keyof Wallet.IWallet,
@@ -230,18 +195,9 @@ namespace LevelValidation {
         []
       );
 
-      const purchasedPowerUpsPrice =
-        Math.floor(
-          log.atEnd.purchasedPowerUps.reduce((acc, curr) => acc + curr, 0) / 3
-        ) * 600;
-      const coinsDifference =
-        log.atEnd.coinsRewarded -
-        purchasedPowerUpsPrice -
-        log.atEnd.purchasedMovesCoins;
-
       const coins: Wallet.ChangeSetItem = {
         id: "Coins",
-        quantity: coinsDifference,
+        quantity: log.atEnd.coinsRewarded,
       };
       const heartCount =
         log.atEnd.result !== "win" && initialValues.heart > 0 ? -1 : 0;
@@ -294,13 +250,13 @@ const levelValidatorRPC: nkruntime.RpcFunction = (
 ) => {
   try {
     const userId: string = ctx.userId;
-    if (!userId) throw new Error("called by a server");
+    if (!userId) return Res.CalledByServer();
 
     const initalValues = LevelValidation.initialValues(nk, userId);
     let levelLog: LevelValidation.ILevelLog;
 
     levelLog = JSON.parse(payload);
-    if (!levelLog) throw new Error("Invalid request body");
+    if (!levelLog) return Res.BadRequest();
 
     //save log in storage
     GameApi.LevelLog.save(nk, userId, levelLog);
@@ -311,7 +267,12 @@ const levelValidatorRPC: nkruntime.RpcFunction = (
 
     if (cheats.length > 0) {
       GameApi.Cheat.write(nk, levelLog.levelNumber, userId, cheats);
-      return JSON.stringify({ success: false, error: cheats });
+      return Res.response(
+        false,
+        Res.Code.cheatDetected,
+        cheats,
+        "cheats detected"
+      );
     }
 
     if (levelLog.atEnd.result === "win") {
@@ -321,9 +282,9 @@ const levelValidatorRPC: nkruntime.RpcFunction = (
 
     //update inventory
     const changeSet = LevelValidation.extractData(levelLog, initalValues);
-    Wallet.update(nk, userId, changeSet);
-    return JSON.stringify({ success: true });
+    const { wallet } = Wallet.update(nk, userId, changeSet);
+    return Res.Success(wallet);
   } catch (error: any) {
-    throw new Error(`failed to validate level: ${error.message}`);
+    return Res.Error(logger, `failed to validate level`, error);
   }
 };

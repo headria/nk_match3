@@ -10,9 +10,13 @@ enum Category {
   ENDLESS,
 }
 
+type BucketedLeaderboards = "Weekly" | "Rush" | "Cup" | "Endless";
+
 const MAX_SCORE = 1000000;
 
-const leaderboardRewards: any = {
+const leaderboardRewards: {
+  [key in BucketedLeaderboards]: Rewards.LeaderboardReaward;
+} = {
   Weekly: {
     config: {
       gold: 1,
@@ -35,6 +39,15 @@ const leaderboardRewards: any = {
     normal: [{ id: "DiscoBall", quantity: 1 }],
   },
   Rush: {
+    joinRewards: {
+      id: "Rush Join",
+      items: [
+        { id: "Heart", time: 900 },
+        { id: "DiscoBall", time: 900 },
+        { id: "Rocket", time: 900 },
+        { id: "TNT", time: 900 },
+      ],
+    },
     config: {
       gold: 1,
     },
@@ -51,6 +64,7 @@ const leaderboardRewards: any = {
     ],
   },
   Cup: {
+    joinRewards: { id: "Cup Join", items: [{ id: "Heart", time: 900 }] },
     config: {
       gold: 1,
       silver: 2,
@@ -91,11 +105,16 @@ const leaderboardRewards: any = {
       { id: "Coins", quantity: 200 },
     ],
   },
+  //TODO: Mush change
+  Endless: {
+    config: { gold: 1 },
+    gold: [{ id: "Coins", quantity: 100 }],
+  },
 };
 
 namespace Bucket {
   export type Config = {
-    tournamentID: string;
+    tournamentID: BucketedLeaderboards;
     authoritative: boolean;
     sortOrder: nkruntime.SortOrder;
     operator: nkruntime.Operator;
@@ -129,7 +148,7 @@ namespace Bucket {
     initializer: nkruntime.Initializer
   ) => {
     for (const id of Object.keys(configs)) {
-      init(nk, configs[id]);
+      init(nk, configs[id as BucketedLeaderboards]);
     }
     initializer.registerTournamentReset(tournamentReset);
     initializer.registerBeforeJoinTournament(beforeJointournament);
@@ -162,7 +181,7 @@ namespace Bucket {
     userIds: string[];
   }
 
-  export const configs: { [id: string]: Config } = {
+  export const configs: { [id in BucketedLeaderboards]: Config } = {
     Weekly: {
       tournamentID: "Weekly",
       authoritative: true,
@@ -227,7 +246,7 @@ namespace Bucket {
       authoritative: true,
       category: Category.ENDLESS,
       // duration: 3 * 24 * 60 * 60,
-      duration: 15 * 60,
+      duration: 10 * 60,
       description: "",
       bucketSize: 50,
       endTime: null,
@@ -237,7 +256,7 @@ namespace Bucket {
       metadata: {},
       operator: nkruntime.Operator.INCREMENTAL,
       // resetSchedule: "0 0 */3 * *",
-      resetSchedule: "*/15 * * * *",
+      resetSchedule: "*/10 * * * *",
       sortOrder: nkruntime.SortOrder.DESCENDING,
       startTime: 0,
       title: "Endless Event",
@@ -493,6 +512,8 @@ namespace Bucket {
         bucket.userIds.push(userId);
         Bucket.addUserToBucket(nk, leaderBoadrdId, latestId, version, bucket);
         Bucket.setUserBucket(nk, userId, leaderBoadrdId, latestId);
+        const rewards = leaderboardRewards[leaderBoadrdId].joinRewards;
+        if (rewards) Rewards.addNcliam(nk, userId, rewards);
         return;
       } catch (error: any) {
         if (attempts > 100) throw error;
@@ -527,13 +548,20 @@ namespace Bucket {
     config: Config
   ) {
     const userId = ctx.userId;
+    if (!userId) return Res.CalledByServer();
     //get user bucket
     let bucket = Bucket.getUserBucket(nk, config, userId);
     //if not exists
-    if (!bucket) throw new Error("user does not exist in this leaderboard");
+    if (!bucket)
+      return Res.response(
+        false,
+        Res.Code.dosentExist,
+        null,
+        "user does not exist in this leaderboard"
+      );
 
     const records = getBucketRecords(nk, bucket, config);
-    return JSON.stringify(records);
+    return Res.Success(records);
   }
 
   export function deleteUserBuckets(
@@ -541,35 +569,40 @@ namespace Bucket {
     logger: nkruntime.Logger,
     tournament: nkruntime.Tournament
   ) {
-    const config = configs[tournament.id];
-    const bucketCollection = Bucket.storage.collection;
-    const batchSize = 100;
-
-    let cursur: string | undefined;
-    let userObjToDelete: nkruntime.StorageDeleteRequest[] = [];
-    const notifications: nkruntime.Notification[] = [];
-    do {
-      const userBuckets = nk.storageList(
-        undefined,
-        bucketCollection,
-        batchSize,
-        cursur
-      );
-
-      if (userBuckets.objects && userBuckets?.objects.length > 0) {
-        userBuckets.objects.map((b) => {
+    try {
+      const config = configs[tournament.id as BucketedLeaderboards];
+      const bucketCollection = Bucket.storage.collection;
+      const batchSize = 100;
+      const leaderBoadrdId = tournament.id as BucketedLeaderboards;
+      let cursur: string | undefined;
+      let userObjToDelete: nkruntime.StorageDeleteRequest[] = [];
+      const notifications: nkruntime.Notification[] = [];
+      do {
+        const userBuckets = nk.storageList(
+          undefined,
+          bucketCollection,
+          batchSize,
+          cursur
+        );
+        if (!userBuckets.objects || userBuckets?.objects.length < 1) return;
+        const leaderboardBuckets = userBuckets.objects.filter(
+          (o) => o.key === leaderBoadrdId
+        );
+        leaderboardBuckets.map((b) => {
           const userId = b.userId;
           if (userId === SystemUserId) return;
+
           const obj: nkruntime.StorageDeleteRequest = {
             collection: bucketCollection,
-            key: tournament.id,
+            key: leaderBoadrdId,
             userId: userId,
           };
           if (b.value && b.value.id) {
             const bucketId = b.value.id;
+
             const { bucket } = Bucket.getBucketById(
               nk,
-              tournament.id,
+              leaderBoadrdId,
               bucketId
             );
             const records = Bucket.getBucketRecords(
@@ -582,10 +615,10 @@ namespace Bucket {
             const userRecord = records?.filter((r) => r.ownerId === userId);
             if (userRecord && userRecord.length > 0) {
               const rank = userRecord[0].rank;
-              const rewardsConfig = leaderboardRewards[tournament.id].config;
+              const rewardsConfig = leaderboardRewards[leaderBoadrdId].config;
               const tier = Rewards.getTierByRank(rank, rewardsConfig);
               if (tier) {
-                const rewardItems = leaderboardRewards[tournament.id][tier];
+                const rewardItems = leaderboardRewards[leaderBoadrdId][tier];
                 if (rewardItems) {
                   reward = {
                     id: tournament.id,
@@ -615,31 +648,41 @@ namespace Bucket {
         });
         nk.notificationsSend(notifications);
         nk.storageDelete(userObjToDelete);
-      }
 
-      cursur = userBuckets.cursor;
-    } while (cursur);
+        cursur = userBuckets.cursor;
+      } while (cursur);
+    } catch (error: any) {
+      logger.error(`failed to delete userBuckets: ${error.message}`);
+    }
   }
 
-  export function deleteBuckets(nk: nkruntime.Nakama, leaderBoardId: string) {
-    const storageIds = nk.storageList(
-      SystemUserId,
-      Bucket.storage.collection,
-      1000
-    );
+  export function deleteBuckets(
+    nk: nkruntime.Nakama,
+    logger: nkruntime.Logger,
+    leaderBoardId: string
+  ) {
+    try {
+      const storageIds = nk.storageList(
+        SystemUserId,
+        Bucket.storage.collection,
+        1000
+      );
 
-    const bucketsToDelete = storageIds.objects?.filter(
-      (bucket) => bucket.key.indexOf(leaderBoardId) !== -1
-    );
+      const bucketsToDelete = storageIds.objects?.filter(
+        (bucket) => bucket.key.indexOf(leaderBoardId) !== -1
+      );
 
-    if (bucketsToDelete && bucketsToDelete.length > 0) {
-      const deleteRequests = bucketsToDelete.map((bucket) => ({
-        collection: bucket.collection,
-        key: bucket.key,
-        userId: SystemUserId,
-      }));
+      if (bucketsToDelete && bucketsToDelete.length > 0) {
+        const deleteRequests = bucketsToDelete.map((bucket) => ({
+          collection: bucket.collection,
+          key: bucket.key,
+          userId: SystemUserId,
+        }));
 
-      nk.storageDelete(deleteRequests);
+        nk.storageDelete(deleteRequests);
+      }
+    } catch (error: any) {
+      logger.error(`failed to delete buckets: ${error.message}`);
     }
   }
 }
@@ -649,9 +692,20 @@ const GetRecordsRPC: nkruntime.RpcFunction = (
   nk: nkruntime.Nakama,
   payload: string
 ): string => {
-  const { id } = JSON.parse(payload);
-  const config = Bucket.configs[id];
-  return Bucket.getBucketRecordsRpc(ctx, nk, config);
+  if (!ctx.userId) return Res.CalledByServer();
+  let id: string;
+  try {
+    const input = JSON.parse(payload);
+    id = input.id;
+  } catch (error: any) {
+    return Res.BadRequest(error);
+  }
+  try {
+    const config = Bucket.configs[id as BucketedLeaderboards];
+    return Bucket.getBucketRecordsRpc(ctx, nk, config);
+  } catch (error: any) {
+    return Res.Error(logger, "failed to get records", error);
+  }
 };
 
 // Before Join Leaderboards Hooks
@@ -663,9 +717,10 @@ const beforeJointournament: nkruntime.BeforeHookFunction<
   nk: nkruntime.Nakama,
   data: nkruntime.JoinTournamentRequest
 ) => {
-  const tournamentId = data.tournamentId;
+  const tournamentId = data.tournamentId as BucketedLeaderboards;
   if (!tournamentId) throw new Error("Invalid tournament id");
   const config = Bucket.configs[tournamentId];
+
   Bucket.joinLeaderboard(nk, logger, ctx, config);
   return data;
 };
@@ -680,7 +735,7 @@ const tournamentReset: nkruntime.TournamentResetFunction = (
 ) => {
   Bucket.deleteUserBuckets(nk, logger, tournament);
 
-  Bucket.deleteBuckets(nk, tournament.id);
+  Bucket.deleteBuckets(nk, logger, tournament.id);
 
   Bucket.setLatestBucketId(nk, tournament.id, 0);
 };

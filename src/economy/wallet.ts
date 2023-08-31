@@ -29,11 +29,12 @@ namespace Wallet {
     Score: WalletItem;
   }
 
-  export interface ChangeSetItem
-    extends Omit<WalletItem, "endDate" | "isUnlimited"> {
-    time?: number;
+  export type ChangeSetItem = {
     id: keyof IWallet;
-  }
+    quantity?: number;
+    time?: number;
+  };
+
   type ChangeSet = ChangeSetItem[];
 
   export const InitialWallet: IWallet = {
@@ -82,6 +83,8 @@ namespace Wallet {
         if (key === "Heart" && item.quantity + cs.quantity > MAX_HEARTS) {
           wallet[key].quantity = MAX_HEARTS;
         } else {
+          if (wallet[key].quantity + cs.quantity < 0)
+            throw new Error("using more than the quantity");
           wallet[key].quantity += cs.quantity;
         }
       }
@@ -136,12 +139,13 @@ namespace Wallet {
     nk: nkruntime.Nakama,
     userId: string,
     changeset: ChangeSet
-  ) {
+  ): { wallet: IWallet; version: string } {
     while (true) {
       try {
         let { wallet, version } = get(nk, userId);
         const newWallet = updateWallet(wallet, changeset);
-        return set(nk, userId, newWallet, version);
+        const newVersion = set(nk, userId, newWallet, version);
+        return { wallet: newWallet, version: newVersion };
       } catch (error: any) {
         if (error.message.indexOf("version check failed") === -1)
           throw new Error(`failed to update Wallet: ${error.message}`);
@@ -149,13 +153,9 @@ namespace Wallet {
     }
   }
 
-  export function checkExpired(
-    nk: nkruntime.Nakama,
-    wallet: IWallet,
-    version: string,
-    userId: string
-  ) {
+  export function checkExpired(nk: nkruntime.Nakama, userId: string) {
     try {
+      let { wallet, version } = Wallet.get(nk, userId);
       let hasChanged = false;
       for (const key of Object.keys(wallet)) {
         const item = wallet[key as keyof IWallet];
@@ -242,10 +242,8 @@ const BeforeGetStorage: nkruntime.BeforeHookFunction<
       element.key === Wallet.key
     ) {
       const userId = element.userId as string;
-      let { wallet, version } = Wallet.get(nk, userId);
-
       Wallet.heartFillUp(nk, logger, userId);
-      Wallet.checkExpired(nk, wallet, version, userId);
+      Wallet.checkExpired(nk, userId);
     }
   });
   return data;
