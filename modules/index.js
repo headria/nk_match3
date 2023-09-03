@@ -584,7 +584,7 @@ var VirtualPurchaseRPC = function (ctx, logger, nk, payload) {
         if (!id_1)
             return Res.BadRequest();
         var items = VirtualShop.items.filter(function (item) { return item.id === id_1; });
-        if (items.length < 0)
+        if (items.length < 1)
             return Res.notFound("item");
         var item = items[0];
         var wallet = Wallet.get(nk, userId).wallet;

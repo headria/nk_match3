@@ -96,7 +96,7 @@ const VirtualPurchaseRPC: nkruntime.RpcFunction = (
     if (!id) return Res.BadRequest();
 
     const items = VirtualShop.items.filter((item) => item.id === id);
-    if (items.length < 0) return Res.notFound("item");
+    if (items.length < 1) return Res.notFound("item");
     const item = items[0];
     const { wallet } = Wallet.get(nk, userId);
     if (item.price > wallet.Coins.quantity)
