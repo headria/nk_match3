@@ -536,7 +536,7 @@ namespace Bucket {
         undefined,
         time
       );
-      return tournament.records;
+      return tournament.ownerRecords;
     } catch (error: any) {
       throw new Error(`failed to getRecords: ${error.message}`);
     }
