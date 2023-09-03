@@ -67,7 +67,7 @@ var BattlePass;
     BattlePass.config = {
         leaderboardID: "BattlePass",
         authoritative: true,
-        metadata: { rewards: BattlePassRewards },
+        metadata: {},
         operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
         // resetSchedule: "0 0 * 1 *",
         resetSchedule: "0 */1 * * *",
@@ -76,6 +76,16 @@ var BattlePass;
     function init(nk) {
         var leaderboardID = BattlePass.config.leaderboardID, authoritative = BattlePass.config.authoritative, metadata = BattlePass.config.metadata, operator = BattlePass.config.operator, resetSchedule = BattlePass.config.resetSchedule, sortOrder = BattlePass.config.sortOrder;
         nk.leaderboardCreate(leaderboardID, authoritative, sortOrder, operator, resetSchedule, metadata);
+        nk.storageWrite([
+            {
+                collection: "BattlePass",
+                key: "Rewards",
+                userId: SystemUserId,
+                value: { rewards: BattlePassRewards },
+                permissionRead: 2,
+                permissionWrite: 0,
+            },
+        ]);
     }
     BattlePass.init = init;
     function get(nk, userId) {

@@ -46,7 +46,7 @@ namespace BattlePass {
   export const config: Leaderboards.LeaderboardConfig = {
     leaderboardID: "BattlePass",
     authoritative: true,
-    metadata: { rewards: BattlePassRewards },
+    metadata: {},
     operator: nkruntime.Operator.INCREMENTAL,
     // resetSchedule: "0 0 * 1 *",
     resetSchedule: "0 */1 * * *",
@@ -70,6 +70,17 @@ namespace BattlePass {
       resetSchedule,
       metadata
     );
+
+    nk.storageWrite([
+      {
+        collection: "BattlePass",
+        key: "Rewards",
+        userId: SystemUserId,
+        value: { rewards: BattlePassRewards },
+        permissionRead: 2,
+        permissionWrite: 0,
+      },
+    ]);
   }
 
   export function get(
