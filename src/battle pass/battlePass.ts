@@ -43,10 +43,10 @@ namespace BattlePass {
     premium: false,
   };
 
-  export const config: Leaderboards.LeaderboardConfig = {
+  export const config: Leaderboards.Config = {
     leaderboardID: "BattlePass",
     authoritative: true,
-    metadata: {},
+    metadata: { rewards: BattlePassRewards },
     operator: nkruntime.Operator.INCREMENTAL,
     // resetSchedule: "0 0 * 1 *",
     resetSchedule: "0 */1 * * *",
@@ -70,17 +70,6 @@ namespace BattlePass {
       resetSchedule,
       metadata
     );
-
-    nk.storageWrite([
-      {
-        collection: "BattlePass",
-        key: "Rewards",
-        userId: SystemUserId,
-        value: { rewards: BattlePassRewards },
-        permissionRead: 2,
-        permissionWrite: 0,
-      },
-    ]);
   }
 
   export function get(
@@ -185,7 +174,6 @@ namespace BattlePass {
       tier++;
       remainedKeys -= lastTierKeys;
     }
-
     return { tier, keys: remainedKeys };
   }
 }
