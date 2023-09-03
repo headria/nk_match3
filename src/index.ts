@@ -7,6 +7,9 @@ const InitModule: nkruntime.InitModule = function (
   //register storage index
   StorageIndex.registerIndexes(initializer);
 
+  //initialize battlepass
+  BattlePass.init(nk);
+
   //initialize shop
   initShop(nk);
   VirtualShop.init(initializer, nk);

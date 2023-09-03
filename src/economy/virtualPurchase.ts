@@ -1,5 +1,7 @@
 namespace VirtualShop {
-  type ShopItem = Omit<Rewards.Reward, "claimed" | "addTime" | "claimTime"> & {
+  type ShopItem = {
+    id: string;
+    items: Rewards.RewardItem[];
     price: number;
   };
 
@@ -67,8 +69,8 @@ namespace VirtualShop {
   ) {
     nk.storageWrite([
       {
-        collection: "VirtualShop",
-        key: "Items",
+        collection: "Shop",
+        key: "Virtual",
         userId: SystemUserId,
         value: { items },
         permissionRead: 2,

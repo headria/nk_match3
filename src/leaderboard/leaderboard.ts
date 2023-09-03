@@ -5,7 +5,7 @@ namespace Leaderboards {
     sortOrder?: nkruntime.SortOrder | undefined;
     operator?: nkruntime.Operator | undefined;
     resetSchedule?: string | null | undefined;
-    metadata?: { [key: string]: string } | undefined;
+    metadata?: { [key: string]: any } | undefined;
   };
 
   export const configs: { [id: string]: LeaderboardConfig } = {
@@ -78,6 +78,14 @@ namespace Leaderboards {
     }
   };
 
+  export function updateBattlePass(
+    nk: nkruntime.Nakama,
+    userId: string,
+    keys: number
+  ) {
+    BattlePass.addKeys(nk, userId, keys);
+  }
+
   export const UpdateLeaderboards = (
     nk: nkruntime.Nakama,
     userId: string,
@@ -87,10 +95,9 @@ namespace Leaderboards {
     const { levelNumber } = levelLog;
     //calculate leaderboard score
     const rushScore = levelLog.atEnd.discoBallTargettedTiles || 0;
-    const score = Levels.difficulty[levelNumber] || 0;
-    if (score === 0) return;
+    const levelDifficulty = Levels.difficulty[levelNumber] || 0;
     updateGlobal(nk, userId, username, 1);
-
+    updateBattlePass(nk, userId, levelDifficulty);
     Object.keys(Bucket.configs).map((tournamentId) => {
       try {
         switch (tournamentId) {
@@ -101,7 +108,12 @@ namespace Leaderboards {
             nk.tournamentRecordWrite(tournamentId, userId, username, 1);
             break;
           default:
-            nk.tournamentRecordWrite(tournamentId, userId, username, score);
+            nk.tournamentRecordWrite(
+              tournamentId,
+              userId,
+              username,
+              levelDifficulty
+            );
             break;
         }
       } catch (error) {}
