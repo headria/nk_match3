@@ -26,6 +26,7 @@ var InitModule = function (ctx, logger, nk, initializer) {
   StorageIndex.registerIndexes(initializer);
   //initialize shop
   initShop(nk);
+  VirtualShop.init(initializer, nk);
   //initiate user wallet
   initializer.registerAfterAuthenticateDevice(InitiateUser);
   initializer.registerBeforeReadStorageObjects(BeforeGetStorage);
@@ -34,7 +35,6 @@ var InitModule = function (ctx, logger, nk, initializer) {
   Leaderboards.initalizeLeaderboards(nk, logger);
   Bucket.initializeLeaderboards(nk, initializer);
   //Register Leaderboards rpcs
-  initializer.registerRpc("leaderboard/setRecord/pmc", updateScore);
   initializer.registerRpc("user/WalletConnect", WalletConnect);
   //validators
   initializer.registerRpc("level/validate", levelValidatorRPC);
@@ -301,7 +301,8 @@ var Rewards;
       permissionWrite: 0,
     };
     writeObj.version = version ? version : "*";
-    nk.storageWrite([writeObj]);
+    var res = nk.storageWrite([writeObj]);
+    return res[0].version;
   }
   //add new reward
   function add(nk, userId, reward) {
@@ -316,35 +317,38 @@ var Rewards;
   Rewards.add = add;
   function addNcliam(nk, userId, reward) {
     add(nk, userId, reward);
-    claim(nk, userId, reward.id);
+    return claim(nk, userId, reward.id);
   }
   Rewards.addNcliam = addNcliam;
+  function rewardIndex(id, rewards) {
+    var rewardIndex = -1;
+    //reverse order for accessing latest rewards
+    for (var i = rewards.length - 1; i >= 0; i--) {
+      var reward = rewards[i];
+      if (reward.id === id && reward.claimed === false) {
+        rewardIndex = i;
+        break;
+      }
+    }
+    return rewardIndex;
+  }
   function claim(nk, userId, rewardId) {
     while (true) {
       try {
         var _a = get(nk, userId),
           rewards = _a.rewards,
           version = _a.version;
-        var rewardIndex = -1;
-        //reverse order for accessing latest rewards
-        for (var i = rewards.length - 1; i >= 0; i--) {
-          var reward = rewards[i];
-          if (reward.id === rewardId && reward.claimed === false) {
-            rewardIndex = i;
-            break;
-          }
-        }
-        if (rewardIndex === -1)
-          throw new Error("No matching rewards found for claim");
-        var rewardItems = rewards[rewardIndex].items;
-        Wallet.update(nk, userId, rewardItems);
-        rewards[rewardIndex].claimed = true;
-        rewards[rewardIndex].claimTime = Date.now();
+        var index = rewardIndex(rewardId, rewards);
+        if (index === -1) return { code: Res.Code.notFound };
+        var rewardItems = rewards[index].items;
+        var wallet = Wallet.update(nk, userId, rewardItems).wallet;
+        rewards[index].claimed = true;
+        rewards[index].claimTime = Date.now();
         set(nk, userId, rewards, version);
-        return;
+        return { code: Res.Code.success, data: wallet };
       } catch (error) {
         if (error.message.indexOf("version check failed") === -1)
-          throw new Error("Failed to claim reward: ".concat(error.message));
+          return { code: Res.Code.error, error: error.message };
       }
     }
   }
@@ -370,12 +374,126 @@ var Rewards;
   Rewards.getTierByRank = getTierByRank;
 })(Rewards || (Rewards = {}));
 var ClaimRewardRPC = function (ctx, logger, nk, payload) {
-  if (!ctx.userId) throw new Error("Called By Server");
   var userId = ctx.userId;
-  var input = JSON.parse(payload);
-  logger.debug(input.id);
-  var rewardId = input.id;
-  Rewards.claim(nk, userId, rewardId);
+  if (!userId) return Res.CalledByServer();
+  var rewardId;
+  try {
+    var input = JSON.parse(payload);
+    rewardId = input.id;
+  } catch (error) {
+    return Res.BadRequest(error);
+  }
+  var res = Rewards.claim(nk, userId, rewardId);
+  if (res.code === Res.Code.notFound) return Res.notFound("reward");
+  res.code === Res.Code.success
+    ? Res.Success(res.data, "reward claimed")
+    : Res.Error(logger, "failed to claim reward", res.error);
+};
+var VirtualShop;
+(function (VirtualShop) {
+  VirtualShop.items = [
+    {
+      id: "Extra Move",
+      items: [],
+      price: 900,
+    },
+    {
+      id: "Hammer Pack",
+      items: [
+        {
+          id: "Hammer",
+          quantity: 3,
+        },
+      ],
+      price: 1200,
+    },
+    {
+      id: "Horizontal Rocket Pack",
+      items: [
+        {
+          id: "HorizontalRocket",
+          quantity: 3,
+        },
+      ],
+      price: 1000,
+    },
+    {
+      id: "Vertical Rocket Pack",
+      items: [
+        {
+          id: "VerticalRocket",
+          quantity: 3,
+        },
+      ],
+      price: 1200,
+    },
+    {
+      id: "Shuffle Pack",
+      items: [
+        {
+          id: "Shuffle",
+          quantity: 3,
+        },
+      ],
+      price: 600,
+    },
+    {
+      id: "Refill Lives",
+      items: [
+        {
+          id: "Heart",
+          quantity: 5,
+        },
+      ],
+      price: 900,
+    },
+  ];
+  function init(initializer, nk) {
+    nk.storageWrite([
+      {
+        collection: "VirtualShop",
+        key: "Items",
+        userId: SystemUserId,
+        value: { items: VirtualShop.items },
+        permissionRead: 2,
+        permissionWrite: 0,
+      },
+    ]);
+    initializer.registerRpc("virtualShop/purchase", VirtualPurchaseRPC);
+  }
+  VirtualShop.init = init;
+})(VirtualShop || (VirtualShop = {}));
+var VirtualPurchaseRPC = function (ctx, logger, nk, payload) {
+  var userId = ctx.userId;
+  if (!userId) return Res.CalledByServer();
+  var id;
+  try {
+    id = JSON.parse(payload).id;
+  } catch (error) {
+    return Res.BadRequest(error);
+  }
+  var items = VirtualShop.items.filter(function (item) {
+    return item.id === id;
+  });
+  if (items.length < 0) return Res.notFound("item");
+  var item = items[0];
+  var wallet = Wallet.get(nk, userId).wallet;
+  if (item.price > wallet.Coins.quantity)
+    return Res.response(
+      false,
+      Res.Code.notEnoughCoins,
+      null,
+      "not enough coins"
+    );
+  try {
+    var wallet_1 = Wallet.update(nk, userId, [
+      { id: "Coins", quantity: -item.price },
+    ]).wallet;
+    if (item.items.length > 0) Rewards.addNcliam(nk, userId, item);
+    return Res.Success(wallet_1, "successful purchase");
+  } catch (error) {
+    return Res.Error(logger, "failed to purchase item", error);
+  }
 };
 var Wallet;
 (function (Wallet) {
@@ -430,6 +548,8 @@ var Wallet;
         if (key === "Heart" && item.quantity + cs.quantity > MAX_HEARTS) {
           wallet[key].quantity = MAX_HEARTS;
         } else {
+          if (wallet[key].quantity + cs.quantity < 0)
+            throw new Error("using more than the quantity");
           wallet[key].quantity += cs.quantity;
         }
       }
@@ -480,7 +600,8 @@ var Wallet;
           wallet = _a.wallet,
           version = _a.version;
         var newWallet = updateWallet(wallet, changeset);
-        return set(nk, userId, newWallet, version);
+        var newVersion = set(nk, userId, newWallet, version);
+        return { wallet: newWallet, version: newVersion };
       } catch (error) {
         if (error.message.indexOf("version check failed") === -1)
           throw new Error("failed to update Wallet: ".concat(error.message));
@@ -488,11 +609,14 @@ var Wallet;
     }
   }
   Wallet.update = update;
-  function checkExpired(nk, wallet, version, userId) {
+  function checkExpired(nk, userId) {
     try {
+      var _a = Wallet.get(nk, userId),
+        wallet = _a.wallet,
+        version = _a.version;
       var hasChanged = false;
-      for (var _i = 0, _a = Object.keys(wallet); _i < _a.length; _i++) {
-        var key_1 = _a[_i];
+      for (var _i = 0, _b = Object.keys(wallet); _i < _b.length; _i++) {
+        var key_1 = _b[_i];
         var item = wallet[key_1];
         if (item.isUnlimited && item.endDate) {
           if (Date.now() > item.endDate) {
@@ -569,11 +693,8 @@ var BeforeGetStorage = function (ctx, logger, nk, data) {
           element.key === Wallet.key
         ) {
           var userId = element.userId;
-          var _a = Wallet.get(nk, userId),
-            wallet = _a.wallet,
-            version = _a.version;
           Wallet.heartFillUp(nk, logger, userId);
-          Wallet.checkExpired(nk, wallet, version, userId);
+          Wallet.checkExpired(nk, userId);
         }
       });
   return data;
@@ -613,6 +734,15 @@ var leaderboardRewards = {
     normal: [{ id: "DiscoBall", quantity: 1 }],
   },
   Rush: {
+    joinRewards: {
+      id: "Rush Join",
+      items: [
+        { id: "Heart", time: 900 },
+        { id: "DiscoBall", time: 900 },
+        { id: "Rocket", time: 900 },
+        { id: "TNT", time: 900 },
+      ],
+    },
     config: {
       gold: 1,
     },
@@ -629,6 +759,7 @@ var leaderboardRewards = {
     ],
   },
   Cup: {
+    joinRewards: { id: "Cup Join", items: [{ id: "Heart", time: 900 }] },
     config: {
       gold: 1,
       silver: 2,
@@ -668,6 +799,11 @@ var leaderboardRewards = {
       { id: "Rocket", quantity: 1 },
       { id: "Coins", quantity: 200 },
     ],
+  },
+  //TODO: Mush change
+  Endless: {
+    config: { gold: 1 },
+    gold: [{ id: "Coins", quantity: 100 }],
   },
 };
 var Bucket;
@@ -772,7 +908,7 @@ var Bucket;
       authoritative: true,
       category: Category.ENDLESS,
       // duration: 3 * 24 * 60 * 60,
-      duration: 15 * 60,
+      duration: 10 * 60,
       description: "",
       bucketSize: 50,
       endTime: null,
@@ -782,7 +918,7 @@ var Bucket;
       metadata: {},
       operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
       // resetSchedule: "0 0 */3 * *",
-      resetSchedule: "*/15 * * * *",
+      resetSchedule: "*/10 * * * *",
       sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
       startTime: 0,
       title: "Endless Event",
@@ -1016,6 +1152,8 @@ var Bucket;
         bucket.userIds.push(userId);
         Bucket.addUserToBucket(nk, leaderBoadrdId, latestId, version, bucket);
         Bucket.setUserBucket(nk, userId, leaderBoadrdId, latestId);
+        var rewards = leaderboardRewards[leaderBoadrdId].joinRewards;
+        if (rewards) Rewards.addNcliam(nk, userId, rewards);
         return;
       } catch (error) {
         if (attempts > 100) throw error;
@@ -1041,53 +1179,66 @@ var Bucket;
   Bucket.getBucketRecords = getBucketRecords;
   function getBucketRecordsRpc(ctx, nk, config) {
     var userId = ctx.userId;
+    if (!userId) return Res.CalledByServer();
     //get user bucket
     var bucket = Bucket.getUserBucket(nk, config, userId);
     //if not exists
-    if (!bucket) throw new Error("user does not exist in this leaderboard");
+    if (!bucket)
+      return Res.response(
+        false,
+        Res.Code.dosentExist,
+        null,
+        "user does not exist in this leaderboard"
+      );
     var records = getBucketRecords(nk, bucket, config);
-    return JSON.stringify(records);
+    return Res.Success(records);
   }
   Bucket.getBucketRecordsRpc = getBucketRecordsRpc;
   function deleteUserBuckets(nk, logger, tournament) {
-    var config = Bucket.configs[tournament.id];
-    var bucketCollection = Bucket.storage.collection;
-    var batchSize = 100;
-    var cursur;
-    var userObjToDelete = [];
-    var notifications = [];
-    do {
-      var userBuckets = nk.storageList(
-        undefined,
-        bucketCollection,
-        batchSize,
-        cursur
-      );
-      if (
-        userBuckets.objects &&
-        (userBuckets === null || userBuckets === void 0
-          ? void 0
-          : userBuckets.objects.length) > 0
-      ) {
-        userBuckets.objects.map(function (b) {
+    try {
+      var config_1 = Bucket.configs[tournament.id];
+      var bucketCollection_1 = Bucket.storage.collection;
+      var batchSize = 100;
+      var leaderBoadrdId_1 = tournament.id;
+      var cursur = void 0;
+      var userObjToDelete_1 = [];
+      var notifications_1 = [];
+      do {
+        var userBuckets = nk.storageList(
+          undefined,
+          bucketCollection_1,
+          batchSize,
+          cursur
+        );
+        if (
+          !userBuckets.objects ||
+          (userBuckets === null || userBuckets === void 0
+            ? void 0
+            : userBuckets.objects.length) < 1
+        )
+          return;
+        var leaderboardBuckets = userBuckets.objects.filter(function (o) {
+          return o.key === leaderBoadrdId_1;
+        });
+        leaderboardBuckets.map(function (b) {
           var userId = b.userId;
           if (userId === SystemUserId) return;
           var obj = {
-            collection: bucketCollection,
-            key: tournament.id,
+            collection: bucketCollection_1,
+            key: leaderBoadrdId_1,
             userId: userId,
           };
           if (b.value && b.value.id) {
             var bucketId = b.value.id;
             var bucket = Bucket.getBucketById(
               nk,
-              tournament.id,
+              leaderBoadrdId_1,
               bucketId
             ).bucket;
             var records = Bucket.getBucketRecords(
               nk,
               bucket,
-              config,
+              config_1,
               tournament.endActive
             );
             var reward = undefined;
@@ -1099,10 +1250,10 @@ var Bucket;
                   });
             if (userRecord && userRecord.length > 0) {
               var rank = userRecord[0].rank;
-              var rewardsConfig = leaderboardRewards[tournament.id].config;
+              var rewardsConfig = leaderboardRewards[leaderBoadrdId_1].config;
               var tier = Rewards.getTierByRank(rank, rewardsConfig);
               if (tier) {
-                var rewardItems = leaderboardRewards[tournament.id][tier];
+                var rewardItems = leaderboardRewards[leaderBoadrdId_1][tier];
                 if (rewardItems) {
                   reward = {
                     id: tournament.id,
@@ -1124,47 +1275,64 @@ var Bucket;
               senderId: SystemUserId,
               persistent: true,
             };
-            notifications.push(notif);
-            userObjToDelete.push(obj);
+            notifications_1.push(notif);
+            userObjToDelete_1.push(obj);
           }
         });
-        nk.notificationsSend(notifications);
-        nk.storageDelete(userObjToDelete);
-      }
-      cursur = userBuckets.cursor;
-    } while (cursur);
+        nk.notificationsSend(notifications_1);
+        nk.storageDelete(userObjToDelete_1);
+        cursur = userBuckets.cursor;
+      } while (cursur);
+    } catch (error) {
+      logger.error("failed to delete userBuckets: ".concat(error.message));
+    }
   }
   Bucket.deleteUserBuckets = deleteUserBuckets;
-  function deleteBuckets(nk, leaderBoardId) {
+  function deleteBuckets(nk, logger, leaderBoardId) {
     var _a;
-    var storageIds = nk.storageList(
-      SystemUserId,
-      Bucket.storage.collection,
-      1000
-    );
-    var bucketsToDelete =
-      (_a = storageIds.objects) === null || _a === void 0
-        ? void 0
-        : _a.filter(function (bucket) {
-            return bucket.key.indexOf(leaderBoardId) !== -1;
-          });
-    if (bucketsToDelete && bucketsToDelete.length > 0) {
-      var deleteRequests = bucketsToDelete.map(function (bucket) {
-        return {
-          collection: bucket.collection,
-          key: bucket.key,
-          userId: SystemUserId,
-        };
-      });
-      nk.storageDelete(deleteRequests);
+    try {
+      var storageIds = nk.storageList(
+        SystemUserId,
+        Bucket.storage.collection,
+        1000
+      );
+      var bucketsToDelete =
+        (_a = storageIds.objects) === null || _a === void 0
+          ? void 0
+          : _a.filter(function (bucket) {
+              return bucket.key.indexOf(leaderBoardId) !== -1;
+            });
+      if (bucketsToDelete && bucketsToDelete.length > 0) {
+        var deleteRequests = bucketsToDelete.map(function (bucket) {
+          return {
+            collection: bucket.collection,
+            key: bucket.key,
+            userId: SystemUserId,
+          };
+        });
+        nk.storageDelete(deleteRequests);
+      }
+    } catch (error) {
+      logger.error("failed to delete buckets: ".concat(error.message));
     }
   }
   Bucket.deleteBuckets = deleteBuckets;
 })(Bucket || (Bucket = {}));
 var GetRecordsRPC = function (ctx, logger, nk, payload) {
-  var id = JSON.parse(payload).id;
-  var config = Bucket.configs[id];
-  return Bucket.getBucketRecordsRpc(ctx, nk, config);
+  if (!ctx.userId) return Res.CalledByServer();
+  var id;
+  try {
+    var input = JSON.parse(payload);
+    id = input.id;
+  } catch (error) {
+    return Res.BadRequest(error);
+  }
+  try {
+    var config = Bucket.configs[id];
+    return Bucket.getBucketRecordsRpc(ctx, nk, config);
+  } catch (error) {
+    return Res.Error(logger, "failed to get records", error);
+  }
 };
 // Before Join Leaderboards Hooks
 var beforeJointournament = function (ctx, logger, nk, data) {
@@ -1176,7 +1344,7 @@ var beforeJointournament = function (ctx, logger, nk, data) {
 };
 var tournamentReset = function (ctx, logger, nk, tournament, end, reset) {
   Bucket.deleteUserBuckets(nk, logger, tournament);
-  Bucket.deleteBuckets(nk, tournament.id);
+  Bucket.deleteBuckets(nk, logger, tournament.id);
   Bucket.setLatestBucketId(nk, tournament.id, 0);
 };
 var Leaderboards;
@@ -1274,21 +1442,70 @@ var Leaderboards;
     });
   };
 })(Leaderboards || (Leaderboards = {}));
-var updateScore = function (ctx, logger, nk, payload) {
-  try {
-    if (ctx.userId) throw Error("Unauthorized");
-    var data = JSON.parse(payload);
-    logger.debug(payload);
-    nk.leaderboardRecordWrite(
-      Leaderboards.configs.PMC.leaderboardID,
-      data.userId,
-      data.username,
-      data.score
-    );
-  } catch (error) {
-    logger.error(error.message);
+var Res;
+(function (Res) {
+  var Code;
+  (function (Code) {
+    Code[(Code["success"] = 0)] = "success";
+    Code[(Code["error"] = 1)] = "error";
+    Code[(Code["notFound"] = 2)] = "notFound";
+    Code[(Code["dosentExist"] = 3)] = "dosentExist";
+    Code[(Code["badRequest"] = 4)] = "badRequest";
+    Code[(Code["serverInternalError"] = 5)] = "serverInternalError";
+    Code[(Code["calledByServer"] = 6)] = "calledByServer";
+    Code[(Code["calledByClient"] = 7)] = "calledByClient";
+    Code[(Code["notEnoughCoins"] = 8)] = "notEnoughCoins";
+    Code[(Code["cheatDetected"] = 9)] = "cheatDetected";
+  })((Code = Res.Code || (Res.Code = {})));
+  function response(success, code, data, message, error) {
+    var res = {
+      success: success,
+      code: code,
+      data: data,
+      message: message,
+      error: error === null || error === void 0 ? void 0 : error.message,
+    };
+    return JSON.stringify(res);
   }
-};
+  Res.response = response;
+  function Success(data, message) {
+    return response(true, Res.Code.success, data, message);
+  }
+  Res.Success = Success;
+  function BadRequest(error) {
+    return response(
+      false,
+      Code.badRequest,
+      undefined,
+      "invalid request body",
+      error
+    );
+  }
+  Res.BadRequest = BadRequest;
+  function CalledByServer() {
+    return response(
+      false,
+      Code.calledByServer,
+      undefined,
+      "called by a server"
+    );
+  }
+  Res.CalledByServer = CalledByServer;
+  function Error(logger, message, error) {
+    logger.error("".concat(message, ": ").concat(error.message));
+    return response(false, Code.error, undefined, message, error);
+  }
+  Res.Error = Error;
+  function notFound(name) {
+    return response(
+      false,
+      Code.serverInternalError,
+      undefined,
+      "".concat(name, " not found")
+    );
+  }
+  Res.notFound = notFound;
+})(Res || (Res = {}));
 var StorageIndex;
 (function (StorageIndex) {
   var MAX_ENTRIES = 1000000000;
@@ -1362,12 +1579,14 @@ var WalletIndex;
   };
 })(WalletIndex || (WalletIndex = {}));
 var WalletConnect = function (ctx, logger, nk, payload) {
+  var userId = ctx.userId;
+  if (!userId) return Res.CalledByServer();
   var data;
   try {
     data = JSON.parse(payload);
     if (!data || !data.address) throw Error();
   } catch (error) {
-    throw new Error("invalid request body");
+    return Res.BadRequest(error);
   }
   var address = data.address;
   try {
@@ -1375,15 +1594,15 @@ var WalletConnect = function (ctx, logger, nk, payload) {
       {
         collection: "Crypto",
         key: "Wallet",
-        userId: ctx.userId,
+        userId: userId,
         value: { address: address, balance: 0 },
         permissionRead: 2,
         permissionWrite: 0,
       },
     ]);
-    return;
+    return Res.Success(undefined, "wallet has been connected");
   } catch (error) {
-    throw new Error("Error While Connecting Wallet: ".concat(error.message));
+    return Res.Error(logger, "Error While Connecting Wallet", error);
   }
 };
 var _a, _b, _c, _d;
@@ -1985,39 +2204,21 @@ var LevelValidation;
           __spreadArray(
             __spreadArray(
               __spreadArray(
-                __spreadArray(
-                  __spreadArray(
-                    [],
-                    this.checkHearts(initialValues.heart),
-                    true
-                  ),
-                  this.checkBoosters(
-                    initialValues.boostersCount,
-                    atEnd.boostersCount,
-                    atStart.selectedBoosters
-                  ),
-                  true
-                ),
-                this.checkMoves(
-                  atEnd.totalMoves,
-                  atEnd.levelMaxMoves,
-                  atEnd.purchasedMovesCount
+                __spreadArray([], this.checkHearts(initialValues.heart), true),
+                this.checkBoosters(
+                  initialValues.boostersCount,
+                  atStart.selectedBoosters
                 ),
                 true
               ),
-              this.checkCoins(
-                initialValues.coins,
-                atEnd.purchasedMovesCoins,
-                atEnd.purchasedPowerUps
+              this.checkMoves(
+                atEnd.totalMoves,
+                atEnd.levelMaxMoves,
+                atEnd.purchasedMovesCount
               ),
               true
             ),
-            this.checkPowerUps(
-              initialValues.powerUpsCount,
-              atEnd.powerUpsCount,
-              atEnd.purchasedPowerUps,
-              atEnd.usedItems
-            ),
+            this.checkPowerUps(initialValues.powerUpsCount, atEnd.usedItems),
             true
           ),
           this.checkAbilityUsage(
@@ -2039,7 +2240,6 @@ var LevelValidation;
     };
     Validator.prototype.checkBoosters = function (
       startCounts,
-      endCounts,
       selectedBoosters
     ) {
       var detectedCheats = [];
@@ -2052,25 +2252,10 @@ var LevelValidation;
         var name_2 = booster.name,
           index = booster.index;
         var startCount = startCounts[index];
-        var endCount = endCounts[index];
-        if (selectedBoosters.indexOf(name_2) !== -1) {
-          if (startCount === 0) {
-            detectedCheats.push(
-              "Used a Booster Without Having it: ".concat(name_2)
-            );
-          } else if (startCount !== -1 && startCount <= endCount) {
-            detectedCheats.push(
-              "Used a booster without reducing quantity: ".concat(name_2)
-            );
-          }
-        } else if (startCount < -1 || endCount > startCount || endCount < -1) {
+        if (selectedBoosters.indexOf(name_2) !== -1 && startCount === 0)
           detectedCheats.push(
-            "Invalid Booster Count! "
-              .concat(name_2, " = { before: ")
-              .concat(startCount, " after: ")
-              .concat(endCount, " }")
+            "Used a Booster Without Having it: ".concat(name_2)
           );
-        }
       }
       return detectedCheats;
     };
@@ -2121,8 +2306,6 @@ var LevelValidation;
     };
     Validator.prototype.checkPowerUps = function (
       startPowerUpsCount,
-      endPowerUpsCount,
-      purchasedPowerUps,
       usedItems
     ) {
       var detectedCheats = [];
@@ -2135,15 +2318,10 @@ var LevelValidation;
         var name_3 = powerUp.name,
           index = powerUp.index;
         var before = startPowerUpsCount[index];
-        var after = endPowerUpsCount[index];
-        var purchased = purchasedPowerUps[index];
         var used = usedItems[index];
-        if (after !== before + purchased - used) {
+        if (before < used) {
           detectedCheats.push(
-            ""
-              .concat(name_3, " before:")
-              .concat(before, " after:")
-              .concat(after)
+            "".concat(name_3, " before:").concat(before, " used:").concat(used)
           );
         }
       }
@@ -2169,10 +2347,10 @@ var LevelValidation;
   function extractData(log, initialValues) {
     try {
       var boosters = LevelValidation.Boosters.reduce(function (acc, curr) {
-        var finalCount = log.atEnd.boostersCount[curr.index];
+        var selected = log.atStart.selectedBoosters.indexOf(curr.name);
         var initCount = initialValues.boostersCount[curr.index];
-        var result = finalCount - initCount;
-        if (initCount > 0) {
+        var result = selected !== -1 ? -1 : 0;
+        if (initCount > 0 && result !== 0) {
           acc.push({
             id: curr.name,
             quantity: result,
@@ -2181,9 +2359,9 @@ var LevelValidation;
         return acc;
       }, []);
       var powerUps = LevelValidation.PowerUps.reduce(function (acc, curr) {
-        var finalCount = log.atEnd.powerUpsCount[curr.index];
+        var usedCount = log.atEnd.usedItems[curr.index];
         var initCount = initialValues.powerUpsCount[curr.index];
-        var result = finalCount - initCount;
+        var result = initCount - (initCount + usedCount);
         if (result !== 0) {
           acc.push({
             id: LevelValidation.PowerUps[curr.index].name,
@@ -2192,19 +2370,9 @@ var LevelValidation;
         }
         return acc;
       }, []);
-      var purchasedPowerUpsPrice =
-        Math.floor(
-          log.atEnd.purchasedPowerUps.reduce(function (acc, curr) {
-            return acc + curr;
-          }, 0) / 3
-        ) * 600;
-      var coinsDifference =
-        log.atEnd.coinsRewarded -
-        purchasedPowerUpsPrice -
-        log.atEnd.purchasedMovesCoins;
       var coins = {
         id: "Coins",
-        quantity: coinsDifference,
+        quantity: log.atEnd.coinsRewarded,
       };
       var heartCount =
         log.atEnd.result !== "win" && initialValues.heart > 0 ? -1 : 0;
@@ -2249,11 +2417,11 @@ var LevelValidation;
 var levelValidatorRPC = function (ctx, logger, nk, payload) {
   try {
     var userId = ctx.userId;
-    if (!userId) throw new Error("called by a server");
+    if (!userId) return Res.CalledByServer();
     var initalValues = LevelValidation.initialValues(nk, userId);
     var levelLog = void 0;
     levelLog = JSON.parse(payload);
-    if (!levelLog) throw new Error("Invalid request body");
+    if (!levelLog) return Res.BadRequest();
     //save log in storage
     GameApi.LevelLog.save(nk, userId, levelLog);
     //checking cheats
@@ -2261,7 +2429,12 @@ var levelValidatorRPC = function (ctx, logger, nk, payload) {
     var cheats = validator.cheatCheck(levelLog, initalValues);
     if (cheats.length > 0) {
       GameApi.Cheat.write(nk, levelLog.levelNumber, userId, cheats);
-      return JSON.stringify({ success: false, error: cheats });
+      return Res.response(
+        false,
+        Res.Code.cheatDetected,
+        cheats,
+        "cheats detected"
+      );
     }
     if (levelLog.atEnd.result === "win") {
       GameApi.LastLevel.increment(nk, userId);
@@ -2269,9 +2442,9 @@ var levelValidatorRPC = function (ctx, logger, nk, payload) {
     }
     //update inventory
     var changeSet = LevelValidation.extractData(levelLog, initalValues);
-    Wallet.update(nk, userId, changeSet);
-    return JSON.stringify({ success: true });
+    var wallet = Wallet.update(nk, userId, changeSet).wallet;
+    return Res.Success(wallet);
   } catch (error) {
-    throw new Error("failed to validate level: ".concat(error.message));
+    return Res.Error(logger, "failed to validate level", error);
   }
 };
