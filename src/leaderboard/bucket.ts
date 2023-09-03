@@ -465,7 +465,7 @@ namespace Bucket {
     config: Config
   ) {
     const userId = ctx.userId;
-    const leaderBoadrdId = config.tournamentID;
+    const leaderBoadrdId = config.tournamentID as BucketedLeaderboards;
     const userBucket = getUserBucket(nk, config, userId);
 
     if (userBucket) {
@@ -692,15 +692,12 @@ const GetRecordsRPC: nkruntime.RpcFunction = (
   nk: nkruntime.Nakama,
   payload: string
 ): string => {
-  if (!ctx.userId) return Res.CalledByServer();
-  let id: string;
   try {
+    if (!ctx.userId) return Res.CalledByServer();
+    let id: string;
     const input = JSON.parse(payload);
     id = input.id;
-  } catch (error: any) {
-    return Res.BadRequest(error);
-  }
-  try {
+    if (!id) return Res.BadRequest();
     const config = Bucket.configs[id as BucketedLeaderboards];
     return Bucket.getBucketRecordsRpc(ctx, nk, config);
   } catch (error: any) {
