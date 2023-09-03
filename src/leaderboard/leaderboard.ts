@@ -1,5 +1,5 @@
 namespace Leaderboards {
-  export type LeaderboardConfig = {
+  export type Config = {
     leaderboardID: string;
     authoritative: boolean;
     sortOrder?: nkruntime.SortOrder | undefined;
@@ -8,7 +8,7 @@ namespace Leaderboards {
     metadata?: { [key: string]: any } | undefined;
   };
 
-  export const configs: { [id: string]: LeaderboardConfig } = {
+  export const configs: { [id: string]: Config } = {
     global: {
       leaderboardID: "Global",
       authoritative: true,
@@ -27,7 +27,7 @@ namespace Leaderboards {
   };
 
   export class Leaderboard {
-    constructor(public config: LeaderboardConfig) {}
+    constructor(public config: Config) {}
     public initialize(nk: nkruntime.Nakama, logger: nkruntime.Logger) {
       try {
         nk.leaderboardCreate(
@@ -48,6 +48,7 @@ namespace Leaderboards {
   }
 
   export const initalizeLeaderboards = (
+    initializer: nkruntime.Initializer,
     nk: nkruntime.Nakama,
     logger: nkruntime.Logger
   ) => {
@@ -55,6 +56,7 @@ namespace Leaderboards {
       const conf = configs[key];
       new Leaderboard(conf).initialize(nk, logger);
     }
+    initializer.registerRpc("leaderboards/metadata", leaderboardMetadataRPC);
   };
 
   const updateGlobal = (
@@ -120,3 +122,23 @@ namespace Leaderboards {
     });
   };
 }
+
+const leaderboardMetadataRPC: nkruntime.RpcFunction = (
+  ctx: nkruntime.Context,
+  logger: nkruntime.Logger,
+  nk: nkruntime.Nakama,
+  payload: string
+): string | void => {
+  try {
+    let id: string;
+    const input = JSON.parse(payload);
+    id = input.id;
+    if (!id) return Res.BadRequest();
+    const leaderboards = nk.leaderboardsGetId([id]);
+    if (leaderboards.length < 1) return Res.notFound("leaderboard");
+    const data = leaderboards[0];
+    return Res.Success(data);
+  } catch (error) {
+    return Res.Error(logger, "failed to get metadata", error);
+  }
+};
