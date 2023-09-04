@@ -34,7 +34,7 @@ var InitModule = function (ctx, logger, nk, initializer) {
   initializer.registerBeforeReadStorageObjects(BeforeGetStorage);
   initializer.registerRpc("rewards/claim", ClaimRewardRPC);
   //create Leaderboards
-  Leaderboards.initalizeLeaderboards(nk, logger);
+  Leaderboards.initalizeLeaderboards(initializer, nk, logger);
   Bucket.initializeLeaderboards(nk, initializer);
   //Register Leaderboards rpcs
   initializer.registerRpc("user/WalletConnect", WalletConnect);
@@ -611,33 +611,30 @@ var VirtualShop;
   VirtualShop.init = init;
 })(VirtualShop || (VirtualShop = {}));
 var VirtualPurchaseRPC = function (ctx, logger, nk, payload) {
-  var userId = ctx.userId;
-  if (!userId) return Res.CalledByServer();
-  var id;
   try {
-    id = JSON.parse(payload).id;
-  } catch (error) {
-    return Res.BadRequest(error);
-  }
-  var items = VirtualShop.items.filter(function (item) {
-    return item.id === id;
-  });
-  if (items.length < 0) return Res.notFound("item");
-  var item = items[0];
-  var wallet = Wallet.get(nk, userId).wallet;
-  if (item.price > wallet.Coins.quantity)
-    return Res.response(
-      false,
-      Res.Code.notEnoughCoins,
-      null,
-      "not enough coins"
-    );
-  try {
-    var wallet_1 = Wallet.update(nk, userId, [
+    var userId = ctx.userId;
+    if (!userId) return Res.CalledByServer();
+    var id_1;
+    id_1 = JSON.parse(payload).id;
+    if (!id_1) return Res.BadRequest();
+    var items = VirtualShop.items.filter(function (item) {
+      return item.id === id_1;
+    });
+    if (items.length < 1) return Res.notFound("item");
+    var item = items[0];
+    var wallet = Wallet.get(nk, userId).wallet;
+    if (item.price > wallet.Coins.quantity)
+      return Res.response(
+        false,
+        Res.Code.notEnoughCoins,
+        null,
+        "not enough coins"
+      );
+    var newWallet = Wallet.update(nk, userId, [
       { id: "Coins", quantity: -item.price },
-    ]).wallet;
+    ]);
     if (item.items.length > 0) Rewards.addNcliam(nk, userId, item);
-    return Res.Success(wallet_1, "successful purchase");
+    return Res.Success(newWallet, "successful purchase");
   } catch (error) {
     return Res.Error(logger, "failed to purchase item", error);
   }
@@ -1466,15 +1463,12 @@ var Bucket;
   Bucket.deleteBuckets = deleteBuckets;
 })(Bucket || (Bucket = {}));
 var GetRecordsRPC = function (ctx, logger, nk, payload) {
-  if (!ctx.userId) return Res.CalledByServer();
-  var id;
   try {
+    if (!ctx.userId) return Res.CalledByServer();
+    var id = void 0;
     var input = JSON.parse(payload);
     id = input.id;
-  } catch (error) {
-    return Res.BadRequest(error);
-  }
-  try {
+    if (!id) return Res.BadRequest();
     var config = Bucket.configs[id];
     return Bucket.getBucketRecordsRpc(ctx, nk, config);
   } catch (error) {
@@ -1538,7 +1532,7 @@ var Leaderboards;
     return Leaderboard;
   })();
   Leaderboards.Leaderboard = Leaderboard;
-  Leaderboards.initalizeLeaderboards = function (nk, logger) {
+  Leaderboards.initalizeLeaderboards = function (initializer, nk, logger) {
     for (
       var _i = 0, _a = Object.keys(Leaderboards.configs);
       _i < _a.length;
@@ -1548,6 +1542,7 @@ var Leaderboards;
       var conf = Leaderboards.configs[key];
       new Leaderboard(conf).initialize(nk, logger);
     }
+    initializer.registerRpc("leaderboards/metadata", leaderboardMetadataRPC);
   };
   var updateGlobal = function (nk, userId, username, score, subScore) {
     try {
@@ -1598,6 +1593,20 @@ var Leaderboards;
     });
   };
 })(Leaderboards || (Leaderboards = {}));
+var leaderboardMetadataRPC = function (ctx, logger, nk, payload) {
+  try {
+    var id = void 0;
+    var input = JSON.parse(payload);
+    id = input.id;
+    if (!id) return Res.BadRequest();
+    var leaderboards = nk.leaderboardsGetId([id]);
+    if (leaderboards.length < 1) return Res.notFound("leaderboard");
+    var data = leaderboards[0];
+    return Res.Success(data);
+  } catch (error) {
+    return Res.Error(logger, "failed to get metadata", error);
+  }
+};
 var Res;
 (function (Res) {
   var Code;
