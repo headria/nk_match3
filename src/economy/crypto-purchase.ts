@@ -41,7 +41,7 @@ namespace CryptoPurchase {
     }
   }
 
-  export function writeStorage(
+  export function addTransaction(
     nk: nkruntime.Nakama,
     userId: string,
     hash: string,
@@ -67,14 +67,9 @@ namespace CryptoPurchase {
     }
   }
 
-  export function txHashExists(
-    nk: nkruntime.Nakama,
-    logger: nkruntime.Logger,
-    txHash: string
-  ) {
+  export function txHashExists(nk: nkruntime.Nakama, txHash: string) {
     const query = `transactions:/(${txHash})/`;
     const res = nk.storageIndexList(StorageIndex.configs.txHash.name, query, 1);
-    logger.debug(JSON.stringify(res));
     return res.length > 0;
   }
 }
@@ -93,25 +88,24 @@ const validateTransaction: nkruntime.RpcFunction = (
     const { hash } = input;
     if (!hash) return Res.BadRequest();
 
-    if (CryptoPurchase.txHashExists(nk, logger, hash)) {
+    if (CryptoPurchase.txHashExists(nk, hash)) {
       return Res.response(
         false,
         Res.Code.alreadyExists,
         undefined,
-        "txHash already exists"
+        "transaction hash already exists"
       );
     }
 
     const wallet = CryptoWallet.get(nk, userId);
+    if (!wallet || !wallet.address) return Res.notFound("wallet address");
+
     const { address } = wallet;
-    if (!address) return Res.notFound("wallet address");
 
     const packageId = CryptoPurchase.validator(nk, address, hash);
-    logger.debug(`PACKAGE ID: ${packageId}`);
 
     const rewards = SHOP_ITEMS.filter((i) => i.id === packageId);
     if (rewards.length < 1) return Res.notFound("shop item");
-    logger.debug(`REWARD: ${JSON.stringify(rewards[0])}`);
 
     const newWallet = Rewards.addNcliam(
       nk,
@@ -120,7 +114,7 @@ const validateTransaction: nkruntime.RpcFunction = (
     );
 
     //write purchase record
-    CryptoPurchase.writeStorage(nk, userId, hash, packageId);
+    CryptoPurchase.addTransaction(nk, userId, hash, packageId);
 
     return newWallet.code === Res.Code.success
       ? Res.Success(newWallet.data)
