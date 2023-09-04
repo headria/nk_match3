@@ -28,25 +28,14 @@ const WalletConnect: nkruntime.RpcFunction = (
 ): string | void => {
   const userId = ctx.userId;
   if (!userId) return Res.CalledByServer();
-  let data: { [address: string]: string };
+  let data;
+
+  data = JSON.parse(payload);
+  if (!data || !data.address) return Res.BadRequest();
+
+  let { address } = data;
   try {
-    data = JSON.parse(payload);
-    if (!data || !data.address) throw Error();
-  } catch (error) {
-    return Res.BadRequest(error);
-  }
-  let address = data.address;
-  try {
-    nk.storageWrite([
-      {
-        collection: "Crypto",
-        key: "Wallet",
-        userId: userId,
-        value: { address: address, balance: 0 },
-        permissionRead: 2,
-        permissionWrite: 0,
-      },
-    ]);
+    CryptoWallet.set(nk, userId, { address });
     return Res.Success(undefined, "wallet has been connected");
   } catch (error: any) {
     return Res.Error(logger, `Error While Connecting Wallet`, error);
