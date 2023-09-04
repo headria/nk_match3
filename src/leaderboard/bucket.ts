@@ -368,8 +368,6 @@ namespace Bucket {
       ]);
 
       const version = res[0].version;
-      logger.debug(`created new bucket: ${leaderBoadrdId}#${id}`);
-
       return { bucket, version, latestVersion };
     } catch (error: any) {
       throw new Error(
