@@ -16,16 +16,6 @@ const InitiateUser: nkruntime.AfterHookFunction<
   try {
     if (!data.created) return;
     Wallet.init(nk, ctx.userId);
-    nk.storageWrite([
-      {
-        collection: "Crypto",
-        key: "Wallet",
-        value: initialCrypto,
-        userId: ctx.userId,
-        permissionRead: 1,
-        permissionWrite: 0,
-      },
-    ]);
     GameApi.LastLevel.set(nk, ctx.userId, 0);
     logger.info(`New User Joined: ${ctx.userId}`);
   } catch (error: any) {
