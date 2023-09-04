@@ -87,31 +87,31 @@ const VirtualPurchaseRPC: nkruntime.RpcFunction = (
   nk: nkruntime.Nakama,
   payload: string
 ): string | void => {
-  const userId = ctx.userId;
-  if (!userId) return Res.CalledByServer();
-  let id: string;
   try {
+    const userId = ctx.userId;
+    if (!userId) return Res.CalledByServer();
+    let id: string;
+
     id = JSON.parse(payload).id;
-  } catch (error: any) {
-    return Res.BadRequest(error);
-  }
-  const items = VirtualShop.items.filter((item) => item.id === id);
-  if (items.length < 0) return Res.notFound("item");
-  const item = items[0];
-  const { wallet } = Wallet.get(nk, userId);
-  if (item.price > wallet.Coins.quantity)
-    return Res.response(
-      false,
-      Res.Code.notEnoughCoins,
-      null,
-      "not enough coins"
-    );
-  try {
-    const { wallet } = Wallet.update(nk, userId, [
+    if (!id) return Res.BadRequest();
+
+    const items = VirtualShop.items.filter((item) => item.id === id);
+    if (items.length < 1) return Res.notFound("item");
+    const item = items[0];
+    const { wallet } = Wallet.get(nk, userId);
+    if (item.price > wallet.Coins.quantity)
+      return Res.response(
+        false,
+        Res.Code.notEnoughCoins,
+        null,
+        "not enough coins"
+      );
+
+    const newWallet = Wallet.update(nk, userId, [
       { id: "Coins", quantity: -item.price },
     ]);
     if (item.items.length > 0) Rewards.addNcliam(nk, userId, item);
-    return Res.Success(wallet, "successful purchase");
+    return Res.Success(newWallet, "successful purchase");
   } catch (error) {
     return Res.Error(logger, "failed to purchase item", error);
   }

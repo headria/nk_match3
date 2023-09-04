@@ -43,7 +43,7 @@ namespace BattlePass {
     premium: false,
   };
 
-  export const config: Leaderboards.LeaderboardConfig = {
+  export const config: Leaderboards.Config = {
     leaderboardID: "BattlePass",
     authoritative: true,
     metadata: { rewards: BattlePassRewards },
@@ -174,7 +174,6 @@ namespace BattlePass {
       tier++;
       remainedKeys -= lastTierKeys;
     }
-
     return { tier, keys: remainedKeys };
   }
 }

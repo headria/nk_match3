@@ -19,7 +19,7 @@ const InitModule: nkruntime.InitModule = function (
   initializer.registerRpc("rewards/claim", ClaimRewardRPC);
 
   //create Leaderboards
-  Leaderboards.initalizeLeaderboards(nk, logger);
+  Leaderboards.initalizeLeaderboards(initializer, nk, logger);
   Bucket.initializeLeaderboards(nk, initializer);
 
   //Register Leaderboards rpcs
