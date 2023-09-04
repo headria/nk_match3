@@ -193,15 +193,10 @@ namespace Wallet {
         }
 
         if (!nextHeart || nextHeart === 0) {
-          logger.debug("Reseting");
           wallet.Heart.next = Date.now() + HeartFillInterval;
           nextHeart = wallet.Heart.next;
           version = set(nk, userId, wallet, version);
         }
-
-        logger.debug(
-          `Hearts: ${hearts} next fill up ${(nextHeart - Date.now()) / 1000}`
-        );
 
         if (Date.now() < nextHeart) return;
 
