@@ -6,7 +6,11 @@ namespace WalletIndex {
   ): nkruntime.StorageObject | null => {
     try {
       const query = queryMaker(address);
-      const res = nk.storageIndexList("crypto-wallet", query, 1);
+      const res = nk.storageIndexList(
+        StorageIndex.configs.cryptoWallet.name,
+        query,
+        1
+      );
       return res.length > 0 ? res[0] : null;
     } catch (error: any) {
       throw new Error(
