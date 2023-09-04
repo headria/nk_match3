@@ -10,6 +10,7 @@ namespace Res {
     calledByClient,
     notEnoughCoins,
     cheatDetected,
+    alreadyExists,
   }
 
   type Response = {
