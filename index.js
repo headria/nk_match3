@@ -24,6 +24,8 @@ var __spreadArray =
 var InitModule = function (ctx, logger, nk, initializer) {
   //register storage index
   StorageIndex.registerIndexes(initializer);
+  //initialize battlepass
+  BattlePass.init(nk);
   //initialize shop
   initShop(nk);
   VirtualShop.init(initializer, nk);
@@ -39,6 +41,151 @@ var InitModule = function (ctx, logger, nk, initializer) {
   //validators
   initializer.registerRpc("level/validate", levelValidatorRPC);
 };
+var BattlePassRewards = [
+  {
+    requiredKeys: 1,
+    free: [{ id: "DiscoBall", quantity: 1 }],
+    premium: [{ id: "DiscoBall", quantity: 2 }],
+  },
+  {
+    requiredKeys: 2,
+    free: [{ id: "TNT", quantity: 1 }],
+    premium: [{ id: "DiscoBall", quantity: 2 }],
+  },
+  {
+    requiredKeys: 5,
+    free: [{ id: "TNT", quantity: 1 }],
+    premium: [
+      { id: "DiscoBall", quantity: 2 },
+      { id: "TNT", quantity: 1 },
+    ],
+  },
+  {
+    free: [{ id: "Coins", quantity: 100 }],
+    premium: [{ id: "Coins", quantity: 1000 }],
+    requiredKeys: 30,
+  },
+];
+var BattlePass;
+(function (BattlePass) {
+  var rawData = {
+    tier: 0,
+    tierKeys: 0,
+    premium: false,
+  };
+  BattlePass.config = {
+    leaderboardID: "BattlePass",
+    authoritative: true,
+    metadata: { rewards: BattlePassRewards },
+    operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
+    // resetSchedule: "0 0 * 1 *",
+    resetSchedule: "0 */1 * * *",
+    sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
+  };
+  function init(nk) {
+    var leaderboardID = BattlePass.config.leaderboardID,
+      authoritative = BattlePass.config.authoritative,
+      metadata = BattlePass.config.metadata,
+      operator = BattlePass.config.operator,
+      resetSchedule = BattlePass.config.resetSchedule,
+      sortOrder = BattlePass.config.sortOrder;
+    nk.leaderboardCreate(
+      leaderboardID,
+      authoritative,
+      sortOrder,
+      operator,
+      resetSchedule,
+      metadata
+    );
+  }
+  BattlePass.init = init;
+  function get(nk, userId) {
+    var leaderboardID = BattlePass.config.leaderboardID;
+    var recordData = nk.leaderboardRecordsList(leaderboardID, [userId], 1);
+    var data = rawData;
+    if (recordData.ownerRecords && recordData.ownerRecords.length > 0) {
+      data = recordData.ownerRecords[0].metadata;
+    }
+    return data;
+  }
+  BattlePass.get = get;
+  function update(nk, userId, keys, tierKeys, tier, premium) {
+    try {
+      var leaderboardID = BattlePass.config.leaderboardID;
+      var metadata = get(nk, userId);
+      if (tierKeys !== undefined) metadata.tierKeys = tierKeys;
+      if (tier !== undefined) metadata.tier = tier;
+      if (premium !== undefined) metadata.premium = premium;
+      nk.leaderboardRecordWrite(
+        leaderboardID,
+        userId,
+        undefined,
+        keys,
+        undefined,
+        metadata
+      );
+    } catch (error) {
+      throw new Error(
+        "failed to set Battlepass metadata: ".concat(error.message)
+      );
+    }
+  }
+  BattlePass.update = update;
+  function addReward(nk, userId, tier, subType) {
+    var tierRewards = BattlePassRewards[tier][subType];
+    if (tierRewards.length < 1) return;
+    var reward = {
+      id: "BP-".concat(subType, "-").concat(tier),
+      items: tierRewards,
+    };
+    Rewards.add(nk, userId, reward);
+  }
+  function premiumfy(nk, userId) {
+    var data = get(nk, userId);
+    if (data.premium) return;
+    for (
+      var tier = 0;
+      tier < data.tier || tier < BattlePassRewards.length;
+      tier++
+    ) {
+      addReward(nk, userId, tier, "premium");
+    }
+    update(nk, userId, undefined, undefined, undefined, true);
+  }
+  function addKeys(nk, userId, keys) {
+    var _a = get(nk, userId),
+      tier = _a.tier,
+      tierKeys = _a.tierKeys,
+      premium = _a.premium;
+    var newTier = getTierByKeys(keys, tier, tierKeys);
+    while (newTier.tier > tier) {
+      var subType = premium ? "premium" : "free";
+      addReward(nk, userId, tier, subType);
+      tier++;
+    }
+    update(nk, userId, keys, newTier.keys, newTier.tier);
+  }
+  BattlePass.addKeys = addKeys;
+  function getTierByKeys(keys, latestTier, tierKeys) {
+    var remainedKeys = keys + tierKeys;
+    var tier = latestTier;
+    var lastTier = BattlePassRewards.length - 1;
+    var lastTierKeys = BattlePassRewards[latestTier].requiredKeys;
+    while (
+      tier < lastTier &&
+      remainedKeys >= BattlePassRewards[tier].requiredKeys
+    ) {
+      remainedKeys -= BattlePassRewards[tier].requiredKeys;
+      tier++;
+    }
+    while (tier >= lastTier && remainedKeys > lastTierKeys) {
+      tier++;
+      remainedKeys -= lastTierKeys;
+    }
+    return { tier: tier, keys: remainedKeys };
+  }
+  BattlePass.getTierByKeys = getTierByKeys;
+})(BattlePass || (BattlePass = {}));
 var Levels;
 (function (Levels) {
   Levels.difficulty = {
@@ -451,8 +598,8 @@ var VirtualShop;
   function init(initializer, nk) {
     nk.storageWrite([
       {
-        collection: "VirtualShop",
-        key: "Items",
+        collection: "Shop",
+        key: "Virtual",
         userId: SystemUserId,
         value: { items: VirtualShop.items },
         permissionRead: 2,
@@ -1171,7 +1318,7 @@ var Bucket;
         undefined,
         time
       );
-      return tournament.records;
+      return tournament.ownerRecords;
     } catch (error) {
       throw new Error("failed to getRecords: ".concat(error.message));
     }
@@ -1418,13 +1565,17 @@ var Leaderboards;
       );
     }
   };
+  function updateBattlePass(nk, userId, keys) {
+    BattlePass.addKeys(nk, userId, keys);
+  }
+  Leaderboards.updateBattlePass = updateBattlePass;
   Leaderboards.UpdateLeaderboards = function (nk, userId, username, levelLog) {
     var levelNumber = levelLog.levelNumber;
     //calculate leaderboard score
     var rushScore = levelLog.atEnd.discoBallTargettedTiles || 0;
-    var score = Levels.difficulty[levelNumber] || 0;
-    if (score === 0) return;
+    var levelDifficulty = Levels.difficulty[levelNumber] || 0;
     updateGlobal(nk, userId, username, 1);
+    updateBattlePass(nk, userId, levelDifficulty);
     Object.keys(Bucket.configs).map(function (tournamentId) {
       try {
         switch (tournamentId) {
@@ -1435,7 +1586,12 @@ var Leaderboards;
             nk.tournamentRecordWrite(tournamentId, userId, username, 1);
             break;
           default:
-            nk.tournamentRecordWrite(tournamentId, userId, username, score);
+            nk.tournamentRecordWrite(
+              tournamentId,
+              userId,
+              username,
+              levelDifficulty
+            );
             break;
         }
       } catch (error) {}
@@ -1730,440 +1886,165 @@ var GameApi = {
 };
 var SHOP_ITEMS = [
   {
-    name: "Admiral Resources",
     id: "ADMIRAL_RESOURCES",
+    name: "AdmiralResources",
+    type: "SpecialOffer",
     items: [
-      {
-        id: "Hammer",
-        quantity: 10,
-      },
-      {
-        id: "Shuffle",
-        quantity: 10,
-      },
-      {
-        id: "VerticalRocket",
-        quantity: 10,
-      },
-      {
-        id: "HorizontalRocket",
-        quantity: 10,
-      },
-      {
-        id: "Heart",
-        isUnlimited: true,
-        quantity: 0,
-        time: 64800,
-      },
-      {
-        id: "Rocket",
-        isUnlimited: true,
-        quantity: 0,
-        time: 259200,
-      },
-      {
-        id: "DiscoBall",
-        isUnlimited: true,
-        quantity: 0,
-        time: 259200,
-      },
-      {
-        id: "TNT",
-        isUnlimited: true,
-        quantity: 0,
-        time: 259200,
-      },
-      {
-        id: "Coins",
-        quantity: 50000,
-      },
+      { id: "Hammer", quantity: 10 },
+      { id: "Shuffle", quantity: 10 },
+      { id: "VerticalRocket", quantity: 10 },
+      { id: "HorizontalRocket", quantity: 10 },
+      { id: "Heart", time: 64800, quantity: 0, isUnlimited: true },
+      { id: "Rocket", time: 259200, quantity: 0, isUnlimited: true },
+      { id: "DiscoBall", time: 259200, quantity: 0, isUnlimited: true },
+      { id: "TNT", time: 259200, quantity: 0, isUnlimited: true },
+      { id: "Coins", quantity: 50000 },
     ],
     price: 99.99,
-    type: "Special Offer",
   },
   {
-    name: "Astronaut Resources",
     id: "ASTRONAUT_RESOURCES",
+    name: "AstronautResources",
+    type: "SpecialOffer",
     items: [
-      {
-        id: "Hammer",
-        quantity: 2,
-      },
-      {
-        id: "Shuffle",
-        quantity: 2,
-      },
-      {
-        id: "VerticalRocket",
-        quantity: 2,
-      },
-      {
-        id: "HorizontalRocket",
-        quantity: 2,
-      },
-      {
-        id: "Heart",
-        isUnlimited: true,
-        quantity: 0,
-        time: 3600,
-      },
-      {
-        id: "Rocket",
-        isUnlimited: true,
-        quantity: 0,
-        time: 3600,
-      },
-      {
-        id: "DiscoBall",
-        isUnlimited: true,
-        quantity: 0,
-        time: 3600,
-      },
-      {
-        id: "TNT",
-        isUnlimited: true,
-        quantity: 0,
-        time: 3600,
-      },
-      {
-        id: "Coins",
-        quantity: 5000,
-      },
+      { id: "Hammer", quantity: 2 },
+      { id: "Shuffle", quantity: 2 },
+      { id: "VerticalRocket", quantity: 2 },
+      { id: "HorizontalRocket", quantity: 2 },
+      { id: "Heart", time: 3600, quantity: 0, isUnlimited: true },
+      { id: "Rocket", time: 3600, quantity: 0, isUnlimited: true },
+      { id: "DiscoBall", time: 3600, quantity: 0, isUnlimited: true },
+      { id: "TNT", time: 3600, quantity: 0, isUnlimited: true },
+      { id: "Coins", quantity: 5000 },
     ],
     price: 9.99,
-    type: "Special Offer",
   },
   {
-    name: "Captain Resources",
     id: "CAPTAIN_RESOURCES",
+    name: "CaptainResources",
+    type: "SpecialOffer",
     items: [
-      {
-        id: "Hammer",
-        quantity: 4,
-      },
-      {
-        id: "Shuffle",
-        quantity: 4,
-      },
-      {
-        id: "VerticalRocket",
-        quantity: 4,
-      },
-      {
-        id: "HorizontalRocket",
-        quantity: 4,
-      },
-      {
-        id: "Heart",
-        isUnlimited: true,
-        quantity: 0,
-        time: 7200,
-      },
-      {
-        id: "Rocket",
-        isUnlimited: true,
-        quantity: 0,
-        time: 43200,
-      },
-      {
-        id: "DiscoBall",
-        isUnlimited: true,
-        quantity: 0,
-        time: 43200,
-      },
-      {
-        id: "TNT",
-        isUnlimited: true,
-        quantity: 0,
-        time: 43200,
-      },
-      {
-        id: "Coins",
-        quantity: 10000,
-      },
+      { id: "Hammer", quantity: 4 },
+      { id: "Shuffle", quantity: 4 },
+      { id: "VerticalRocket", quantity: 4 },
+      { id: "HorizontalRocket", quantity: 4 },
+      { id: "Heart", time: 7200, quantity: 0, isUnlimited: true },
+      { id: "Rocket", time: 43200, quantity: 0, isUnlimited: true },
+      { id: "DiscoBall", time: 43200, quantity: 0, isUnlimited: true },
+      { id: "TNT", time: 43200, quantity: 0, isUnlimited: true },
+      { id: "Coins", quantity: 10000 },
     ],
     price: 22.99,
-    type: "Special Offer",
   },
   {
-    name: "Commander Resources",
     id: "COMMANDER_RESOURCES",
+    name: "CommanderResources",
+    type: "SpecialOffer",
     items: [
-      {
-        id: "Hammer",
-        quantity: 6,
-      },
-      {
-        id: "Shuffle",
-        quantity: 6,
-      },
-      {
-        id: "VerticalRocket",
-        quantity: 6,
-      },
-      {
-        id: "HorizontalRocket",
-        quantity: 6,
-      },
-      {
-        id: "Heart",
-        isUnlimited: true,
-        quantity: 0,
-        time: 21600,
-      },
-      {
-        id: "Rocket",
-        isUnlimited: true,
-        quantity: 0,
-        time: 64800,
-      },
-      {
-        id: "DiscoBall",
-        isUnlimited: true,
-        quantity: 0,
-        time: 64800,
-      },
-      {
-        id: "TNT",
-        isUnlimited: true,
-        quantity: 0,
-        time: 64800,
-      },
-      {
-        id: "Coins",
-        quantity: 10000,
-      },
+      { id: "Hammer", quantity: 6 },
+      { id: "Shuffle", quantity: 6 },
+      { id: "VerticalRocket", quantity: 6 },
+      { id: "HorizontalRocket", quantity: 6 },
+      { id: "Heart", time: 21600, quantity: 0, isUnlimited: true },
+      { id: "Rocket", time: 64800, quantity: 0, isUnlimited: true },
+      { id: "DiscoBall", time: 64800, quantity: 0, isUnlimited: true },
+      { id: "TNT", time: 64800, quantity: 0, isUnlimited: true },
+      { id: "Coins", quantity: 10000 },
     ],
     price: 44.99,
-    type: "Special Offer",
   },
   {
-    name: "Elder Resources",
     id: "ELDER_RESOURCES",
+    name: "ElderResources",
+    type: "SpecialOffer",
     items: [
-      {
-        id: "Hammer",
-        quantity: 15,
-      },
-      {
-        id: "Shuffle",
-        quantity: 15,
-      },
-      {
-        id: "VerticalRocket",
-        quantity: 15,
-      },
-      {
-        id: "HorizontalRocket",
-        quantity: 15,
-      },
-      {
-        id: "Heart",
-        isUnlimited: true,
-        quantity: 0,
-        time: 86400,
-      },
-      {
-        id: "Rocket",
-        isUnlimited: true,
-        quantity: 0,
-        time: 36000,
-      },
-      {
-        id: "DiscoBall",
-        isUnlimited: true,
-        quantity: 0,
-        time: 36000,
-      },
-      {
-        id: "TNT",
-        isUnlimited: true,
-        quantity: 0,
-        time: 36000,
-      },
-      {
-        id: "Coins",
-        quantity: 65000,
-      },
+      { id: "Hammer", quantity: 15 },
+      { id: "Shuffle", quantity: 15 },
+      { id: "VerticalRocket", quantity: 15 },
+      { id: "HorizontalRocket", quantity: 15 },
+      { id: "Heart", time: 86400, quantity: 0, isUnlimited: true },
+      { id: "Rocket", time: 36000, quantity: 0, isUnlimited: true },
+      { id: "DiscoBall", time: 36000, quantity: 0, isUnlimited: true },
+      { id: "TNT", time: 36000, quantity: 0, isUnlimited: true },
+      { id: "Coins", quantity: 65000 },
     ],
     price: 110.99,
-    type: "Special Offer",
   },
   {
-    name: "Special Offer",
     id: "SPECIAL_OFFER",
+    name: "SpecialOffer",
+    type: "SpecialOffer",
     items: [
-      {
-        id: "Hammer",
-        quantity: 1,
-      },
-      {
-        id: "Shuffle",
-        quantity: 1,
-      },
-      {
-        id: "VerticalRocket",
-        quantity: 1,
-      },
-      {
-        id: "HorizontalRocket",
-        quantity: 1,
-      },
-      {
-        id: "Heart",
-        isUnlimited: true,
-        quantity: 0,
-        time: 3600,
-      },
-      {
-        id: "Rocket",
-        isUnlimited: true,
-        quantity: 0,
-        time: 3600,
-      },
-      {
-        id: "DiscoBall",
-        isUnlimited: true,
-        quantity: 0,
-        time: 3600,
-      },
-      {
-        id: "TNT",
-        isUnlimited: true,
-        quantity: 0,
-        time: 3600,
-      },
-      {
-        id: "Coins",
-        quantity: 5000,
-      },
+      { id: "Hammer", quantity: 1 },
+      { id: "Shuffle", quantity: 1 },
+      { id: "VerticalRocket", quantity: 1 },
+      { id: "HorizontalRocket", quantity: 1 },
+      { id: "Heart", time: 3600, quantity: 0, isUnlimited: true },
+      { id: "Rocket", time: 3600, quantity: 0, isUnlimited: true },
+      { id: "DiscoBall", time: 3600, quantity: 0, isUnlimited: true },
+      { id: "TNT", time: 3600, quantity: 0, isUnlimited: true },
+      { id: "Coins", quantity: 5000 },
     ],
     price: 1.99,
-    type: "Special Offer",
   },
   {
-    name: "Vice Admiral Resources",
     id: "VICE_ADMIRAL_RESOURCES",
+    name: "ViceAdmiralResources",
+    type: "SpecialOffer",
     items: [
-      {
-        id: "Hammer",
-        quantity: 8,
-      },
-      {
-        id: "Shuffle",
-        quantity: 8,
-      },
-      {
-        id: "VerticalRocket",
-        quantity: 8,
-      },
-      {
-        id: "HorizontalRocket",
-        quantity: 8,
-      },
-      {
-        id: "Heart",
-        isUnlimited: true,
-        quantity: 0,
-        time: 43200,
-      },
-      {
-        id: "Rocket",
-        isUnlimited: true,
-        quantity: 0,
-        time: 86400,
-      },
-      {
-        id: "DiscoBall",
-        isUnlimited: true,
-        quantity: 0,
-        time: 86400,
-      },
-      {
-        id: "TNT",
-        isUnlimited: true,
-        quantity: 0,
-        time: 86400,
-      },
-      {
-        id: "Coins",
-        quantity: 25000,
-      },
+      { id: "Hammer", quantity: 8 },
+      { id: "Shuffle", quantity: 8 },
+      { id: "VerticalRocket", quantity: 8 },
+      { id: "HorizontalRocket", quantity: 8 },
+      { id: "Heart", time: 43200, quantity: 0, isUnlimited: true },
+      { id: "Rocket", time: 86400, quantity: 0, isUnlimited: true },
+      { id: "DiscoBall", time: 86400, quantity: 0, isUnlimited: true },
+      { id: "TNT", time: 86400, quantity: 0, isUnlimited: true },
+      { id: "Coins", quantity: 25000 },
     ],
     price: 89.99,
-    type: "Special Offer",
   },
   {
-    name: "Currency pack 01",
     id: "CURRENCY_PACK_01",
-    items: [
-      {
-        id: "Coins",
-        quantity: 1000,
-      },
-    ],
+    name: "Currencypack01",
+    type: "Coin",
+    items: [{ id: "Coins", quantity: 1000 }],
     price: 1.99,
-    type: "Coin",
   },
   {
-    name: "Currency pack 02",
     id: "CURRENCY_PACK_02",
-    items: [
-      {
-        id: "Coins",
-        quantity: 5000,
-      },
-    ],
+    name: "Currencypack02",
+    type: "Coin",
+    items: [{ id: "Coins", quantity: 5000 }],
     price: 8.99,
-    type: "Coin",
   },
   {
-    name: "Currency pack 03",
     id: "CURRENCY_PACK_03",
-    items: [
-      {
-        id: "Coins",
-        quantity: 10000,
-      },
-    ],
+    name: "Currencypack03",
+    type: "Coin",
+    items: [{ id: "Coins", quantity: 10000 }],
     price: 17.99,
-    type: "Coin",
   },
   {
-    name: "Currency pack 04",
     id: "CURRENCY_PACK_04",
-    items: [
-      {
-        id: "Coins",
-        quantity: 25000,
-      },
-    ],
+    name: "Currencypack04",
+    type: "Coin",
+    items: [{ id: "Coins", quantity: 25000 }],
     price: 34.99,
-    type: "Coin",
   },
   {
-    name: "Currency pack 05",
     id: "CURRENCY_PACK_05",
-    items: [
-      {
-        id: "Coins",
-        quantity: 50000,
-      },
-    ],
-    price: 59.99,
+    name: "Currencypack05",
     type: "Coin",
+    items: [{ id: "Coins", quantity: 50000 }],
+    price: 59.99,
   },
   {
-    name: "Currency pack 06",
     id: "CURRENCY_PACK_06",
-    items: [
-      {
-        id: "Coins",
-        quantity: 100000,
-      },
-    ],
-    price: 99.99,
+    name: "Currencypack06",
     type: "Coin",
+    items: [{ id: "Coins", quantity: 100000 }],
+    price: 99.99,
   },
 ];
 var initShop = function (nk) {
@@ -2171,10 +2052,9 @@ var initShop = function (nk) {
     nk.storageWrite([
       {
         collection: "Shop",
-        key: "Items",
+        key: "RealMoney",
         userId: SystemUserId,
         value: { items: SHOP_ITEMS },
-        version: "*",
         permissionRead: 2,
         permissionWrite: 0,
       },
