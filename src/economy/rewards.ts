@@ -151,6 +151,18 @@ namespace Rewards {
     }
     return null;
   }
+
+  export function notClaimedRewards(
+    nk: nkruntime.Nakama,
+    userId: string,
+    type: RewardType
+  ) {
+    const { rewards } = Rewards.get(nk, type, userId);
+    const result = rewards.filter(
+      (r) => r.claimed === false && r.expiry && r.expiry > Date.now()
+    );
+    return result;
+  }
 }
 
 const ClaimRewardRPC: nkruntime.RpcFunction = (
@@ -186,10 +198,10 @@ const notClaimedRPC: nkruntime.RpcFunction = (
     const userId = ctx.userId;
     if (!userId) return Res.CalledByServer();
 
-    const { id } = JSON.parse(payload);
-    if (!id) return Res.BadRequest();
+    const { type } = JSON.parse(payload);
+    if (!type) return Res.BadRequest();
 
-    const notClaimed = BattlePass.notClaimedRewards(nk, userId);
+    const notClaimed = Rewards.notClaimedRewards(nk, userId, type);
     const ids = notClaimed.map((r) => r.id);
     return Res.Success(ids);
   } catch (error: any) {
