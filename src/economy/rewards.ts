@@ -31,6 +31,11 @@ namespace Rewards {
     config: TierConfig;
   } & TierRewards;
 
+  export function init(initializer: nkruntime.Initializer) {
+    initializer.registerRpc("rewards/claim", ClaimRewardRPC);
+    initializer.registerRpc("rewards/notClaimed", notClaimedRPC);
+  }
+
   export function get(
     nk: nkruntime.Nakama,
     type: RewardType,
@@ -168,5 +173,26 @@ const ClaimRewardRPC: nkruntime.RpcFunction = (
       : Res.Error(logger, "failed to claim reward", res.error);
   } catch (error: any) {
     return Res.Error(logger, "failed to claim reward", error);
+  }
+};
+
+const notClaimedRPC: nkruntime.RpcFunction = (
+  ctx: nkruntime.Context,
+  logger: nkruntime.Logger,
+  nk: nkruntime.Nakama,
+  payload: string
+): string | void => {
+  try {
+    const userId = ctx.userId;
+    if (!userId) return Res.CalledByServer();
+
+    const { id } = JSON.parse(payload);
+    if (!id) return Res.BadRequest();
+
+    const notClaimed = BattlePass.notClaimedRewards(nk, userId);
+    const ids = notClaimed.map((r) => r.id);
+    return Res.Success(ids);
+  } catch (error: any) {
+    return Res.Error(logger, "failed to get not claimed rewards", error);
   }
 };
