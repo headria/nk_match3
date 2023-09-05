@@ -97,9 +97,13 @@ const VirtualPurchaseRPC: nkruntime.RpcFunction = (
 
     const items = VirtualShop.items.filter((item) => item.id === id);
     if (items.length < 1) return Res.notFound("item");
-    const item = items[0];
+    const item: Rewards.Reward = {
+      id: items[0].id,
+      items: items[0].items,
+      type: "Shop",
+    };
     const { wallet } = Wallet.get(nk, userId);
-    if (item.price > wallet.Coins.quantity)
+    if (items[0].price > wallet.Coins.quantity)
       return Res.response(
         false,
         Res.Code.notEnoughCoins,
@@ -108,7 +112,7 @@ const VirtualPurchaseRPC: nkruntime.RpcFunction = (
       );
 
     const newWallet = Wallet.update(nk, userId, [
-      { id: "Coins", quantity: -item.price },
+      { id: "Coins", quantity: -items[0].price },
     ]);
     if (item.items.length > 0) Rewards.addNcliam(nk, userId, item);
     return Res.Success(newWallet, "successful purchase");
