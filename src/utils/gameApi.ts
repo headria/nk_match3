@@ -87,9 +87,8 @@ const GameApi = {
         nk.storageWrite([
           {
             collection: this.Keys.collection,
-            key: (levelNumber || -2).toString(),
+            key: levelNumber.toString(),
             userId,
-
             value: { cheats },
             permissionRead: 2,
             permissionWrite: 0,
@@ -99,11 +98,5 @@ const GameApi = {
         throw new Error(`failed to save Cheats: ${error.message}`);
       }
     }
-  },
-  Crypto: class {
-    static Keys = {
-      collection: "Crypto",
-      key: "Wallet",
-    };
   },
 };
