@@ -10,6 +10,7 @@ const InitModule: nkruntime.InitModule = function (
   //initialize battlepass
   BattlePass.init(nk);
 
+  Rewards.init(initializer);
   //initialize shop
   initShop(nk);
   VirtualShop.init(initializer, nk);
@@ -19,7 +20,6 @@ const InitModule: nkruntime.InitModule = function (
   //initiate user wallet
   initializer.registerAfterAuthenticateDevice(InitiateUser);
   initializer.registerBeforeReadStorageObjects(BeforeGetStorage);
-  initializer.registerRpc("rewards/claim", ClaimRewardRPC);
 
   //create Leaderboards
   Leaderboards.initalizeLeaderboards(initializer, nk, logger);

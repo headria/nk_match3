@@ -17,6 +17,7 @@ var InitModule = function (ctx, logger, nk, initializer) {
     StorageIndex.registerIndexes(initializer);
     //initialize battlepass
     BattlePass.init(nk);
+    Rewards.init(initializer);
     //initialize shop
     initShop(nk);
     VirtualShop.init(initializer, nk);
@@ -24,7 +25,6 @@ var InitModule = function (ctx, logger, nk, initializer) {
     //initiate user wallet
     initializer.registerAfterAuthenticateDevice(InitiateUser);
     initializer.registerBeforeReadStorageObjects(BeforeGetStorage);
-    initializer.registerRpc("rewards/claim", ClaimRewardRPC);
     //create Leaderboards
     Leaderboards.initalizeLeaderboards(initializer, nk, logger);
     Bucket.initializeLeaderboards(nk, initializer);
@@ -75,8 +75,7 @@ var BattlePass;
         sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
     };
     function init(nk) {
-        var leaderboardID = BattlePass.config.leaderboardID, authoritative = BattlePass.config.authoritative, metadata = BattlePass.config.metadata, operator = BattlePass.config.operator, resetSchedule = BattlePass.config.resetSchedule, sortOrder = BattlePass.config.sortOrder;
-        nk.leaderboardCreate(leaderboardID, authoritative, sortOrder, operator, resetSchedule, metadata);
+        nk.leaderboardCreate(BattlePass.config.leaderboardID, BattlePass.config.authoritative, BattlePass.config.sortOrder, BattlePass.config.operator, BattlePass.config.resetSchedule, BattlePass.config.metadata);
     }
     BattlePass.init = init;
     function get(nk, userId) {
@@ -106,34 +105,48 @@ var BattlePass;
         }
     }
     BattlePass.update = update;
-    function addReward(nk, userId, tier, subType) {
+    function addReward(nk, userId, tier, expiry, subType) {
         var tierRewards = BattlePassRewards[tier][subType];
         if (tierRewards.length < 1)
             return;
         var reward = {
             id: "BP-".concat(subType, "-").concat(tier),
             items: tierRewards,
+            type: "BattlePass",
         };
-        Rewards.add(nk, userId, reward);
+        Rewards.add(nk, userId, reward, expiry);
+    }
+    function getStats(nk) {
+        var leaderboard = nk.leaderboardsGetId([BattlePass.config.leaderboardID])[0];
+        return leaderboard;
     }
     function premiumfy(nk, userId) {
         var data = get(nk, userId);
         if (data.premium)
             return;
+        var stats = getStats(nk);
+        var expiry = new Date(stats.nextReset).getTime();
         for (var tier = 0; tier < data.tier || tier < BattlePassRewards.length; tier++) {
-            addReward(nk, userId, tier, "premium");
+            addReward(nk, userId, tier, expiry, "premium");
         }
         update(nk, userId, undefined, undefined, undefined, true);
     }
     function addKeys(nk, userId, keys) {
-        var _a = get(nk, userId), tier = _a.tier, tierKeys = _a.tierKeys, premium = _a.premium;
-        var newTier = getTierByKeys(keys, tier, tierKeys);
-        while (newTier.tier > tier) {
-            var subType = premium ? "premium" : "free";
-            addReward(nk, userId, tier, subType);
-            tier++;
+        try {
+            var _a = get(nk, userId), tier = _a.tier, tierKeys = _a.tierKeys, premium = _a.premium;
+            var newTier = getTierByKeys(keys, tier, tierKeys);
+            var stats = getStats(nk);
+            var expiry = new Date(stats.nextReset).getTime();
+            while (newTier.tier > tier) {
+                var subType = premium ? "premium" : "free";
+                addReward(nk, userId, tier, expiry, subType);
+                tier++;
+            }
+            update(nk, userId, keys, newTier.keys, newTier.tier);
         }
-        update(nk, userId, keys, newTier.keys, newTier.tier);
+        catch (error) {
+            throw new Error("failed to add battlepass keys: ".concat(error.message));
+        }
     }
     BattlePass.addKeys = addKeys;
     function getTierByKeys(keys, latestTier, tierKeys) {
@@ -470,7 +483,12 @@ var validateTransaction = function (ctx, logger, nk, payload) {
         var rewards = SHOP_ITEMS.filter(function (i) { return i.id === packageId_1; });
         if (rewards.length < 1)
             return Res.notFound("shop item");
-        var newWallet = Rewards.addNcliam(nk, userId, rewards[0]);
+        var reward = {
+            id: rewards[0].id,
+            items: rewards[0].items,
+            type: "Shop",
+        };
+        var newWallet = Rewards.addNcliam(nk, userId, reward);
         //write purchase record
         CryptoPurchase.addTransaction(nk, userId, hash, packageId_1);
         return newWallet.code === Res.Code.success
@@ -508,48 +526,51 @@ var CryptoWallet;
 })(CryptoWallet || (CryptoWallet = {}));
 var Rewards;
 (function (Rewards) {
-    var collection = "Economy";
-    var key = "Rewards";
-    function get(nk, userId) {
-        var data = nk.storageRead([{ collection: collection, key: key, userId: userId }]);
-        var rewards;
-        var version;
-        if (data.length < 1) {
-            rewards = [];
-            version = undefined;
-        }
-        else {
-            rewards = data[0].value.rewards;
-            version = data[0].version;
-        }
+    var collection = "Rewards";
+    function init(initializer) {
+        initializer.registerRpc("rewards/claim", ClaimRewardRPC);
+        initializer.registerRpc("rewards/notClaimed", notClaimedRPC);
+    }
+    Rewards.init = init;
+    function get(nk, type, userId) {
+        var data = nk.storageRead([{ collection: collection, key: type, userId: userId }]);
+        var rewards = data.length > 0 ? data[0].value.rewards : [];
+        var version = data.length > 0 ? data[0].version : undefined;
         return { rewards: rewards, version: version };
     }
     Rewards.get = get;
-    function set(nk, userId, newRewards, version) {
+    function set(nk, userId, type, newRewards, version) {
         var writeObj = {
             collection: collection,
-            key: key,
+            key: type,
             userId: userId,
             value: { rewards: newRewards },
             permissionRead: 1,
             permissionWrite: 0,
         };
-        writeObj.version = version ? version : "*";
+        writeObj.version = version !== undefined ? version : "*";
         var res = nk.storageWrite([writeObj]);
         return res[0].version;
     }
     //add new reward
-    function add(nk, userId, reward) {
-        var _a = get(nk, userId), rewards = _a.rewards, version = _a.version;
-        reward.claimed = false;
-        reward.addTime = Date.now();
-        rewards.push(reward);
-        set(nk, userId, rewards, version);
+    function add(nk, userId, reward, expiry) {
+        try {
+            var _a = get(nk, reward.type, userId), rewards = _a.rewards, version = _a.version;
+            reward.claimed = false;
+            reward.addTime = Date.now();
+            if (expiry !== undefined)
+                reward.expiry = expiry;
+            rewards.push(reward);
+            set(nk, userId, reward.type, rewards, version);
+        }
+        catch (error) {
+            throw new Error("failed to add reward: ".concat(error.message));
+        }
     }
     Rewards.add = add;
     function addNcliam(nk, userId, reward) {
         add(nk, userId, reward);
-        return claim(nk, userId, reward.id);
+        return claim(nk, userId, reward.type, reward.id);
     }
     Rewards.addNcliam = addNcliam;
     function rewardIndex(id, rewards) {
@@ -557,17 +578,20 @@ var Rewards;
         //reverse order for accessing latest rewards
         for (var i = rewards.length - 1; i >= 0; i--) {
             var reward = rewards[i];
-            if (reward.id === id && reward.claimed === false) {
+            if (reward.id === id &&
+                reward.claimed === false &&
+                reward.expiry &&
+                reward.expiry > Date.now()) {
                 rewardIndex = i;
                 break;
             }
         }
         return rewardIndex;
     }
-    function claim(nk, userId, rewardId) {
+    function claim(nk, userId, type, rewardId) {
         while (true) {
             try {
-                var _a = get(nk, userId), rewards = _a.rewards, version = _a.version;
+                var _a = get(nk, type, userId), rewards = _a.rewards, version = _a.version;
                 var index = rewardIndex(rewardId, rewards);
                 if (index === -1)
                     return { code: Res.Code.notFound };
@@ -575,7 +599,7 @@ var Rewards;
                 var wallet = Wallet.update(nk, userId, rewardItems).wallet;
                 rewards[index].claimed = true;
                 rewards[index].claimTime = Date.now();
-                set(nk, userId, rewards, version);
+                set(nk, userId, type, rewards, version);
                 return { code: Res.Code.success, data: wallet };
             }
             catch (error) {
@@ -601,25 +625,48 @@ var Rewards;
         return null;
     }
     Rewards.getTierByRank = getTierByRank;
+    function notClaimedRewards(nk, userId, type) {
+        var rewards = Rewards.get(nk, type, userId).rewards;
+        var result = rewards.filter(function (r) { return r.claimed === false && r.expiry && r.expiry > Date.now(); });
+        return result;
+    }
+    Rewards.notClaimedRewards = notClaimedRewards;
 })(Rewards || (Rewards = {}));
 var ClaimRewardRPC = function (ctx, logger, nk, payload) {
     var userId = ctx.userId;
     if (!userId)
         return Res.CalledByServer();
-    var rewardId;
     try {
         var input = JSON.parse(payload);
-        rewardId = input.id;
+        var id = input.id, type = input.type;
+        if (!id || !type)
+            return Res.BadRequest();
+        var res = Rewards.claim(nk, userId, type, id);
+        if (res.code === Res.Code.notFound)
+            return Res.notFound("reward");
+        res.code === Res.Code.success
+            ? Res.Success(res.data, "reward claimed")
+            : Res.Error(logger, "failed to claim reward", res.error);
     }
     catch (error) {
-        return Res.BadRequest(error);
+        return Res.Error(logger, "failed to claim reward", error);
     }
-    var res = Rewards.claim(nk, userId, rewardId);
-    if (res.code === Res.Code.notFound)
-        return Res.notFound("reward");
-    res.code === Res.Code.success
-        ? Res.Success(res.data, "reward claimed")
-        : Res.Error(logger, "failed to claim reward", res.error);
+};
+var notClaimedRPC = function (ctx, logger, nk, payload) {
+    try {
+        var userId = ctx.userId;
+        if (!userId)
+            return Res.CalledByServer();
+        var type = JSON.parse(payload).type;
+        if (!type)
+            return Res.BadRequest();
+        var notClaimed = Rewards.notClaimedRewards(nk, userId, type);
+        var ids = notClaimed.map(function (r) { return r.id; });
+        return Res.Success(ids);
+    }
+    catch (error) {
+        return Res.Error(logger, "failed to get not claimed rewards", error);
+    }
 };
 var VirtualShop;
 (function (VirtualShop) {
@@ -707,12 +754,16 @@ var VirtualPurchaseRPC = function (ctx, logger, nk, payload) {
         var items = VirtualShop.items.filter(function (item) { return item.id === id_1; });
         if (items.length < 1)
             return Res.notFound("item");
-        var item = items[0];
+        var item = {
+            id: items[0].id,
+            items: items[0].items,
+            type: "Shop",
+        };
         var wallet = Wallet.get(nk, userId).wallet;
-        if (item.price > wallet.Coins.quantity)
+        if (items[0].price > wallet.Coins.quantity)
             return Res.response(false, Res.Code.notEnoughCoins, null, "not enough coins");
         var newWallet = Wallet.update(nk, userId, [
-            { id: "Coins", quantity: -item.price },
+            { id: "Coins", quantity: -items[0].price },
         ]);
         if (item.items.length > 0)
             Rewards.addNcliam(nk, userId, item);
@@ -954,6 +1005,7 @@ var leaderboardRewards = {
                 { id: "Rocket", time: 900 },
                 { id: "TNT", time: 900 },
             ],
+            type: "Leaderboard",
         },
         config: {
             gold: 1,
@@ -971,7 +1023,11 @@ var leaderboardRewards = {
         ],
     },
     Cup: {
-        joinRewards: { id: "Cup Join", items: [{ id: "Heart", time: 900 }] },
+        joinRewards: {
+            id: "Cup Join",
+            items: [{ id: "Heart", time: 900 }],
+            type: "Leaderboard",
+        },
         config: {
             gold: 1,
             silver: 2,
@@ -1380,6 +1436,7 @@ var Bucket;
                                 if (rewardItems) {
                                     reward = {
                                         id: tournament.id,
+                                        type: "Leaderboard",
                                         items: rewardItems,
                                     };
                                     Rewards.add(nk, userId, reward);
@@ -1574,6 +1631,7 @@ var Res;
         Code[Code["notEnoughCoins"] = 8] = "notEnoughCoins";
         Code[Code["cheatDetected"] = 9] = "cheatDetected";
         Code[Code["alreadyExists"] = 10] = "alreadyExists";
+        Code[Code["expired"] = 11] = "expired";
     })(Code = Res.Code || (Res.Code = {}));
     function response(success, code, data, message, error) {
         var res = {
@@ -1683,7 +1741,7 @@ var WalletConnect = function (ctx, logger, nk, payload) {
         return Res.Error(logger, "Error While Connecting Wallet", error);
     }
 };
-var _a, _b, _c, _d;
+var _a, _b, _c;
 var GameApi = {
     LastLevel: (_a = /** @class */ (function () {
             function class_1() {
@@ -1775,7 +1833,7 @@ var GameApi = {
                     nk.storageWrite([
                         {
                             collection: this.Keys.collection,
-                            key: (levelNumber || -2).toString(),
+                            key: levelNumber.toString(),
                             userId: userId,
                             value: { cheats: cheats },
                             permissionRead: 2,
@@ -1794,17 +1852,6 @@ var GameApi = {
             collection: "Cheats",
         },
         _c),
-    Crypto: (_d = /** @class */ (function () {
-            function class_4() {
-            }
-            return class_4;
-        }()),
-        __setFunctionName(_d, "Crypto"),
-        _d.Keys = {
-            collection: "Crypto",
-            key: "Wallet",
-        },
-        _d),
 };
 var SHOP_ITEMS = [
     {
@@ -1816,10 +1863,10 @@ var SHOP_ITEMS = [
             { id: "Shuffle", quantity: 10 },
             { id: "VerticalRocket", quantity: 10 },
             { id: "HorizontalRocket", quantity: 10 },
-            { id: "Heart", time: 64800, quantity: 0, isUnlimited: true },
-            { id: "Rocket", time: 259200, quantity: 0, isUnlimited: true },
-            { id: "DiscoBall", time: 259200, quantity: 0, isUnlimited: true },
-            { id: "TNT", time: 259200, quantity: 0, isUnlimited: true },
+            { id: "Heart", time: 64800 },
+            { id: "Rocket", time: 259200 },
+            { id: "DiscoBall", time: 259200 },
+            { id: "TNT", time: 259200 },
             { id: "Coins", quantity: 50000 },
         ],
         price: 99.99,
@@ -1833,10 +1880,10 @@ var SHOP_ITEMS = [
             { id: "Shuffle", quantity: 2 },
             { id: "VerticalRocket", quantity: 2 },
             { id: "HorizontalRocket", quantity: 2 },
-            { id: "Heart", time: 3600, quantity: 0, isUnlimited: true },
-            { id: "Rocket", time: 3600, quantity: 0, isUnlimited: true },
-            { id: "DiscoBall", time: 3600, quantity: 0, isUnlimited: true },
-            { id: "TNT", time: 3600, quantity: 0, isUnlimited: true },
+            { id: "Heart", time: 3600 },
+            { id: "Rocket", time: 3600 },
+            { id: "DiscoBall", time: 3600 },
+            { id: "TNT", time: 3600 },
             { id: "Coins", quantity: 5000 },
         ],
         price: 9.99,
@@ -1850,10 +1897,10 @@ var SHOP_ITEMS = [
             { id: "Shuffle", quantity: 4 },
             { id: "VerticalRocket", quantity: 4 },
             { id: "HorizontalRocket", quantity: 4 },
-            { id: "Heart", time: 7200, quantity: 0, isUnlimited: true },
-            { id: "Rocket", time: 43200, quantity: 0, isUnlimited: true },
-            { id: "DiscoBall", time: 43200, quantity: 0, isUnlimited: true },
-            { id: "TNT", time: 43200, quantity: 0, isUnlimited: true },
+            { id: "Heart", time: 7200 },
+            { id: "Rocket", time: 43200 },
+            { id: "DiscoBall", time: 43200 },
+            { id: "TNT", time: 43200 },
             { id: "Coins", quantity: 10000 },
         ],
         price: 22.99,
@@ -1867,10 +1914,10 @@ var SHOP_ITEMS = [
             { id: "Shuffle", quantity: 6 },
             { id: "VerticalRocket", quantity: 6 },
             { id: "HorizontalRocket", quantity: 6 },
-            { id: "Heart", time: 21600, quantity: 0, isUnlimited: true },
-            { id: "Rocket", time: 64800, quantity: 0, isUnlimited: true },
-            { id: "DiscoBall", time: 64800, quantity: 0, isUnlimited: true },
-            { id: "TNT", time: 64800, quantity: 0, isUnlimited: true },
+            { id: "Heart", time: 21600 },
+            { id: "Rocket", time: 64800 },
+            { id: "DiscoBall", time: 64800 },
+            { id: "TNT", time: 64800 },
             { id: "Coins", quantity: 10000 },
         ],
         price: 44.99,
@@ -1884,10 +1931,10 @@ var SHOP_ITEMS = [
             { id: "Shuffle", quantity: 15 },
             { id: "VerticalRocket", quantity: 15 },
             { id: "HorizontalRocket", quantity: 15 },
-            { id: "Heart", time: 86400, quantity: 0, isUnlimited: true },
-            { id: "Rocket", time: 36000, quantity: 0, isUnlimited: true },
-            { id: "DiscoBall", time: 36000, quantity: 0, isUnlimited: true },
-            { id: "TNT", time: 36000, quantity: 0, isUnlimited: true },
+            { id: "Heart", time: 86400 },
+            { id: "Rocket", time: 36000 },
+            { id: "DiscoBall", time: 36000 },
+            { id: "TNT", time: 36000 },
             { id: "Coins", quantity: 65000 },
         ],
         price: 110.99,
@@ -1901,10 +1948,10 @@ var SHOP_ITEMS = [
             { id: "Shuffle", quantity: 1 },
             { id: "VerticalRocket", quantity: 1 },
             { id: "HorizontalRocket", quantity: 1 },
-            { id: "Heart", time: 3600, quantity: 0, isUnlimited: true },
-            { id: "Rocket", time: 3600, quantity: 0, isUnlimited: true },
-            { id: "DiscoBall", time: 3600, quantity: 0, isUnlimited: true },
-            { id: "TNT", time: 3600, quantity: 0, isUnlimited: true },
+            { id: "Heart", time: 3600 },
+            { id: "Rocket", time: 3600 },
+            { id: "DiscoBall", time: 3600 },
+            { id: "TNT", time: 3600 },
             { id: "Coins", quantity: 5000 },
         ],
         price: 1.99,
@@ -1918,10 +1965,10 @@ var SHOP_ITEMS = [
             { id: "Shuffle", quantity: 8 },
             { id: "VerticalRocket", quantity: 8 },
             { id: "HorizontalRocket", quantity: 8 },
-            { id: "Heart", time: 43200, quantity: 0, isUnlimited: true },
-            { id: "Rocket", time: 86400, quantity: 0, isUnlimited: true },
-            { id: "DiscoBall", time: 86400, quantity: 0, isUnlimited: true },
-            { id: "TNT", time: 86400, quantity: 0, isUnlimited: true },
+            { id: "Heart", time: 43200 },
+            { id: "Rocket", time: 86400 },
+            { id: "DiscoBall", time: 86400 },
+            { id: "TNT", time: 86400 },
             { id: "Coins", quantity: 25000 },
         ],
         price: 89.99,
