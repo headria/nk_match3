@@ -11,6 +11,7 @@ namespace Res {
     notEnoughCoins,
     cheatDetected,
     alreadyExists,
+    expired,
   }
 
   type Response = {

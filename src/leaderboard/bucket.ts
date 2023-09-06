@@ -47,6 +47,7 @@ const leaderboardRewards: {
         { id: "Rocket", time: 900 },
         { id: "TNT", time: 900 },
       ],
+      type: "Leaderboard",
     },
     config: {
       gold: 1,
@@ -64,7 +65,11 @@ const leaderboardRewards: {
     ],
   },
   Cup: {
-    joinRewards: { id: "Cup Join", items: [{ id: "Heart", time: 900 }] },
+    joinRewards: {
+      id: "Cup Join",
+      items: [{ id: "Heart", time: 900 }],
+      type: "Leaderboard",
+    },
     config: {
       gold: 1,
       silver: 2,
@@ -620,6 +625,7 @@ namespace Bucket {
                 if (rewardItems) {
                   reward = {
                     id: tournament.id,
+                    type: "Leaderboard",
                     items: rewardItems,
                   };
                   Rewards.add(nk, userId, reward);

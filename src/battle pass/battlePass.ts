@@ -54,21 +54,13 @@ namespace BattlePass {
   };
 
   export function init(nk: nkruntime.Nakama) {
-    const {
-      leaderboardID,
-      authoritative,
-      metadata,
-      operator,
-      resetSchedule,
-      sortOrder,
-    } = config;
     nk.leaderboardCreate(
-      leaderboardID,
-      authoritative,
-      sortOrder,
-      operator,
-      resetSchedule,
-      metadata
+      config.leaderboardID,
+      config.authoritative,
+      config.sortOrder,
+      config.operator,
+      config.resetSchedule,
+      config.metadata
     );
   }
 
@@ -117,6 +109,7 @@ namespace BattlePass {
     nk: nkruntime.Nakama,
     userId: string,
     tier: number,
+    expiry: number,
     subType: "premium" | "free"
   ) {
     const tierRewards = BattlePassRewards[tier][subType];
@@ -124,32 +117,46 @@ namespace BattlePass {
     const reward: Rewards.Reward = {
       id: `BP-${subType}-${tier}`,
       items: tierRewards,
+      type: "BattlePass",
     };
-    Rewards.add(nk, userId, reward);
+    Rewards.add(nk, userId, reward, expiry);
+  }
+
+  function getStats(nk: nkruntime.Nakama) {
+    const leaderboard = nk.leaderboardsGetId([config.leaderboardID])[0];
+    return leaderboard;
   }
 
   function premiumfy(nk: nkruntime.Nakama, userId: string) {
     const data = get(nk, userId);
     if (data.premium) return;
+    const stats = getStats(nk);
+    const expiry = new Date(stats.nextReset).getTime();
     for (
       let tier = 0;
       tier < data.tier || tier < BattlePassRewards.length;
       tier++
     ) {
-      addReward(nk, userId, tier, "premium");
+      addReward(nk, userId, tier, expiry, "premium");
     }
     update(nk, userId, undefined, undefined, undefined, true);
   }
 
   export function addKeys(nk: nkruntime.Nakama, userId: string, keys: number) {
-    let { tier, tierKeys, premium } = get(nk, userId);
-    const newTier = getTierByKeys(keys, tier, tierKeys);
-    while (newTier.tier > tier) {
-      const subType: keyof BPReward = premium ? "premium" : "free";
-      addReward(nk, userId, tier, subType);
-      tier++;
+    try {
+      let { tier, tierKeys, premium } = get(nk, userId);
+      const newTier = getTierByKeys(keys, tier, tierKeys);
+      const stats = getStats(nk);
+      const expiry = new Date(stats.nextReset).getTime();
+      while (newTier.tier > tier) {
+        const subType: keyof BPReward = premium ? "premium" : "free";
+        addReward(nk, userId, tier, expiry, subType);
+        tier++;
+      }
+      update(nk, userId, keys, newTier.keys, newTier.tier);
+    } catch (error: any) {
+      throw new Error(`failed to add battlepass keys: ${error.message}`);
     }
-    update(nk, userId, keys, newTier.keys, newTier.tier);
   }
 
   export function getTierByKeys(

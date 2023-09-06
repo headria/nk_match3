@@ -106,12 +106,12 @@ const validateTransaction: nkruntime.RpcFunction = (
 
     const rewards = SHOP_ITEMS.filter((i) => i.id === packageId);
     if (rewards.length < 1) return Res.notFound("shop item");
-
-    const newWallet = Rewards.addNcliam(
-      nk,
-      userId,
-      rewards[0] as Rewards.Reward
-    );
+    const reward: Rewards.Reward = {
+      id: rewards[0].id,
+      items: rewards[0].items,
+      type: "Shop",
+    };
+    const newWallet = Rewards.addNcliam(nk, userId, reward);
 
     //write purchase record
     CryptoPurchase.addTransaction(nk, userId, hash, packageId);
