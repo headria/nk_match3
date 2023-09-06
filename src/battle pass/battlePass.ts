@@ -131,7 +131,7 @@ namespace BattlePass {
     const data = get(nk, userId);
     if (data.premium) return;
     const stats = getStats(nk);
-    const expiry = new Date(stats.nextReset).getTime();
+    const expiry = stats.nextReset * 1000;
     for (
       let tier = 0;
       tier < data.tier || tier < BattlePassRewards.length;
@@ -147,7 +147,7 @@ namespace BattlePass {
       let { tier, tierKeys, premium } = get(nk, userId);
       const newTier = getTierByKeys(keys, tier, tierKeys);
       const stats = getStats(nk);
-      const expiry = new Date(stats.nextReset).getTime();
+      const expiry = stats.nextReset * 1000;
       while (newTier.tier > tier) {
         const subType: keyof BPReward = premium ? "premium" : "free";
         addReward(nk, userId, tier, expiry, subType);

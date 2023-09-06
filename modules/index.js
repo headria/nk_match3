@@ -125,7 +125,7 @@ var BattlePass;
         if (data.premium)
             return;
         var stats = getStats(nk);
-        var expiry = new Date(stats.nextReset).getTime();
+        var expiry = stats.nextReset * 1000;
         for (var tier = 0; tier < data.tier || tier < BattlePassRewards.length; tier++) {
             addReward(nk, userId, tier, expiry, "premium");
         }
@@ -136,7 +136,7 @@ var BattlePass;
             var _a = get(nk, userId), tier = _a.tier, tierKeys = _a.tierKeys, premium = _a.premium;
             var newTier = getTierByKeys(keys, tier, tierKeys);
             var stats = getStats(nk);
-            var expiry = new Date(stats.nextReset).getTime();
+            var expiry = stats.nextReset * 1000;
             while (newTier.tier > tier) {
                 var subType = premium ? "premium" : "free";
                 addReward(nk, userId, tier, expiry, subType);
@@ -576,12 +576,13 @@ var Rewards;
     function rewardIndex(id, rewards) {
         var rewardIndex = -1;
         //reverse order for accessing latest rewards
+        var now = Date.now();
         for (var i = rewards.length - 1; i >= 0; i--) {
             var reward = rewards[i];
-            if (reward.id === id &&
-                reward.claimed === false &&
-                reward.expiry &&
-                reward.expiry > Date.now()) {
+            if (reward.id === id && reward.claimed === false) {
+                if (reward.expiry !== undefined && reward.expiry < now) {
+                    continue;
+                }
                 rewardIndex = i;
                 break;
             }
@@ -627,7 +628,13 @@ var Rewards;
     Rewards.getTierByRank = getTierByRank;
     function notClaimedRewards(nk, userId, type) {
         var rewards = Rewards.get(nk, type, userId).rewards;
-        var result = rewards.filter(function (r) { return r.claimed === false && r.expiry && r.expiry > Date.now(); });
+        var now = Date.now();
+        var result = rewards.filter(function (r) {
+            if (r.expiry !== undefined && r.expiry < now)
+                return false;
+            if (r.claimed === false)
+                return true;
+        });
         return result;
     }
     Rewards.notClaimedRewards = notClaimedRewards;
@@ -644,7 +651,7 @@ var ClaimRewardRPC = function (ctx, logger, nk, payload) {
         var res = Rewards.claim(nk, userId, type, id);
         if (res.code === Res.Code.notFound)
             return Res.notFound("reward");
-        res.code === Res.Code.success
+        return res.code === Res.Code.success
             ? Res.Success(res.data, "reward claimed")
             : Res.Error(logger, "failed to claim reward", res.error);
     }
