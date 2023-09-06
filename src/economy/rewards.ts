@@ -97,14 +97,14 @@ namespace Rewards {
   function rewardIndex(id: string, rewards: Rewards) {
     let rewardIndex = -1;
     //reverse order for accessing latest rewards
+    const now = Date.now();
     for (let i = rewards.length - 1; i >= 0; i--) {
       const reward = rewards[i];
-      if (
-        reward.id === id &&
-        reward.claimed === false &&
-        reward.expiry &&
-        reward.expiry > Date.now()
-      ) {
+
+      if (reward.id === id && reward.claimed === false) {
+        if (reward.expiry !== undefined && reward.expiry < now) {
+          continue;
+        }
         rewardIndex = i;
         break;
       }
@@ -158,9 +158,11 @@ namespace Rewards {
     type: RewardType
   ) {
     const { rewards } = Rewards.get(nk, type, userId);
-    const result = rewards.filter(
-      (r) => r.claimed === false && r.expiry && r.expiry > Date.now()
-    );
+    const now = Date.now();
+    const result = rewards.filter((r) => {
+      if (r.expiry !== undefined && r.expiry < now) return false;
+      if (r.claimed === false) return true;
+    });
     return result;
   }
 }
@@ -180,7 +182,7 @@ const ClaimRewardRPC: nkruntime.RpcFunction = (
 
     const res = Rewards.claim(nk, userId, type, id);
     if (res.code === Res.Code.notFound) return Res.notFound("reward");
-    res.code === Res.Code.success
+    return res.code === Res.Code.success
       ? Res.Success(res.data, "reward claimed")
       : Res.Error(logger, "failed to claim reward", res.error);
   } catch (error: any) {
