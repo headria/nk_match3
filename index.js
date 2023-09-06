@@ -29,6 +29,7 @@ var InitModule = function (ctx, logger, nk, initializer) {
   //initialize shop
   initShop(nk);
   VirtualShop.init(initializer, nk);
+  CryptoPurchase.init(initializer);
   //initiate user wallet
   initializer.registerAfterAuthenticateDevice(InitiateUser);
   initializer.registerBeforeReadStorageObjects(BeforeGetStorage);
@@ -418,6 +419,132 @@ var Levels;
     227: 4,
   };
 })(Levels || (Levels = {}));
+var CryptoPurchase;
+(function (CryptoPurchase) {
+  CryptoPurchase.collection = "Purchase";
+  CryptoPurchase.key = "Crypto";
+  function init(initializer) {
+    initializer.registerRpc("crypto/validate", validateTransaction);
+  }
+  CryptoPurchase.init = init;
+  var TIMEOUT = 10000; //ms
+  var headers = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  };
+  var url = "https://api.planetmemes.com/iap-mcm/crypto/validate";
+  //   const url: string = "http://localhost:8010/iap-mcm/crypto/validate/";
+  function validator(nk, address, txHash) {
+    var body = JSON.stringify({
+      address: address,
+      txHash: txHash,
+    });
+    try {
+      var res = nk.httpRequest(url, "post", headers, body, TIMEOUT);
+      var resBody = JSON.parse(res.body);
+      if (!resBody.success) {
+        throw new Error(resBody.message);
+      }
+      var packageId = resBody.data.packageId;
+      if (!packageId) throw new Error("invalid transaction method");
+      return packageId;
+    } catch (error) {
+      throw new Error("failed to validate transaction: ".concat(error.message));
+    }
+  }
+  CryptoPurchase.validator = validator;
+  function addTransaction(nk, userId, hash, packageId) {
+    try {
+      var data = nk.storageRead([
+        {
+          collection: CryptoPurchase.collection,
+          key: CryptoPurchase.key,
+          userId: userId,
+        },
+      ]);
+      var transactions = data.length > 0 ? data[0].value.transactions : [];
+      transactions.push(hash);
+      nk.storageWrite([
+        {
+          collection: CryptoPurchase.collection,
+          key: CryptoPurchase.key,
+          userId: userId,
+          value: { transactions: transactions },
+          permissionRead: 2,
+          permissionWrite: 0,
+        },
+      ]);
+    } catch (error) {
+      throw new Error("failed to write purchase record: " + error.message);
+    }
+  }
+  CryptoPurchase.addTransaction = addTransaction;
+  function txHashExists(nk, txHash) {
+    var query = "transactions:/(".concat(txHash, ")/");
+    var res = nk.storageIndexList(StorageIndex.configs.txHash.name, query, 1);
+    return res.length > 0;
+  }
+  CryptoPurchase.txHashExists = txHashExists;
+})(CryptoPurchase || (CryptoPurchase = {}));
+var validateTransaction = function (ctx, logger, nk, payload) {
+  try {
+    var userId = ctx.userId;
+    if (!userId) return Res.CalledByServer();
+    var input = JSON.parse(payload);
+    var hash = input.hash;
+    if (!hash) return Res.BadRequest();
+    if (CryptoPurchase.txHashExists(nk, hash)) {
+      return Res.response(
+        false,
+        Res.Code.alreadyExists,
+        undefined,
+        "transaction hash already exists"
+      );
+    }
+    var wallet = CryptoWallet.get(nk, userId);
+    if (!wallet || !wallet.address) return Res.notFound("wallet address");
+    var address = wallet.address;
+    var packageId_1 = CryptoPurchase.validator(nk, address, hash);
+    var rewards = SHOP_ITEMS.filter(function (i) {
+      return i.id === packageId_1;
+    });
+    if (rewards.length < 1) return Res.notFound("shop item");
+    var newWallet = Rewards.addNcliam(nk, userId, rewards[0]);
+    //write purchase record
+    CryptoPurchase.addTransaction(nk, userId, hash, packageId_1);
+    return newWallet.code === Res.Code.success
+      ? Res.Success(newWallet.data)
+      : Res.Error(logger, "failed to claim reward", newWallet.error);
+  } catch (error) {
+    return Res.Error(logger, "failed to validate purchase", error);
+  }
+};
+var CryptoWallet;
+(function (CryptoWallet) {
+  var collection = "Crypto";
+  var key = "Wallet";
+  function get(nk, userId) {
+    var res = nk.storageRead([
+      { collection: collection, key: key, userId: userId },
+    ]);
+    if (res.length > 0) return res[0].value;
+    return null;
+  }
+  CryptoWallet.get = get;
+  function set(nk, userId, newWallet) {
+    nk.storageWrite([
+      {
+        collection: collection,
+        key: key,
+        userId: userId,
+        value: newWallet,
+        permissionRead: 2,
+        permissionWrite: 0,
+      },
+    ]);
+  }
+  CryptoWallet.set = set;
+})(CryptoWallet || (CryptoWallet = {}));
 var Rewards;
 (function (Rewards) {
   var collection = "Economy";
@@ -793,16 +920,10 @@ var Wallet;
           return;
         }
         if (!nextHeart || nextHeart === 0) {
-          logger.debug("Reseting");
           wallet.Heart.next = Date.now() + HeartFillInterval;
           nextHeart = wallet.Heart.next;
           version = set(nk, userId, wallet, version);
         }
-        logger.debug(
-          "Hearts: "
-            .concat(hearts, " next fill up ")
-            .concat((nextHeart - Date.now()) / 1000)
-        );
         if (Date.now() < nextHeart) return;
         var count = 0;
         while (nextHeart < Date.now()) {
@@ -1174,9 +1295,6 @@ var Bucket;
         },
       ]);
       var version = res[0].version;
-      logger.debug(
-        "created new bucket: ".concat(leaderBoadrdId, "#").concat(id)
-      );
       return { bucket: bucket, version: version, latestVersion: latestVersion };
     } catch (error) {
       throw new Error(
@@ -1621,6 +1739,7 @@ var Res;
     Code[(Code["calledByClient"] = 7)] = "calledByClient";
     Code[(Code["notEnoughCoins"] = 8)] = "notEnoughCoins";
     Code[(Code["cheatDetected"] = 9)] = "cheatDetected";
+    Code[(Code["alreadyExists"] = 10)] = "alreadyExists";
   })((Code = Res.Code || (Res.Code = {})));
   function response(success, code, data, message, error) {
     var res = {
@@ -1674,7 +1793,7 @@ var Res;
 var StorageIndex;
 (function (StorageIndex) {
   var MAX_ENTRIES = 1000000000;
-  var configs = {
+  StorageIndex.configs = {
     cryptoWallet: {
       name: "crypto-wallet",
       collection: "Crypto",
@@ -1682,10 +1801,17 @@ var StorageIndex;
       fields: ["address"],
       maxEntries: MAX_ENTRIES,
     },
+    txHash: {
+      name: "txHash",
+      collection: CryptoPurchase.collection,
+      fields: ["transactions"],
+      maxEntries: MAX_ENTRIES,
+      storageKey: CryptoPurchase.key,
+    },
   };
   function registerIndexes(initializer) {
-    for (var key in configs) {
-      var config = configs[key];
+    for (var key in StorageIndex.configs) {
+      var config = StorageIndex.configs[key];
       var collection = config.collection,
         fields = config.fields,
         maxEntries = config.maxEntries,
@@ -1710,16 +1836,6 @@ var InitiateUser = function (ctx, logger, nk, data, request) {
   try {
     if (!data.created) return;
     Wallet.init(nk, ctx.userId);
-    nk.storageWrite([
-      {
-        collection: "Crypto",
-        key: "Wallet",
-        value: initialCrypto,
-        userId: ctx.userId,
-        permissionRead: 1,
-        permissionWrite: 0,
-      },
-    ]);
     GameApi.LastLevel.set(nk, ctx.userId, 0);
     logger.info("New User Joined: ".concat(ctx.userId));
   } catch (error) {
@@ -1734,7 +1850,11 @@ var WalletIndex;
   WalletIndex.get = function (nk, address) {
     try {
       var query = queryMaker(address);
-      var res = nk.storageIndexList("crypto-wallet", query, 1);
+      var res = nk.storageIndexList(
+        StorageIndex.configs.cryptoWallet.name,
+        query,
+        1
+      );
       return res.length > 0 ? res[0] : null;
     } catch (error) {
       throw new Error(
@@ -1747,24 +1867,11 @@ var WalletConnect = function (ctx, logger, nk, payload) {
   var userId = ctx.userId;
   if (!userId) return Res.CalledByServer();
   var data;
-  try {
-    data = JSON.parse(payload);
-    if (!data || !data.address) throw Error();
-  } catch (error) {
-    return Res.BadRequest(error);
-  }
+  data = JSON.parse(payload);
+  if (!data || !data.address) return Res.BadRequest();
   var address = data.address;
   try {
-    nk.storageWrite([
-      {
-        collection: "Crypto",
-        key: "Wallet",
-        userId: userId,
-        value: { address: address, balance: 0 },
-        permissionRead: 2,
-        permissionWrite: 0,
-      },
-    ]);
+    CryptoWallet.set(nk, userId, { address: address });
     return Res.Success(undefined, "wallet has been connected");
   } catch (error) {
     return Res.Error(logger, "Error While Connecting Wallet", error);
