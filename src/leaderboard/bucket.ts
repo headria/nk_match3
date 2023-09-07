@@ -579,7 +579,7 @@ namespace Bucket {
       const leaderBoadrdId = tournament.id as BucketedLeaderboards;
       let cursur: string | undefined;
       let userObjToDelete: nkruntime.StorageDeleteRequest[] = [];
-      const notifications: nkruntime.Notification[] = [];
+      let notifications: nkruntime.Notification[] = [];
       do {
         const userBuckets = nk.storageList(
           undefined,
@@ -632,19 +632,17 @@ namespace Bucket {
                 }
               }
             }
-
-            let notif = {
-              userId,
-              subject: "Leaderboard End",
-              content: {
-                id: tournament.id,
-                records: records,
-                reward: reward,
-              },
-              code: 1,
-              senderId: SystemUserId,
-              persistent: true,
+            const content = {
+              id: tournament.id,
+              records: records,
+              reward: reward,
             };
+
+            let notif = Notifications.create(
+              Notifications.CODES.BucketReset,
+              userId,
+              content
+            );
             notifications.push(notif);
 
             userObjToDelete.push(obj);
