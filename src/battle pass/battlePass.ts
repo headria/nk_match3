@@ -6,32 +6,210 @@ type BPReward = {
 
 const BattlePassRewards: BPReward[] = [
   {
-    requiredKeys: 1,
     free: [{ id: "DiscoBall", quantity: 1 }],
     premium: [{ id: "DiscoBall", quantity: 2 }],
+    requiredKeys: 1,
   },
   {
+    free: [{ id: "TNT", quantity: 1 }],
+    premium: [{ id: "TNT", quantity: 2 }],
     requiredKeys: 2,
-    free: [{ id: "TNT", quantity: 1 }],
-    premium: [{ id: "DiscoBall", quantity: 2 }],
   },
   {
+    free: [{ id: "HorizontalRocket", quantity: 1 }],
+    premium: [{ id: "HorizontalRocket", quantity: 2 }],
     requiredKeys: 5,
-    free: [{ id: "TNT", quantity: 1 }],
-    premium: [
-      { id: "DiscoBall", quantity: 2 },
-      { id: "TNT", quantity: 1 },
-    ],
   },
   {
     free: [{ id: "Coins", quantity: 100 }],
+    premium: [{ id: "Coins", quantity: 200 }],
+    requiredKeys: 5,
+  },
+  {
+    free: [
+      { id: "Rocket", quantity: 1 },
+      { id: "Heart", time: 15 * 60 },
+    ],
+    premium: [
+      { id: "Rocket", quantity: 2 },
+      { id: "Heart", time: 30 * 60 },
+    ],
+    requiredKeys: 10,
+  },
+  {
+    free: [{ id: "Hammer", quantity: 1 }],
+    premium: [{ id: "Hammer", quantity: 2 }],
+    requiredKeys: 10,
+  },
+  {
+    free: [{ id: "DiscoBall", time: 15 * 60 }],
+    premium: [{ id: "DiscoBall", time: 30 * 60 }],
+    requiredKeys: 10,
+  },
+  {
+    free: [{ id: "TNT", quantity: 1 }],
+    premium: [{ id: "TNT", quantity: 2 }],
+    requiredKeys: 10,
+  },
+  {
+    free: [{ id: "Rocket", quantity: 1 }],
+    premium: [{ id: "Rocket", quantity: 2 }],
+    requiredKeys: 10,
+  },
+  {
+    free: [
+      { id: "DiscoBall", quantity: 1 },
+      { id: "Rocket", quantity: 1 },
+      { id: "Shuffle", quantity: 1 },
+    ],
+    premium: [
+      { id: "DiscoBall", quantity: 2 },
+      { id: "Rocket", quantity: 2 },
+      { id: "Shuffle", quantity: 2 },
+    ],
+    requiredKeys: 10,
+  },
+  {
+    free: [{ id: "VerticalRocket", quantity: 1 }],
+    premium: [{ id: "VerticalRocket", quantity: 2 }],
+    requiredKeys: 15,
+  },
+  {
+    free: [{ id: "Coins", quantity: 250 }],
+    premium: [{ id: "Coins", quantity: 500 }],
+    requiredKeys: 15,
+  },
+  {
+    free: [{ id: "Shuffle", quantity: 1 }],
+    premium: [{ id: "Shuffle", quantity: 2 }],
+    requiredKeys: 15,
+  },
+  {
+    free: [{ id: "Rocket", quantity: 1 }],
+    premium: [{ id: "Rocket", quantity: 2 }],
+    requiredKeys: 15,
+  },
+  {
+    free: [
+      { id: "TNT", quantity: 1 },
+      { id: "VerticalRocket", quantity: 1 },
+    ],
+    premium: [
+      { id: "TNT", quantity: 2 },
+      { id: "VerticalRocket", quantity: 2 },
+    ],
+    requiredKeys: 15,
+  },
+  {
+    free: [{ id: "TNT", time: 15 * 60 }],
+    premium: [{ id: "TNT", time: 30 * 60 }],
+    requiredKeys: 15,
+  },
+  {
+    free: [{ id: "Hammer", quantity: 1 }],
+    premium: [{ id: "Hammer", quantity: 2 }],
+    requiredKeys: 15,
+  },
+  {
+    free: [{ id: "DiscoBall", quantity: 1 }],
+    premium: [{ id: "DiscoBall", quantity: 2 }],
+    requiredKeys: 15,
+  },
+  {
+    free: [{ id: "Heart", time: 30 * 60 }],
+    premium: [{ id: "Heart", time: 60 * 60 }],
+    requiredKeys: 15,
+  },
+  {
+    free: [
+      { id: "VerticalRocket", quantity: 1 },
+      { id: "Rocket", quantity: 1 },
+      { id: "TNT", quantity: 1 },
+    ],
+    premium: [
+      { id: "VerticalRocket", quantity: 2 },
+      { id: "Rocket", quantity: 2 },
+      { id: "TNT", quantity: 2 },
+    ],
+    requiredKeys: 15,
+  },
+  {
+    free: [{ id: "TNT", quantity: 2 }],
+    premium: [{ id: "TNT", quantity: 4 }],
+    requiredKeys: 20,
+  },
+  {
+    free: [{ id: "DiscoBall", quantity: 2 }],
+    premium: [{ id: "DiscoBall", quantity: 4 }],
+    requiredKeys: 20,
+  },
+  {
+    free: [{ id: "Rocket", time: 15 * 60 }],
+    premium: [{ id: "Rocket", time: 30 * 60 }],
+    requiredKeys: 20,
+  },
+  {
+    free: [{ id: "Coins", quantity: 500 }],
     premium: [{ id: "Coins", quantity: 1000 }],
-    requiredKeys: 30,
+    requiredKeys: 20,
+  },
+  {
+    free: [
+      { id: "Heart", time: 30 * 60 },
+      { id: "Hammer", quantity: 1 },
+      { id: "DiscoBall", quantity: 1 },
+    ],
+    premium: [
+      { id: "Heart", time: 60 * 60 },
+      { id: "Hammer", quantity: 2 },
+      { id: "DiscoBall", quantity: 2 },
+    ],
+    requiredKeys: 20,
+  },
+  {
+    free: [{ id: "HorizontalRocket", quantity: 1 }],
+    premium: [{ id: "HorizontalRocket", quantity: 2 }],
+    requiredKeys: 20,
+  },
+  {
+    free: [{ id: "Shuffle", quantity: 2 }],
+    premium: [{ id: "Shuffle", quantity: 3 }],
+    requiredKeys: 20,
+  },
+  {
+    free: [{ id: "DiscoBall", quantity: 1 }],
+    premium: [{ id: "DiscoBall", quantity: 2 }],
+    requiredKeys: 20,
+  },
+  {
+    free: [{ id: "TNT", time: 30 * 60 }],
+    premium: [{ id: "TNT", time: 60 * 60 }],
+    requiredKeys: 20,
+  },
+  {
+    free: [
+      { id: "Rocket", quantity: 3 },
+      { id: "DiscoBall", quantity: 3 },
+      { id: "TNT", quantity: 3 },
+      { id: "Shuffle", quantity: 3 },
+    ],
+    premium: [
+      { id: "Rocket", quantity: 6 },
+      { id: "DiscoBall", quantity: 6 },
+      { id: "TNT", quantity: 6 },
+      { id: "Shuffle", quantity: 6 },
+    ],
+    requiredKeys: 20,
+  },
+  {
+    free: [],
+    premium: [],
+    requiredKeys: 50000,
   },
 ];
 
 namespace BattlePass {
-  type BattlePassMetaData = {
+  export type BattlePassMetaData = {
     tier: number;
     tierKeys: number;
     premium: boolean;
@@ -149,8 +327,8 @@ namespace BattlePass {
       const stats = getStats(nk);
       const expiry = stats.nextReset * 1000;
       while (newTier.tier > tier) {
-        const subType: keyof BPReward = premium ? "premium" : "free";
-        addReward(nk, userId, tier, expiry, subType);
+        if (premium) addReward(nk, userId, tier, expiry, "premium");
+        addReward(nk, userId, tier, expiry, "free");
         tier++;
       }
       update(nk, userId, keys, newTier.keys, newTier.tier);
@@ -164,8 +342,12 @@ namespace BattlePass {
     latestTier: number,
     tierKeys: number
   ) {
-    let remainedKeys = keys + tierKeys;
     let tier = latestTier;
+    if (tier > 30) {
+      return { tier, keys: keys + tierKeys };
+    }
+
+    let remainedKeys = keys + tierKeys;
     const lastTier = BattlePassRewards.length - 1;
     const lastTierKeys = BattlePassRewards[latestTier].requiredKeys;
 
@@ -182,5 +364,46 @@ namespace BattlePass {
       remainedKeys -= lastTierKeys;
     }
     return { tier, keys: remainedKeys };
+  }
+  export function BattlePassReset(nk: nkruntime.Nakama) {
+    let cursor: string | undefined;
+    let notifications: nkruntime.Notification[] = [];
+    const { leaderboardID } = config;
+    do {
+      const recordData = nk.leaderboardRecordsList(
+        leaderboardID,
+        undefined,
+        100,
+        cursor
+      );
+      if (!recordData || !recordData.records) break;
+
+      const { records } = recordData;
+      for (const r of records) {
+        const userId = r.ownerId;
+        const metadata = r.metadata as BattlePassMetaData;
+        if (metadata.tier < 31) continue;
+        const coins = Math.floor(metadata.tierKeys / 10) * 100;
+        if (coins < 1) continue;
+        const reward: Rewards.Reward = {
+          id: "Bonus Bank",
+          items: [{ id: "Coins", quantity: coins }],
+          type: "BattlePass",
+        };
+        Rewards.add(nk, userId, reward);
+        const content = {
+          reward,
+        };
+        const notif = Notifications.create(
+          Notifications.CODES.BattlePassReset,
+          userId,
+          content
+        );
+        notifications.push(notif);
+      }
+      nk.notificationsSend(notifications);
+      notifications = [];
+      cursor = recordData.nextCursor;
+    } while (cursor);
   }
 }

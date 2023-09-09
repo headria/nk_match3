@@ -57,6 +57,7 @@ namespace Leaderboards {
       new Leaderboard(conf).initialize(nk, logger);
     }
     initializer.registerRpc("leaderboards/metadata", leaderboardMetadataRPC);
+    initializer.registerLeaderboardReset(leaderboardReset);
   };
 
   const updateGlobal = (
@@ -99,7 +100,8 @@ namespace Leaderboards {
     const rushScore = levelLog.atEnd.discoBallTargettedTiles || 0;
     const levelDifficulty = Levels.difficulty[levelNumber] || 0;
     updateGlobal(nk, userId, username, 1);
-    updateBattlePass(nk, userId, levelDifficulty);
+    if (levelLog.levelNumber > 39)
+      updateBattlePass(nk, userId, levelDifficulty);
     Object.keys(Bucket.configs).map((tournamentId) => {
       try {
         switch (tournamentId) {
@@ -140,5 +142,19 @@ const leaderboardMetadataRPC: nkruntime.RpcFunction = (
     return Res.Success(data);
   } catch (error) {
     return Res.Error(logger, "failed to get metadata", error);
+  }
+};
+
+const leaderboardReset: nkruntime.LeaderboardResetFunction = (
+  ctx: nkruntime.Context,
+  logger: nkruntime.Logger,
+  nk: nkruntime.Nakama,
+  leaderboard: nkruntime.Leaderboard,
+  reset: number
+): void => {
+  switch (leaderboard.id) {
+    case BattlePass.config.leaderboardID:
+      BattlePass.BattlePassReset(nk);
+      break;
   }
 };
