@@ -33,6 +33,268 @@ var InitModule = function (ctx, logger, nk, initializer) {
     //validators
     initializer.registerRpc("level/validate", levelValidatorRPC);
 };
+var InitialWallet = {
+    Heart: {
+        endDate: 0,
+        isUnlimited: false,
+        quantity: 5,
+        next: 0,
+    },
+    TNT: {
+        endDate: 0,
+        isUnlimited: false,
+        quantity: 3,
+    },
+    DiscoBall: {
+        endDate: 0,
+        isUnlimited: false,
+        quantity: 3,
+    },
+    Rocket: {
+        endDate: 0,
+        isUnlimited: false,
+        quantity: 3,
+    },
+    Hammer: { quantity: 0 },
+    Shuffle: { quantity: 0 },
+    HorizontalRocket: { quantity: 0 },
+    VerticalRocket: { quantity: 0 },
+    Coins: { quantity: 1000 },
+    Gems: { quantity: 0 },
+    Score: { quantity: 0 },
+};
+var Levels;
+(function (Levels) {
+    Levels.difficulty = {
+        "1": 1,
+        "2": 1,
+        "3": 1,
+        "4": 1,
+        "5": 1,
+        "6": 1,
+        "7": 1,
+        "8": 1,
+        "9": 1,
+        "10": 1,
+        "11": 1,
+        "12": 2,
+        "13": 3,
+        "14": 2,
+        "15": 2,
+        "16": 2,
+        "17": 3,
+        "18": 2,
+        "19": 3,
+        "20": 2,
+        "21": 3,
+        "22": 2,
+        "23": 3,
+        "24": 2,
+        "25": 2,
+        "26": 2,
+        "27": 3,
+        "28": 2,
+        "29": 3,
+        "30": 2,
+        "31": 4,
+        "32": 3,
+        "33": 4,
+        "34": 3,
+        "35": 2,
+        "36": 2,
+        "37": 3,
+        "38": 4,
+        "39": 4,
+        "40": 300000,
+        "41": 4,
+        "42": 3,
+        "43": 3,
+        "44": 2,
+        "45": 3,
+        "46": 2,
+        "47": 3,
+        "48": 4,
+        "49": 3,
+        "50": 2,
+        "51": 2,
+        "52": 3,
+        "53": 2,
+        "54": 2,
+        "55": 2,
+        "56": 2,
+        "57": 3,
+        "58": 2,
+        "59": 2,
+        "60": 4,
+        "61": 3,
+        "62": 3,
+        "63": 3,
+        "64": 2,
+        "65": 3,
+        "66": 2,
+        "67": 2,
+        "68": 2,
+        "69": 2,
+        "70": 3,
+        "71": 2,
+        "72": 3,
+        "73": 2,
+        "74": 3,
+        "75": 2,
+        "76": 2,
+        "77": 3,
+        "78": 2,
+        "79": 2,
+        "80": 3,
+        "81": 4,
+        "82": 4,
+        "83": 3,
+        "84": 4,
+        "85": 4,
+        "86": 4,
+        "87": 2,
+        "88": 4,
+        "89": 3,
+        "90": 2,
+        "91": 3,
+        "92": 3,
+        "93": 3,
+        "94": 2,
+        "95": 3,
+        "96": 3,
+        "97": 4,
+        "98": 2,
+        "99": 3,
+        "100": 4,
+        "101": 3,
+        "102": 2,
+        "103": 2,
+        "104": 2,
+        "105": 4,
+        "106": 2,
+        "107": 3,
+        "108": 2,
+        "109": 3,
+        "110": 4,
+        "111": 2,
+        "112": 3,
+        "113": 2,
+        "114": 3,
+        "115": 2,
+        "116": 3,
+        "117": 2,
+        "118": 2,
+        "119": 4,
+        "120": 2,
+        "121": 3,
+        "122": 2,
+        "123": 3,
+        "124": 2,
+        "125": 3,
+        "126": 2,
+        "127": 2,
+        "128": 2,
+        "129": 3,
+        "130": 4,
+        "131": 3,
+        "132": 3,
+        "133": 2,
+        "134": 3,
+        "135": 4,
+        "136": 2,
+        "137": 3,
+        "138": 2,
+        "139": 3,
+        "140": 3,
+        "141": 3,
+        "142": 3,
+        "143": 2,
+        "144": 3,
+        "145": 3,
+        "146": 2,
+        "147": 2,
+        "148": 3,
+        "149": 4,
+        "150": 4,
+        "151": 2,
+        "152": 2,
+        "153": 3,
+        "154": 2,
+        "155": 2,
+        "156": 3,
+        "157": 3,
+        "158": 2,
+        "159": 3,
+        "160": 3,
+        "161": 2,
+        "162": 3,
+        "163": 2,
+        "164": 3,
+        "165": 3,
+        "166": 3,
+        "167": 3,
+        "168": 3,
+        "169": 3,
+        "170": 3,
+        "171": 2,
+        "172": 2,
+        "173": 2,
+        "174": 3,
+        "175": 2,
+        "176": 2,
+        "177": 2,
+        "178": 3,
+        "179": 3,
+        "180": 4,
+        "181": 3,
+        "182": 2,
+        "183": 3,
+        "184": 3,
+        "185": 4,
+        "186": 3,
+        "187": 4,
+        "188": 2,
+        "189": 3,
+        "190": 4,
+        "191": 3,
+        "192": 3,
+        "193": 4,
+        "194": 2,
+        "195": 3,
+        "196": 2,
+        "197": 2,
+        "198": 3,
+        "199": 3,
+        "200": 1,
+        "201": 3,
+        "202": 2,
+        "203": 3,
+        "204": 3,
+        "205": 2,
+        "206": 4,
+        "207": 4,
+        "208": 4,
+        "209": 4,
+        "210": 3,
+        "211": 4,
+        "212": 2,
+        "213": 2,
+        "214": 4,
+        "215": 2,
+        "216": 3,
+        "217": 2,
+        "218": 4,
+        "219": 3,
+        "220": 4,
+        "221": 3,
+        "222": 2,
+        "223": 2,
+        "224": 4,
+        "225": 2,
+        "226": 2,
+        "227": 4,
+    };
+})(Levels || (Levels = {}));
 var BattlePassRewards = [
     {
         free: [{ id: "DiscoBall", quantity: 1 }],
@@ -233,11 +495,12 @@ var BattlePassRewards = [
     {
         free: [],
         premium: [],
-        requiredKeys: 50000,
+        requiredKeys: 500,
     },
 ];
 var BattlePass;
 (function (BattlePass) {
+    var MAX_BONUS_BANK_KEYS = 500;
     var rawData = {
         tier: 0,
         tierKeys: 0,
@@ -249,7 +512,7 @@ var BattlePass;
         metadata: { rewards: BattlePassRewards },
         operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
         // resetSchedule: "0 0 * 1 *",
-        resetSchedule: "0 */1 * * *",
+        resetSchedule: "*/1 * * * *",
         sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
     };
     function init(nk) {
@@ -257,13 +520,22 @@ var BattlePass;
     }
     BattlePass.init = init;
     function get(nk, userId) {
-        var leaderboardID = BattlePass.config.leaderboardID;
-        var recordData = nk.leaderboardRecordsList(leaderboardID, [userId], 1);
-        var data = rawData;
-        if (recordData.ownerRecords && recordData.ownerRecords.length > 0) {
-            data = recordData.ownerRecords[0].metadata;
+        var _a;
+        try {
+            var leaderboardID = BattlePass.config.leaderboardID;
+            var recordData = nk.leaderboardRecordsList(leaderboardID, [userId], 1);
+            var premium = rawData.premium, tier = rawData.tier, tierKeys = rawData.tierKeys;
+            var totalKeys = 0;
+            if (recordData.ownerRecords && recordData.ownerRecords.length > 0) {
+                (_a = recordData.ownerRecords[0]
+                    .metadata, premium = _a.premium, tier = _a.tier, tierKeys = _a.tierKeys);
+                totalKeys = recordData.ownerRecords[0].score;
+            }
+            return { totalKeys: totalKeys, tier: tier, tierKeys: tierKeys, premium: premium };
         }
-        return data;
+        catch (error) {
+            throw new Error("failed to get BattlePass: ".concat(error.message));
+        }
     }
     BattlePass.get = get;
     function update(nk, userId, keys, tierKeys, tier, premium) {
@@ -271,12 +543,13 @@ var BattlePass;
             var leaderboardID = BattlePass.config.leaderboardID;
             var metadata = get(nk, userId);
             if (tierKeys !== undefined)
-                metadata.tierKeys = tierKeys;
+                metadata.tierKeys = Math.min(MAX_BONUS_BANK_KEYS, tierKeys);
             if (tier !== undefined)
                 metadata.tier = tier;
             if (premium !== undefined)
                 metadata.premium = premium;
-            nk.leaderboardRecordWrite(leaderboardID, userId, undefined, keys, undefined, metadata);
+            var newMeta = metadata;
+            nk.leaderboardRecordWrite(leaderboardID, userId, undefined, keys, undefined, newMeta);
         }
         catch (error) {
             throw new Error("failed to set Battlepass metadata: ".concat(error.message));
@@ -309,7 +582,7 @@ var BattlePass;
         }
         update(nk, userId, undefined, undefined, undefined, true);
     }
-    function addKeys(nk, userId, keys) {
+    function addKeys(nk, logger, userId, keys) {
         try {
             var _a = get(nk, userId), tier = _a.tier, tierKeys = _a.tierKeys, premium = _a.premium;
             var newTier = getTierByKeys(keys, tier, tierKeys);
@@ -329,31 +602,31 @@ var BattlePass;
     }
     BattlePass.addKeys = addKeys;
     function getTierByKeys(keys, latestTier, tierKeys) {
-        var tier = latestTier;
-        if (tier > 30) {
-            return { tier: tier, keys: keys + tierKeys };
+        try {
+            var tier = latestTier;
+            var remainedKeys = keys + tierKeys;
+            var lastTier = BattlePassRewards.length - 1;
+            while (tier < lastTier &&
+                remainedKeys >= BattlePassRewards[tier].requiredKeys) {
+                remainedKeys -= BattlePassRewards[tier].requiredKeys;
+                tier++;
+            }
+            if (tier >= lastTier)
+                remainedKeys = Math.min(MAX_BONUS_BANK_KEYS, remainedKeys);
+            return { tier: tier, keys: remainedKeys };
         }
-        var remainedKeys = keys + tierKeys;
-        var lastTier = BattlePassRewards.length - 1;
-        var lastTierKeys = BattlePassRewards[latestTier].requiredKeys;
-        while (tier < lastTier &&
-            remainedKeys >= BattlePassRewards[tier].requiredKeys) {
-            remainedKeys -= BattlePassRewards[tier].requiredKeys;
-            tier++;
+        catch (error) {
+            throw new Error("failed to getTierByKeys: ".concat(error.message));
         }
-        while (tier >= lastTier && remainedKeys > lastTierKeys) {
-            tier++;
-            remainedKeys -= lastTierKeys;
-        }
-        return { tier: tier, keys: remainedKeys };
     }
     BattlePass.getTierByKeys = getTierByKeys;
-    function BattlePassReset(nk) {
-        var cursor;
+    function BattlePassReset(nk, logger, reset) {
+        var cursor = undefined;
         var notifications = [];
         var leaderboardID = BattlePass.config.leaderboardID;
+        var batchSize = 100;
         do {
-            var recordData = nk.leaderboardRecordsList(leaderboardID, undefined, 100, cursor);
+            var recordData = nk.leaderboardRecordsList(leaderboardID, undefined, batchSize, cursor, reset);
             if (!recordData || !recordData.records)
                 break;
             var records = recordData.records;
@@ -361,7 +634,7 @@ var BattlePass;
                 var r = records_1[_i];
                 var userId = r.ownerId;
                 var metadata = r.metadata;
-                if (metadata.tier < 31)
+                if (metadata.tier < BattlePassRewards.length - 1)
                     continue;
                 var coins = Math.floor(metadata.tierKeys / 10) * 100;
                 if (coins < 1)
@@ -385,238 +658,6 @@ var BattlePass;
     }
     BattlePass.BattlePassReset = BattlePassReset;
 })(BattlePass || (BattlePass = {}));
-var Levels;
-(function (Levels) {
-    Levels.difficulty = {
-        "1": 1,
-        "2": 1,
-        "3": 1,
-        "4": 1,
-        "5": 1,
-        "6": 1,
-        "7": 1,
-        "8": 1,
-        "9": 1,
-        "10": 1,
-        "11": 1,
-        "12": 2,
-        "13": 3,
-        "14": 2,
-        "15": 2,
-        "16": 2,
-        "17": 3,
-        "18": 2,
-        "19": 3,
-        "20": 2,
-        "21": 3,
-        "22": 2,
-        "23": 3,
-        "24": 2,
-        "25": 2,
-        "26": 2,
-        "27": 3,
-        "28": 2,
-        "29": 3,
-        "30": 2,
-        "31": 4,
-        "32": 3,
-        "33": 4,
-        "34": 3,
-        "35": 2,
-        "36": 2,
-        "37": 3,
-        "38": 4,
-        "39": 4,
-        "40": 3,
-        "41": 4,
-        "42": 3,
-        "43": 3,
-        "44": 2,
-        "45": 3,
-        "46": 2,
-        "47": 3,
-        "48": 4,
-        "49": 3,
-        "50": 2,
-        "51": 2,
-        "52": 3,
-        "53": 2,
-        "54": 2,
-        "55": 2,
-        "56": 2,
-        "57": 3,
-        "58": 2,
-        "59": 2,
-        "60": 4,
-        "61": 3,
-        "62": 3,
-        "63": 3,
-        "64": 2,
-        "65": 3,
-        "66": 2,
-        "67": 2,
-        "68": 2,
-        "69": 2,
-        "70": 3,
-        "71": 2,
-        "72": 3,
-        "73": 2,
-        "74": 3,
-        "75": 2,
-        "76": 2,
-        "77": 3,
-        "78": 2,
-        "79": 2,
-        "80": 3,
-        "81": 4,
-        "82": 4,
-        "83": 3,
-        "84": 4,
-        "85": 4,
-        "86": 4,
-        "87": 2,
-        "88": 4,
-        "89": 3,
-        "90": 2,
-        "91": 3,
-        "92": 3,
-        "93": 3,
-        "94": 2,
-        "95": 3,
-        "96": 3,
-        "97": 4,
-        "98": 2,
-        "99": 3,
-        "100": 4,
-        "101": 3,
-        "102": 2,
-        "103": 2,
-        "104": 2,
-        "105": 4,
-        "106": 2,
-        "107": 3,
-        "108": 2,
-        "109": 3,
-        "110": 4,
-        "111": 2,
-        "112": 3,
-        "113": 2,
-        "114": 3,
-        "115": 2,
-        "116": 3,
-        "117": 2,
-        "118": 2,
-        "119": 4,
-        "120": 2,
-        "121": 3,
-        "122": 2,
-        "123": 3,
-        "124": 2,
-        "125": 3,
-        "126": 2,
-        "127": 2,
-        "128": 2,
-        "129": 3,
-        "130": 4,
-        "131": 3,
-        "132": 3,
-        "133": 2,
-        "134": 3,
-        "135": 4,
-        "136": 2,
-        "137": 3,
-        "138": 2,
-        "139": 3,
-        "140": 3,
-        "141": 3,
-        "142": 3,
-        "143": 2,
-        "144": 3,
-        "145": 3,
-        "146": 2,
-        "147": 2,
-        "148": 3,
-        "149": 4,
-        "150": 4,
-        "151": 2,
-        "152": 2,
-        "153": 3,
-        "154": 2,
-        "155": 2,
-        "156": 3,
-        "157": 3,
-        "158": 2,
-        "159": 3,
-        "160": 3,
-        "161": 2,
-        "162": 3,
-        "163": 2,
-        "164": 3,
-        "165": 3,
-        "166": 3,
-        "167": 3,
-        "168": 3,
-        "169": 3,
-        "170": 3,
-        "171": 2,
-        "172": 2,
-        "173": 2,
-        "174": 3,
-        "175": 2,
-        "176": 2,
-        "177": 2,
-        "178": 3,
-        "179": 3,
-        "180": 4,
-        "181": 3,
-        "182": 2,
-        "183": 3,
-        "184": 3,
-        "185": 4,
-        "186": 3,
-        "187": 4,
-        "188": 2,
-        "189": 3,
-        "190": 4,
-        "191": 3,
-        "192": 3,
-        "193": 4,
-        "194": 2,
-        "195": 3,
-        "196": 2,
-        "197": 2,
-        "198": 3,
-        "199": 3,
-        "200": 1,
-        "201": 3,
-        "202": 2,
-        "203": 3,
-        "204": 3,
-        "205": 2,
-        "206": 4,
-        "207": 4,
-        "208": 4,
-        "209": 4,
-        "210": 3,
-        "211": 4,
-        "212": 2,
-        "213": 2,
-        "214": 4,
-        "215": 2,
-        "216": 3,
-        "217": 2,
-        "218": 4,
-        "219": 3,
-        "220": 4,
-        "221": 3,
-        "222": 2,
-        "223": 2,
-        "224": 4,
-        "225": 2,
-        "226": 2,
-        "227": 4,
-    };
-})(Levels || (Levels = {}));
 var CryptoPurchase;
 (function (CryptoPurchase) {
     CryptoPurchase.collection = "Purchase";
@@ -1006,36 +1047,6 @@ var Wallet;
     var HeartFillInterval = 5 * 60 * 1000; // every 5 minute
     var MAX_HEARTS = 5;
     var unlimitables = ["Heart", "TNT", "DiscoBall", "Rocket"];
-    Wallet.InitialWallet = {
-        Heart: {
-            endDate: 0,
-            isUnlimited: false,
-            quantity: 5,
-            next: 0,
-        },
-        TNT: {
-            endDate: 0,
-            isUnlimited: false,
-            quantity: 3,
-        },
-        DiscoBall: {
-            endDate: 0,
-            isUnlimited: false,
-            quantity: 3,
-        },
-        Rocket: {
-            endDate: 0,
-            isUnlimited: false,
-            quantity: 3,
-        },
-        Hammer: { quantity: 0 },
-        Shuffle: { quantity: 0 },
-        HorizontalRocket: { quantity: 0 },
-        VerticalRocket: { quantity: 0 },
-        Coins: { quantity: 1000 },
-        Gems: { quantity: 0 },
-        Score: { quantity: 0 },
-    };
     function updateWallet(wallet, changeset) {
         changeset.map(function (cs) {
             var key = cs.id;
@@ -1070,7 +1081,7 @@ var Wallet;
     }
     Wallet.get = get;
     function init(nk, userId) {
-        set(nk, userId, Wallet.InitialWallet);
+        set(nk, userId, InitialWallet);
     }
     Wallet.init = init;
     function set(nk, userId, wallet, version) {
@@ -1748,13 +1759,13 @@ var Leaderboards;
             operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
             resetSchedule: null,
         },
-        PMC: {
-            leaderboardID: "PMC",
-            authoritative: true,
-            sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
-            operator: "set" /* nkruntime.Operator.SET */,
-            resetSchedule: "0 0 * * 1", // Every Monday at 00:00
-        },
+        // PMC: {
+        //   leaderboardID: "PMC",
+        //   authoritative: true,
+        //   sortOrder: nkruntime.SortOrder.DESCENDING,
+        //   operator: nkruntime.Operator.SET,
+        //   resetSchedule: "0 0 * * 1", // Every Monday at 00:00
+        // },
     };
     var Leaderboard = /** @class */ (function () {
         function Leaderboard(config) {
@@ -1790,18 +1801,14 @@ var Leaderboards;
             throw new Error("failed to update global Leaderboard: ".concat(error.message));
         }
     };
-    function updateBattlePass(nk, userId, keys) {
-        BattlePass.addKeys(nk, userId, keys);
-    }
-    Leaderboards.updateBattlePass = updateBattlePass;
-    Leaderboards.UpdateLeaderboards = function (nk, userId, username, levelLog) {
+    Leaderboards.UpdateLeaderboards = function (nk, logger, userId, username, levelLog) {
         var levelNumber = levelLog.levelNumber;
         //calculate leaderboard score
         var rushScore = levelLog.atEnd.discoBallTargettedTiles || 0;
         var levelDifficulty = Levels.difficulty[levelNumber] || 0;
         updateGlobal(nk, userId, username, 1);
         if (levelLog.levelNumber > 39)
-            updateBattlePass(nk, userId, levelDifficulty);
+            BattlePass.addKeys(nk, logger, userId, levelDifficulty);
         Object.keys(Bucket.configs).map(function (tournamentId) {
             try {
                 switch (tournamentId) {
@@ -1840,7 +1847,7 @@ var leaderboardMetadataRPC = function (ctx, logger, nk, payload) {
 var leaderboardReset = function (ctx, logger, nk, leaderboard, reset) {
     switch (leaderboard.id) {
         case BattlePass.config.leaderboardID:
-            BattlePass.BattlePassReset(nk);
+            BattlePass.BattlePassReset(nk, logger, reset);
             break;
     }
 };
@@ -1922,10 +1929,6 @@ var StorageIndex;
     }
     StorageIndex.registerIndexes = registerIndexes;
 })(StorageIndex || (StorageIndex = {}));
-var initialCrypto = {
-    address: null,
-    balance: null,
-};
 var InitiateUser = function (ctx, logger, nk, data, request) {
     try {
         if (!data.created)
@@ -2479,7 +2482,7 @@ var levelValidatorRPC = function (ctx, logger, nk, payload) {
         }
         if (levelLog.atEnd.result === "win") {
             GameApi.LastLevel.increment(nk, userId);
-            Leaderboards.UpdateLeaderboards(nk, userId, ctx.username, levelLog);
+            Leaderboards.UpdateLeaderboards(nk, logger, userId, ctx.username, levelLog);
         }
         //update inventory
         var changeSet = LevelValidation.extractData(levelLog, initalValues);
