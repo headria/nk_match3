@@ -1,8 +1,3 @@
-const initialCrypto: { [key: string]: any } = {
-  address: null,
-  balance: null,
-};
-
 const InitiateUser: nkruntime.AfterHookFunction<
   nkruntime.Session,
   nkruntime.AuthenticateDeviceRequest
