@@ -204,18 +204,22 @@ const BattlePassRewards: BPReward[] = [
   {
     free: [],
     premium: [],
-    requiredKeys: 50000,
+    requiredKeys: 500,
   },
 ];
 
 namespace BattlePass {
-  export type BattlePassMetaData = {
+  const MAX_BONUS_BANK_KEYS = 500;
+
+  export type MetaData = {
     tier: number;
     tierKeys: number;
     premium: boolean;
   };
 
-  const rawData: BattlePassMetaData = {
+  type BattlePassData = MetaData & { totalKeys: number };
+
+  const rawData: MetaData = {
     tier: 0,
     tierKeys: 0,
     premium: false,
@@ -227,7 +231,7 @@ namespace BattlePass {
     metadata: { rewards: BattlePassRewards },
     operator: nkruntime.Operator.INCREMENTAL,
     // resetSchedule: "0 0 * 1 *",
-    resetSchedule: "0 */1 * * *",
+    resetSchedule: "*/1 * * * *",
     sortOrder: nkruntime.SortOrder.DESCENDING,
   };
 
@@ -242,17 +246,21 @@ namespace BattlePass {
     );
   }
 
-  export function get(
-    nk: nkruntime.Nakama,
-    userId: string
-  ): BattlePassMetaData {
-    const { leaderboardID } = config;
-    const recordData = nk.leaderboardRecordsList(leaderboardID, [userId], 1);
-    let data = rawData;
-    if (recordData.ownerRecords && recordData.ownerRecords.length > 0) {
-      data = recordData.ownerRecords[0].metadata as BattlePassMetaData;
+  export function get(nk: nkruntime.Nakama, userId: string): BattlePassData {
+    try {
+      const { leaderboardID } = config;
+      const recordData = nk.leaderboardRecordsList(leaderboardID, [userId], 1);
+      let { premium, tier, tierKeys }: MetaData = rawData;
+      let totalKeys: number = 0;
+      if (recordData.ownerRecords && recordData.ownerRecords.length > 0) {
+        ({ premium, tier, tierKeys } = recordData.ownerRecords[0]
+          .metadata as MetaData);
+        totalKeys = recordData.ownerRecords[0].score;
+      }
+      return { totalKeys, tier, tierKeys, premium };
+    } catch (error: any) {
+      throw new Error(`failed to get BattlePass: ${error.message}`);
     }
-    return data;
   }
 
   export function update(
@@ -266,9 +274,11 @@ namespace BattlePass {
     try {
       const { leaderboardID } = config;
       let metadata = get(nk, userId);
-      if (tierKeys !== undefined) metadata.tierKeys = tierKeys;
+      if (tierKeys !== undefined)
+        metadata.tierKeys = Math.min(MAX_BONUS_BANK_KEYS, tierKeys);
       if (tier !== undefined) metadata.tier = tier;
       if (premium !== undefined) metadata.premium = premium;
+      const newMeta: MetaData = metadata;
 
       nk.leaderboardRecordWrite(
         leaderboardID,
@@ -276,7 +286,7 @@ namespace BattlePass {
         undefined,
         keys,
         undefined,
-        metadata
+        newMeta
       );
     } catch (error: any) {
       throw new Error(`failed to set Battlepass metadata: ${error.message}`);
@@ -320,9 +330,15 @@ namespace BattlePass {
     update(nk, userId, undefined, undefined, undefined, true);
   }
 
-  export function addKeys(nk: nkruntime.Nakama, userId: string, keys: number) {
+  export function addKeys(
+    nk: nkruntime.Nakama,
+    logger: nkruntime.Logger,
+    userId: string,
+    keys: number
+  ) {
     try {
       let { tier, tierKeys, premium } = get(nk, userId);
+
       const newTier = getTierByKeys(keys, tier, tierKeys);
       const stats = getStats(nk);
       const expiry = stats.nextReset * 1000;
@@ -342,47 +358,50 @@ namespace BattlePass {
     latestTier: number,
     tierKeys: number
   ) {
-    let tier = latestTier;
-    if (tier > 30) {
-      return { tier, keys: keys + tierKeys };
+    try {
+      let tier = latestTier;
+      let remainedKeys = keys + tierKeys;
+      const lastTier = BattlePassRewards.length - 1;
+      while (
+        tier < lastTier &&
+        remainedKeys >= BattlePassRewards[tier].requiredKeys
+      ) {
+        remainedKeys -= BattlePassRewards[tier].requiredKeys;
+        tier++;
+      }
+      if (tier >= lastTier)
+        remainedKeys = Math.min(MAX_BONUS_BANK_KEYS, remainedKeys);
+      return { tier, keys: remainedKeys };
+    } catch (error: any) {
+      throw new Error(`failed to getTierByKeys: ${error.message}`);
     }
-
-    let remainedKeys = keys + tierKeys;
-    const lastTier = BattlePassRewards.length - 1;
-    const lastTierKeys = BattlePassRewards[latestTier].requiredKeys;
-
-    while (
-      tier < lastTier &&
-      remainedKeys >= BattlePassRewards[tier].requiredKeys
-    ) {
-      remainedKeys -= BattlePassRewards[tier].requiredKeys;
-      tier++;
-    }
-
-    while (tier >= lastTier && remainedKeys > lastTierKeys) {
-      tier++;
-      remainedKeys -= lastTierKeys;
-    }
-    return { tier, keys: remainedKeys };
   }
-  export function BattlePassReset(nk: nkruntime.Nakama) {
-    let cursor: string | undefined;
+
+  export function BattlePassReset(
+    nk: nkruntime.Nakama,
+    logger: nkruntime.Logger,
+    reset: number
+  ) {
+    let cursor: string | undefined = undefined;
     let notifications: nkruntime.Notification[] = [];
     const { leaderboardID } = config;
+    const batchSize = 100;
     do {
       const recordData = nk.leaderboardRecordsList(
         leaderboardID,
         undefined,
-        100,
-        cursor
+        batchSize,
+        cursor,
+        reset
       );
       if (!recordData || !recordData.records) break;
 
       const { records } = recordData;
       for (const r of records) {
         const userId = r.ownerId;
-        const metadata = r.metadata as BattlePassMetaData;
-        if (metadata.tier < 31) continue;
+        const metadata = r.metadata as MetaData;
+
+        if (metadata.tier < BattlePassRewards.length - 1) continue;
         const coins = Math.floor(metadata.tierKeys / 10) * 100;
         if (coins < 1) continue;
         const reward: Rewards.Reward = {
@@ -391,6 +410,7 @@ namespace BattlePass {
           type: "BattlePass",
         };
         Rewards.add(nk, userId, reward);
+
         const content = {
           reward,
         };
