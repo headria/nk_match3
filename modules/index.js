@@ -105,7 +105,7 @@ var Levels;
         "37": 3,
         "38": 4,
         "39": 4,
-        "40": 300000,
+        "40": 3,
         "41": 4,
         "42": 3,
         "43": 3,
@@ -512,7 +512,7 @@ var BattlePass;
         metadata: { rewards: BattlePassRewards },
         operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
         // resetSchedule: "0 0 * 1 *",
-        resetSchedule: "*/1 * * * *",
+        resetSchedule: "*/30 * * * *",
         sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
     };
     function init(nk) {
