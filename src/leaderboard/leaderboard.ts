@@ -17,13 +17,13 @@ namespace Leaderboards {
       resetSchedule: null,
     },
 
-    PMC: {
-      leaderboardID: "PMC",
-      authoritative: true,
-      sortOrder: nkruntime.SortOrder.DESCENDING,
-      operator: nkruntime.Operator.SET,
-      resetSchedule: "0 0 * * 1", // Every Monday at 00:00
-    },
+    // PMC: {
+    //   leaderboardID: "PMC",
+    //   authoritative: true,
+    //   sortOrder: nkruntime.SortOrder.DESCENDING,
+    //   operator: nkruntime.Operator.SET,
+    //   resetSchedule: "0 0 * * 1", // Every Monday at 00:00
+    // },
   };
 
   export class Leaderboard {
@@ -81,16 +81,9 @@ namespace Leaderboards {
     }
   };
 
-  export function updateBattlePass(
-    nk: nkruntime.Nakama,
-    userId: string,
-    keys: number
-  ) {
-    BattlePass.addKeys(nk, userId, keys);
-  }
-
   export const UpdateLeaderboards = (
     nk: nkruntime.Nakama,
+    logger: nkruntime.Logger,
     userId: string,
     username: string,
     levelLog: LevelValidation.ILevelLog
@@ -101,7 +94,7 @@ namespace Leaderboards {
     const levelDifficulty = Levels.difficulty[levelNumber] || 0;
     updateGlobal(nk, userId, username, 1);
     if (levelLog.levelNumber > 39)
-      updateBattlePass(nk, userId, levelDifficulty);
+      BattlePass.addKeys(nk, logger, userId, levelDifficulty);
     Object.keys(Bucket.configs).map((tournamentId) => {
       try {
         switch (tournamentId) {
@@ -154,7 +147,7 @@ const leaderboardReset: nkruntime.LeaderboardResetFunction = (
 ): void => {
   switch (leaderboard.id) {
     case BattlePass.config.leaderboardID:
-      BattlePass.BattlePassReset(nk);
+      BattlePass.BattlePassReset(nk, logger, reset);
       break;
   }
 };
