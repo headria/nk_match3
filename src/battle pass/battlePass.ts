@@ -231,7 +231,7 @@ namespace BattlePass {
     metadata: { rewards: BattlePassRewards },
     operator: nkruntime.Operator.INCREMENTAL,
     // resetSchedule: "0 0 * 1 *",
-    resetSchedule: "*/1 * * * *",
+    resetSchedule: "*/30 * * * *",
     sortOrder: nkruntime.SortOrder.DESCENDING,
   };
 
