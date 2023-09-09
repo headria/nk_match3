@@ -274,10 +274,15 @@ const levelValidatorRPC: nkruntime.RpcFunction = (
         "cheats detected"
       );
     }
-
     if (levelLog.atEnd.result === "win") {
       GameApi.LastLevel.increment(nk, userId);
-      Leaderboards.UpdateLeaderboards(nk, userId, ctx.username, levelLog);
+      Leaderboards.UpdateLeaderboards(
+        nk,
+        logger,
+        userId,
+        ctx.username,
+        levelLog
+      );
     }
 
     //update inventory
