@@ -42,383 +42,36 @@ var InitModule = function (ctx, logger, nk, initializer) {
   //validators
   initializer.registerRpc("level/validate", levelValidatorRPC);
 };
-var BattlePassRewards = [
-  {
-    free: [{ id: "DiscoBall", quantity: 1 }],
-    premium: [{ id: "DiscoBall", quantity: 2 }],
-    requiredKeys: 1,
+var InitialWallet = {
+  Heart: {
+    endDate: 0,
+    isUnlimited: false,
+    quantity: 5,
+    next: 0,
   },
-  {
-    free: [{ id: "TNT", quantity: 1 }],
-    premium: [{ id: "TNT", quantity: 2 }],
-    requiredKeys: 2,
+  TNT: {
+    endDate: 0,
+    isUnlimited: false,
+    quantity: 3,
   },
-  {
-    free: [{ id: "HorizontalRocket", quantity: 1 }],
-    premium: [{ id: "HorizontalRocket", quantity: 2 }],
-    requiredKeys: 5,
+  DiscoBall: {
+    endDate: 0,
+    isUnlimited: false,
+    quantity: 3,
   },
-  {
-    free: [{ id: "Coins", quantity: 100 }],
-    premium: [{ id: "Coins", quantity: 200 }],
-    requiredKeys: 5,
+  Rocket: {
+    endDate: 0,
+    isUnlimited: false,
+    quantity: 3,
   },
-  {
-    free: [
-      { id: "Rocket", quantity: 1 },
-      { id: "Heart", time: 15 * 60 },
-    ],
-    premium: [
-      { id: "Rocket", quantity: 2 },
-      { id: "Heart", time: 30 * 60 },
-    ],
-    requiredKeys: 10,
-  },
-  {
-    free: [{ id: "Hammer", quantity: 1 }],
-    premium: [{ id: "Hammer", quantity: 2 }],
-    requiredKeys: 10,
-  },
-  {
-    free: [{ id: "DiscoBall", time: 15 * 60 }],
-    premium: [{ id: "DiscoBall", time: 30 * 60 }],
-    requiredKeys: 10,
-  },
-  {
-    free: [{ id: "TNT", quantity: 1 }],
-    premium: [{ id: "TNT", quantity: 2 }],
-    requiredKeys: 10,
-  },
-  {
-    free: [{ id: "Rocket", quantity: 1 }],
-    premium: [{ id: "Rocket", quantity: 2 }],
-    requiredKeys: 10,
-  },
-  {
-    free: [
-      { id: "DiscoBall", quantity: 1 },
-      { id: "Rocket", quantity: 1 },
-      { id: "Shuffle", quantity: 1 },
-    ],
-    premium: [
-      { id: "DiscoBall", quantity: 2 },
-      { id: "Rocket", quantity: 2 },
-      { id: "Shuffle", quantity: 2 },
-    ],
-    requiredKeys: 10,
-  },
-  {
-    free: [{ id: "VerticalRocket", quantity: 1 }],
-    premium: [{ id: "VerticalRocket", quantity: 2 }],
-    requiredKeys: 15,
-  },
-  {
-    free: [{ id: "Coins", quantity: 250 }],
-    premium: [{ id: "Coins", quantity: 500 }],
-    requiredKeys: 15,
-  },
-  {
-    free: [{ id: "Shuffle", quantity: 1 }],
-    premium: [{ id: "Shuffle", quantity: 2 }],
-    requiredKeys: 15,
-  },
-  {
-    free: [{ id: "Rocket", quantity: 1 }],
-    premium: [{ id: "Rocket", quantity: 2 }],
-    requiredKeys: 15,
-  },
-  {
-    free: [
-      { id: "TNT", quantity: 1 },
-      { id: "VerticalRocket", quantity: 1 },
-    ],
-    premium: [
-      { id: "TNT", quantity: 2 },
-      { id: "VerticalRocket", quantity: 2 },
-    ],
-    requiredKeys: 15,
-  },
-  {
-    free: [{ id: "TNT", time: 15 * 60 }],
-    premium: [{ id: "TNT", time: 30 * 60 }],
-    requiredKeys: 15,
-  },
-  {
-    free: [{ id: "Hammer", quantity: 1 }],
-    premium: [{ id: "Hammer", quantity: 2 }],
-    requiredKeys: 15,
-  },
-  {
-    free: [{ id: "DiscoBall", quantity: 1 }],
-    premium: [{ id: "DiscoBall", quantity: 2 }],
-    requiredKeys: 15,
-  },
-  {
-    free: [{ id: "Heart", time: 30 * 60 }],
-    premium: [{ id: "Heart", time: 60 * 60 }],
-    requiredKeys: 15,
-  },
-  {
-    free: [
-      { id: "VerticalRocket", quantity: 1 },
-      { id: "Rocket", quantity: 1 },
-      { id: "TNT", quantity: 1 },
-    ],
-    premium: [
-      { id: "VerticalRocket", quantity: 2 },
-      { id: "Rocket", quantity: 2 },
-      { id: "TNT", quantity: 2 },
-    ],
-    requiredKeys: 15,
-  },
-  {
-    free: [{ id: "TNT", quantity: 2 }],
-    premium: [{ id: "TNT", quantity: 4 }],
-    requiredKeys: 20,
-  },
-  {
-    free: [{ id: "DiscoBall", quantity: 2 }],
-    premium: [{ id: "DiscoBall", quantity: 4 }],
-    requiredKeys: 20,
-  },
-  {
-    free: [{ id: "Rocket", time: 15 * 60 }],
-    premium: [{ id: "Rocket", time: 30 * 60 }],
-    requiredKeys: 20,
-  },
-  {
-    free: [{ id: "Coins", quantity: 500 }],
-    premium: [{ id: "Coins", quantity: 1000 }],
-    requiredKeys: 20,
-  },
-  {
-    free: [
-      { id: "Heart", time: 30 * 60 },
-      { id: "Hammer", quantity: 1 },
-      { id: "DiscoBall", quantity: 1 },
-    ],
-    premium: [
-      { id: "Heart", time: 60 * 60 },
-      { id: "Hammer", quantity: 2 },
-      { id: "DiscoBall", quantity: 2 },
-    ],
-    requiredKeys: 20,
-  },
-  {
-    free: [{ id: "HorizontalRocket", quantity: 1 }],
-    premium: [{ id: "HorizontalRocket", quantity: 2 }],
-    requiredKeys: 20,
-  },
-  {
-    free: [{ id: "Shuffle", quantity: 2 }],
-    premium: [{ id: "Shuffle", quantity: 3 }],
-    requiredKeys: 20,
-  },
-  {
-    free: [{ id: "DiscoBall", quantity: 1 }],
-    premium: [{ id: "DiscoBall", quantity: 2 }],
-    requiredKeys: 20,
-  },
-  {
-    free: [{ id: "TNT", time: 30 * 60 }],
-    premium: [{ id: "TNT", time: 60 * 60 }],
-    requiredKeys: 20,
-  },
-  {
-    free: [
-      { id: "Rocket", quantity: 3 },
-      { id: "DiscoBall", quantity: 3 },
-      { id: "TNT", quantity: 3 },
-      { id: "Shuffle", quantity: 3 },
-    ],
-    premium: [
-      { id: "Rocket", quantity: 6 },
-      { id: "DiscoBall", quantity: 6 },
-      { id: "TNT", quantity: 6 },
-      { id: "Shuffle", quantity: 6 },
-    ],
-    requiredKeys: 20,
-  },
-  {
-    free: [],
-    premium: [],
-    requiredKeys: 50000,
-  },
-];
-var BattlePass;
-(function (BattlePass) {
-  var rawData = {
-    tier: 0,
-    tierKeys: 0,
-    premium: false,
-  };
-  BattlePass.config = {
-    leaderboardID: "BattlePass",
-    authoritative: true,
-    metadata: { rewards: BattlePassRewards },
-    operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
-    // resetSchedule: "0 0 * 1 *",
-    resetSchedule: "0 */1 * * *",
-    sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
-  };
-  function init(nk) {
-    nk.leaderboardCreate(
-      BattlePass.config.leaderboardID,
-      BattlePass.config.authoritative,
-      BattlePass.config.sortOrder,
-      BattlePass.config.operator,
-      BattlePass.config.resetSchedule,
-      BattlePass.config.metadata
-    );
-  }
-  BattlePass.init = init;
-  function get(nk, userId) {
-    var leaderboardID = BattlePass.config.leaderboardID;
-    var recordData = nk.leaderboardRecordsList(leaderboardID, [userId], 1);
-    var data = rawData;
-    if (recordData.ownerRecords && recordData.ownerRecords.length > 0) {
-      data = recordData.ownerRecords[0].metadata;
-    }
-    return data;
-  }
-  BattlePass.get = get;
-  function update(nk, userId, keys, tierKeys, tier, premium) {
-    try {
-      var leaderboardID = BattlePass.config.leaderboardID;
-      var metadata = get(nk, userId);
-      if (tierKeys !== undefined) metadata.tierKeys = tierKeys;
-      if (tier !== undefined) metadata.tier = tier;
-      if (premium !== undefined) metadata.premium = premium;
-      nk.leaderboardRecordWrite(
-        leaderboardID,
-        userId,
-        undefined,
-        keys,
-        undefined,
-        metadata
-      );
-    } catch (error) {
-      throw new Error(
-        "failed to set Battlepass metadata: ".concat(error.message)
-      );
-    }
-  }
-  BattlePass.update = update;
-  function addReward(nk, userId, tier, expiry, subType) {
-    var tierRewards = BattlePassRewards[tier][subType];
-    if (tierRewards.length < 1) return;
-    var reward = {
-      id: "BP-".concat(subType, "-").concat(tier),
-      items: tierRewards,
-      type: "BattlePass",
-    };
-    Rewards.add(nk, userId, reward, expiry);
-  }
-  function getStats(nk) {
-    var leaderboard = nk.leaderboardsGetId([
-      BattlePass.config.leaderboardID,
-    ])[0];
-    return leaderboard;
-  }
-  function premiumfy(nk, userId) {
-    var data = get(nk, userId);
-    if (data.premium) return;
-    var stats = getStats(nk);
-    var expiry = stats.nextReset * 1000;
-    for (
-      var tier = 0;
-      tier < data.tier || tier < BattlePassRewards.length;
-      tier++
-    ) {
-      addReward(nk, userId, tier, expiry, "premium");
-    }
-    update(nk, userId, undefined, undefined, undefined, true);
-  }
-  function addKeys(nk, userId, keys) {
-    try {
-      var _a = get(nk, userId),
-        tier = _a.tier,
-        tierKeys = _a.tierKeys,
-        premium = _a.premium;
-      var newTier = getTierByKeys(keys, tier, tierKeys);
-      var stats = getStats(nk);
-      var expiry = stats.nextReset * 1000;
-      while (newTier.tier > tier) {
-        if (premium) addReward(nk, userId, tier, expiry, "premium");
-        addReward(nk, userId, tier, expiry, "free");
-        tier++;
-      }
-      update(nk, userId, keys, newTier.keys, newTier.tier);
-    } catch (error) {
-      throw new Error("failed to add battlepass keys: ".concat(error.message));
-    }
-  }
-  BattlePass.addKeys = addKeys;
-  function getTierByKeys(keys, latestTier, tierKeys) {
-    var tier = latestTier;
-    if (tier > 30) {
-      return { tier: tier, keys: keys + tierKeys };
-    }
-    var remainedKeys = keys + tierKeys;
-    var lastTier = BattlePassRewards.length - 1;
-    var lastTierKeys = BattlePassRewards[latestTier].requiredKeys;
-    while (
-      tier < lastTier &&
-      remainedKeys >= BattlePassRewards[tier].requiredKeys
-    ) {
-      remainedKeys -= BattlePassRewards[tier].requiredKeys;
-      tier++;
-    }
-    while (tier >= lastTier && remainedKeys > lastTierKeys) {
-      tier++;
-      remainedKeys -= lastTierKeys;
-    }
-    return { tier: tier, keys: remainedKeys };
-  }
-  BattlePass.getTierByKeys = getTierByKeys;
-  function BattlePassReset(nk) {
-    var cursor;
-    var notifications = [];
-    var leaderboardID = BattlePass.config.leaderboardID;
-    do {
-      var recordData = nk.leaderboardRecordsList(
-        leaderboardID,
-        undefined,
-        100,
-        cursor
-      );
-      if (!recordData || !recordData.records) break;
-      var records = recordData.records;
-      for (var _i = 0, records_1 = records; _i < records_1.length; _i++) {
-        var r = records_1[_i];
-        var userId = r.ownerId;
-        var metadata = r.metadata;
-        if (metadata.tier < 31) continue;
-        var coins = Math.floor(metadata.tierKeys / 10) * 100;
-        if (coins < 1) continue;
-        var reward = {
-          id: "Bonus Bank",
-          items: [{ id: "Coins", quantity: coins }],
-          type: "BattlePass",
-        };
-        Rewards.add(nk, userId, reward);
-        var content = {
-          reward: reward,
-        };
-        var notif = Notifications.create(
-          Notifications.CODES.BattlePassReset,
-          userId,
-          content
-        );
-        notifications.push(notif);
-      }
-      nk.notificationsSend(notifications);
-      notifications = [];
-      cursor = recordData.nextCursor;
-    } while (cursor);
-  }
-  BattlePass.BattlePassReset = BattlePassReset;
-})(BattlePass || (BattlePass = {}));
+  Hammer: { quantity: 0 },
+  Shuffle: { quantity: 0 },
+  HorizontalRocket: { quantity: 0 },
+  VerticalRocket: { quantity: 0 },
+  Coins: { quantity: 1000 },
+  Gems: { quantity: 0 },
+  Score: { quantity: 0 },
+};
 var Levels;
 (function (Levels) {
   Levels.difficulty = {
@@ -651,6 +304,335 @@ var Levels;
     227: 4,
   };
 })(Levels || (Levels = {}));
+var _a, _b, _c;
+var SystemUserId = "00000000-0000-0000-0000-000000000000";
+var GameApi = {
+  LastLevel:
+    ((_a = /** @class */ (function () {
+      function class_1() {}
+      class_1.get = function (nk, userId) {
+        try {
+          var storageObjects = nk.storageRead([
+            {
+              collection: this.Keys.collection,
+              key: this.Keys.key,
+              userId: userId,
+            },
+          ]);
+          var lastLevel = storageObjects[0].value[this.id];
+          return lastLevel;
+        } catch (error) {
+          throw new Error("failed to get Last level: " + error.message);
+        }
+      };
+      class_1.set = function (nk, userId, newValue) {
+        var _a;
+        try {
+          var value = ((_a = {}), (_a[this.id] = newValue), _a);
+          nk.storageWrite([
+            {
+              collection: this.Keys.collection,
+              key: this.Keys.key,
+              userId: userId,
+              value: value,
+            },
+          ]);
+        } catch (error) {
+          throw new Error("failed to set Last level: " + error.message);
+        }
+      };
+      class_1.increment = function (nk, userId) {
+        var lastLevel = GameApi.LastLevel.get(nk, userId);
+        GameApi.LastLevel.set(nk, userId, lastLevel + 1);
+      };
+      return class_1;
+    })()),
+    __setFunctionName(_a, "LastLevel"),
+    (_a.Keys = {
+      collection: "Levels",
+      key: "Data",
+    }),
+    (_a.id = "progress"),
+    _a),
+  LevelLog:
+    ((_b = /** @class */ (function () {
+      function class_2() {}
+      class_2.save = function (nk, userId, data) {
+        try {
+          nk.storageWrite([
+            {
+              collection: this.Keys.collection,
+              key: (data.levelNumber || -1).toString(),
+              userId: userId,
+              value: data,
+              permissionRead: 2,
+              permissionWrite: 0,
+            },
+          ]);
+        } catch (error) {
+          throw new Error("failed to save LevelLog: ".concat(error.message));
+        }
+      };
+      class_2.get = function (nk, userId, levelNumber) {
+        var data = nk.storageRead([
+          {
+            collection: this.Keys.collection,
+            key: levelNumber,
+            userId: userId,
+          },
+        ]);
+        return data;
+      };
+      return class_2;
+    })()),
+    __setFunctionName(_b, "LevelLog"),
+    (_b.Keys = {
+      collection: "Levels",
+    }),
+    _b),
+  Cheat:
+    ((_c = /** @class */ (function () {
+      function class_3() {}
+      class_3.write = function (nk, levelNumber, userId, cheats) {
+        try {
+          nk.storageWrite([
+            {
+              collection: this.Keys.collection,
+              key: levelNumber.toString(),
+              userId: userId,
+              value: { cheats: cheats },
+              permissionRead: 2,
+              permissionWrite: 0,
+            },
+          ]);
+        } catch (error) {
+          throw new Error("failed to save Cheats: ".concat(error.message));
+        }
+      };
+      return class_3;
+    })()),
+    __setFunctionName(_c, "Cheat"),
+    (_c.Keys = {
+      collection: "Cheats",
+    }),
+    _c),
+};
+var Notifications;
+(function (Notifications) {
+  var CODES;
+  (function (CODES) {
+    CODES[(CODES["SYSTEM"] = 0)] = "SYSTEM";
+    CODES[(CODES["BucketReset"] = 1)] = "BucketReset";
+    CODES[(CODES["BattlePassReset"] = 2)] = "BattlePassReset";
+  })((CODES = Notifications.CODES || (Notifications.CODES = {})));
+  Notifications.Notifs = {
+    1: {
+      subject: "Leaderboard End",
+      code: CODES.BucketReset,
+      senderId: SystemUserId,
+      persistent: true,
+    },
+    2: {
+      code: CODES.BattlePassReset,
+      persistent: true,
+      senderId: SystemUserId,
+      subject: "BattlePass Reset",
+    },
+  };
+  function create(code, userId, content) {
+    var _a = Notifications.Notifs[code],
+      persistent = _a.persistent,
+      senderId = _a.senderId,
+      subject = _a.subject;
+    var data = {
+      code: code,
+      content: content,
+      persistent: persistent,
+      senderId: senderId,
+      subject: subject,
+      userId: userId,
+    };
+    return data;
+  }
+  Notifications.create = create;
+})(Notifications || (Notifications = {}));
+var SHOP_ITEMS = [
+  {
+    id: "ADMIRAL_RESOURCES",
+    name: "AdmiralResources",
+    type: "SpecialOffer",
+    items: [
+      { id: "Hammer", quantity: 10 },
+      { id: "Shuffle", quantity: 10 },
+      { id: "VerticalRocket", quantity: 10 },
+      { id: "HorizontalRocket", quantity: 10 },
+      { id: "Heart", time: 64800 },
+      { id: "Rocket", time: 259200 },
+      { id: "DiscoBall", time: 259200 },
+      { id: "TNT", time: 259200 },
+      { id: "Coins", quantity: 50000 },
+    ],
+    price: 99.99,
+  },
+  {
+    id: "ASTRONAUT_RESOURCES",
+    name: "AstronautResources",
+    type: "SpecialOffer",
+    items: [
+      { id: "Hammer", quantity: 2 },
+      { id: "Shuffle", quantity: 2 },
+      { id: "VerticalRocket", quantity: 2 },
+      { id: "HorizontalRocket", quantity: 2 },
+      { id: "Heart", time: 3600 },
+      { id: "Rocket", time: 3600 },
+      { id: "DiscoBall", time: 3600 },
+      { id: "TNT", time: 3600 },
+      { id: "Coins", quantity: 5000 },
+    ],
+    price: 9.99,
+  },
+  {
+    id: "CAPTAIN_RESOURCES",
+    name: "CaptainResources",
+    type: "SpecialOffer",
+    items: [
+      { id: "Hammer", quantity: 4 },
+      { id: "Shuffle", quantity: 4 },
+      { id: "VerticalRocket", quantity: 4 },
+      { id: "HorizontalRocket", quantity: 4 },
+      { id: "Heart", time: 7200 },
+      { id: "Rocket", time: 43200 },
+      { id: "DiscoBall", time: 43200 },
+      { id: "TNT", time: 43200 },
+      { id: "Coins", quantity: 10000 },
+    ],
+    price: 22.99,
+  },
+  {
+    id: "COMMANDER_RESOURCES",
+    name: "CommanderResources",
+    type: "SpecialOffer",
+    items: [
+      { id: "Hammer", quantity: 6 },
+      { id: "Shuffle", quantity: 6 },
+      { id: "VerticalRocket", quantity: 6 },
+      { id: "HorizontalRocket", quantity: 6 },
+      { id: "Heart", time: 21600 },
+      { id: "Rocket", time: 64800 },
+      { id: "DiscoBall", time: 64800 },
+      { id: "TNT", time: 64800 },
+      { id: "Coins", quantity: 10000 },
+    ],
+    price: 44.99,
+  },
+  {
+    id: "ELDER_RESOURCES",
+    name: "ElderResources",
+    type: "SpecialOffer",
+    items: [
+      { id: "Hammer", quantity: 15 },
+      { id: "Shuffle", quantity: 15 },
+      { id: "VerticalRocket", quantity: 15 },
+      { id: "HorizontalRocket", quantity: 15 },
+      { id: "Heart", time: 86400 },
+      { id: "Rocket", time: 36000 },
+      { id: "DiscoBall", time: 36000 },
+      { id: "TNT", time: 36000 },
+      { id: "Coins", quantity: 65000 },
+    ],
+    price: 110.99,
+  },
+  {
+    id: "SPECIAL_OFFER",
+    name: "SpecialOffer",
+    type: "SpecialOffer",
+    items: [
+      { id: "Hammer", quantity: 1 },
+      { id: "Shuffle", quantity: 1 },
+      { id: "VerticalRocket", quantity: 1 },
+      { id: "HorizontalRocket", quantity: 1 },
+      { id: "Heart", time: 3600 },
+      { id: "Rocket", time: 3600 },
+      { id: "DiscoBall", time: 3600 },
+      { id: "TNT", time: 3600 },
+      { id: "Coins", quantity: 5000 },
+    ],
+    price: 1.99,
+  },
+  {
+    id: "VICE_ADMIRAL_RESOURCES",
+    name: "ViceAdmiralResources",
+    type: "SpecialOffer",
+    items: [
+      { id: "Hammer", quantity: 8 },
+      { id: "Shuffle", quantity: 8 },
+      { id: "VerticalRocket", quantity: 8 },
+      { id: "HorizontalRocket", quantity: 8 },
+      { id: "Heart", time: 43200 },
+      { id: "Rocket", time: 86400 },
+      { id: "DiscoBall", time: 86400 },
+      { id: "TNT", time: 86400 },
+      { id: "Coins", quantity: 25000 },
+    ],
+    price: 89.99,
+  },
+  {
+    id: "CURRENCY_PACK_01",
+    name: "Currencypack01",
+    type: "Coin",
+    items: [{ id: "Coins", quantity: 1000 }],
+    price: 1.99,
+  },
+  {
+    id: "CURRENCY_PACK_02",
+    name: "Currencypack02",
+    type: "Coin",
+    items: [{ id: "Coins", quantity: 5000 }],
+    price: 8.99,
+  },
+  {
+    id: "CURRENCY_PACK_03",
+    name: "Currencypack03",
+    type: "Coin",
+    items: [{ id: "Coins", quantity: 10000 }],
+    price: 17.99,
+  },
+  {
+    id: "CURRENCY_PACK_04",
+    name: "Currencypack04",
+    type: "Coin",
+    items: [{ id: "Coins", quantity: 25000 }],
+    price: 34.99,
+  },
+  {
+    id: "CURRENCY_PACK_05",
+    name: "Currencypack05",
+    type: "Coin",
+    items: [{ id: "Coins", quantity: 50000 }],
+    price: 59.99,
+  },
+  {
+    id: "CURRENCY_PACK_06",
+    name: "Currencypack06",
+    type: "Coin",
+    items: [{ id: "Coins", quantity: 100000 }],
+    price: 99.99,
+  },
+];
+var initShop = function (nk) {
+  try {
+    nk.storageWrite([
+      {
+        collection: "Shop",
+        key: "RealMoney",
+        userId: SystemUserId,
+        value: { items: SHOP_ITEMS },
+        permissionRead: 2,
+        permissionWrite: 0,
+      },
+    ]);
+  } catch (error) {}
+};
 var CryptoPurchase;
 (function (CryptoPurchase) {
   CryptoPurchase.collection = "Purchase";
@@ -1047,36 +1029,6 @@ var Wallet;
   var HeartFillInterval = 5 * 60 * 1000; // every 5 minute
   var MAX_HEARTS = 5;
   var unlimitables = ["Heart", "TNT", "DiscoBall", "Rocket"];
-  Wallet.InitialWallet = {
-    Heart: {
-      endDate: 0,
-      isUnlimited: false,
-      quantity: 5,
-      next: 0,
-    },
-    TNT: {
-      endDate: 0,
-      isUnlimited: false,
-      quantity: 3,
-    },
-    DiscoBall: {
-      endDate: 0,
-      isUnlimited: false,
-      quantity: 3,
-    },
-    Rocket: {
-      endDate: 0,
-      isUnlimited: false,
-      quantity: 3,
-    },
-    Hammer: { quantity: 0 },
-    Shuffle: { quantity: 0 },
-    HorizontalRocket: { quantity: 0 },
-    VerticalRocket: { quantity: 0 },
-    Coins: { quantity: 1000 },
-    Gems: { quantity: 0 },
-    Score: { quantity: 0 },
-  };
   function updateWallet(wallet, changeset) {
     changeset.map(function (cs) {
       var key = cs.id;
@@ -1112,7 +1064,7 @@ var Wallet;
   }
   Wallet.get = get;
   function init(nk, userId) {
-    set(nk, userId, Wallet.InitialWallet);
+    set(nk, userId, InitialWallet);
   }
   Wallet.init = init;
   function set(nk, userId, wallet, version) {
@@ -1237,7 +1189,403 @@ var BeforeGetStorage = function (ctx, logger, nk, data) {
       });
   return data;
 };
-var SystemUserId = "00000000-0000-0000-0000-000000000000";
+var BattlePassRewards = [
+  {
+    free: [{ id: "DiscoBall", quantity: 1 }],
+    premium: [{ id: "DiscoBall", quantity: 2 }],
+    requiredKeys: 1,
+  },
+  {
+    free: [{ id: "TNT", quantity: 1 }],
+    premium: [{ id: "TNT", quantity: 2 }],
+    requiredKeys: 2,
+  },
+  {
+    free: [{ id: "HorizontalRocket", quantity: 1 }],
+    premium: [{ id: "HorizontalRocket", quantity: 2 }],
+    requiredKeys: 5,
+  },
+  {
+    free: [{ id: "Coins", quantity: 100 }],
+    premium: [{ id: "Coins", quantity: 200 }],
+    requiredKeys: 5,
+  },
+  {
+    free: [
+      { id: "Rocket", quantity: 1 },
+      { id: "Heart", time: 15 * 60 },
+    ],
+    premium: [
+      { id: "Rocket", quantity: 2 },
+      { id: "Heart", time: 30 * 60 },
+    ],
+    requiredKeys: 10,
+  },
+  {
+    free: [{ id: "Hammer", quantity: 1 }],
+    premium: [{ id: "Hammer", quantity: 2 }],
+    requiredKeys: 10,
+  },
+  {
+    free: [{ id: "DiscoBall", time: 15 * 60 }],
+    premium: [{ id: "DiscoBall", time: 30 * 60 }],
+    requiredKeys: 10,
+  },
+  {
+    free: [{ id: "TNT", quantity: 1 }],
+    premium: [{ id: "TNT", quantity: 2 }],
+    requiredKeys: 10,
+  },
+  {
+    free: [{ id: "Rocket", quantity: 1 }],
+    premium: [{ id: "Rocket", quantity: 2 }],
+    requiredKeys: 10,
+  },
+  {
+    free: [
+      { id: "DiscoBall", quantity: 1 },
+      { id: "Rocket", quantity: 1 },
+      { id: "Shuffle", quantity: 1 },
+    ],
+    premium: [
+      { id: "DiscoBall", quantity: 2 },
+      { id: "Rocket", quantity: 2 },
+      { id: "Shuffle", quantity: 2 },
+    ],
+    requiredKeys: 10,
+  },
+  {
+    free: [{ id: "VerticalRocket", quantity: 1 }],
+    premium: [{ id: "VerticalRocket", quantity: 2 }],
+    requiredKeys: 15,
+  },
+  {
+    free: [{ id: "Coins", quantity: 250 }],
+    premium: [{ id: "Coins", quantity: 500 }],
+    requiredKeys: 15,
+  },
+  {
+    free: [{ id: "Shuffle", quantity: 1 }],
+    premium: [{ id: "Shuffle", quantity: 2 }],
+    requiredKeys: 15,
+  },
+  {
+    free: [{ id: "Rocket", quantity: 1 }],
+    premium: [{ id: "Rocket", quantity: 2 }],
+    requiredKeys: 15,
+  },
+  {
+    free: [
+      { id: "TNT", quantity: 1 },
+      { id: "VerticalRocket", quantity: 1 },
+    ],
+    premium: [
+      { id: "TNT", quantity: 2 },
+      { id: "VerticalRocket", quantity: 2 },
+    ],
+    requiredKeys: 15,
+  },
+  {
+    free: [{ id: "TNT", time: 15 * 60 }],
+    premium: [{ id: "TNT", time: 30 * 60 }],
+    requiredKeys: 15,
+  },
+  {
+    free: [{ id: "Hammer", quantity: 1 }],
+    premium: [{ id: "Hammer", quantity: 2 }],
+    requiredKeys: 15,
+  },
+  {
+    free: [{ id: "DiscoBall", quantity: 1 }],
+    premium: [{ id: "DiscoBall", quantity: 2 }],
+    requiredKeys: 15,
+  },
+  {
+    free: [{ id: "Heart", time: 30 * 60 }],
+    premium: [{ id: "Heart", time: 60 * 60 }],
+    requiredKeys: 15,
+  },
+  {
+    free: [
+      { id: "VerticalRocket", quantity: 1 },
+      { id: "Rocket", quantity: 1 },
+      { id: "TNT", quantity: 1 },
+    ],
+    premium: [
+      { id: "VerticalRocket", quantity: 2 },
+      { id: "Rocket", quantity: 2 },
+      { id: "TNT", quantity: 2 },
+    ],
+    requiredKeys: 15,
+  },
+  {
+    free: [{ id: "TNT", quantity: 2 }],
+    premium: [{ id: "TNT", quantity: 4 }],
+    requiredKeys: 20,
+  },
+  {
+    free: [{ id: "DiscoBall", quantity: 2 }],
+    premium: [{ id: "DiscoBall", quantity: 4 }],
+    requiredKeys: 20,
+  },
+  {
+    free: [{ id: "Rocket", time: 15 * 60 }],
+    premium: [{ id: "Rocket", time: 30 * 60 }],
+    requiredKeys: 20,
+  },
+  {
+    free: [{ id: "Coins", quantity: 500 }],
+    premium: [{ id: "Coins", quantity: 1000 }],
+    requiredKeys: 20,
+  },
+  {
+    free: [
+      { id: "Heart", time: 30 * 60 },
+      { id: "Hammer", quantity: 1 },
+      { id: "DiscoBall", quantity: 1 },
+    ],
+    premium: [
+      { id: "Heart", time: 60 * 60 },
+      { id: "Hammer", quantity: 2 },
+      { id: "DiscoBall", quantity: 2 },
+    ],
+    requiredKeys: 20,
+  },
+  {
+    free: [{ id: "HorizontalRocket", quantity: 1 }],
+    premium: [{ id: "HorizontalRocket", quantity: 2 }],
+    requiredKeys: 20,
+  },
+  {
+    free: [{ id: "Shuffle", quantity: 2 }],
+    premium: [{ id: "Shuffle", quantity: 3 }],
+    requiredKeys: 20,
+  },
+  {
+    free: [{ id: "DiscoBall", quantity: 1 }],
+    premium: [{ id: "DiscoBall", quantity: 2 }],
+    requiredKeys: 20,
+  },
+  {
+    free: [{ id: "TNT", time: 30 * 60 }],
+    premium: [{ id: "TNT", time: 60 * 60 }],
+    requiredKeys: 20,
+  },
+  {
+    free: [
+      { id: "Rocket", quantity: 3 },
+      { id: "DiscoBall", quantity: 3 },
+      { id: "TNT", quantity: 3 },
+      { id: "Shuffle", quantity: 3 },
+    ],
+    premium: [
+      { id: "Rocket", quantity: 6 },
+      { id: "DiscoBall", quantity: 6 },
+      { id: "TNT", quantity: 6 },
+      { id: "Shuffle", quantity: 6 },
+    ],
+    requiredKeys: 20,
+  },
+  {
+    free: [],
+    premium: [],
+    requiredKeys: 500,
+  },
+];
+var BattlePass;
+(function (BattlePass) {
+  var MAX_BONUS_BANK_KEYS = 500;
+  var rawData = {
+    tier: 0,
+    tierKeys: 0,
+    premium: false,
+  };
+  BattlePass.config = {
+    leaderboardID: "BattlePass",
+    authoritative: true,
+    metadata: { rewards: BattlePassRewards },
+    operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
+    // resetSchedule: "0 0 * 1 *",
+    resetSchedule: "*/30 * * * *",
+    sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
+  };
+  function init(nk) {
+    nk.leaderboardCreate(
+      BattlePass.config.leaderboardID,
+      BattlePass.config.authoritative,
+      BattlePass.config.sortOrder,
+      BattlePass.config.operator,
+      BattlePass.config.resetSchedule,
+      BattlePass.config.metadata
+    );
+  }
+  BattlePass.init = init;
+  function get(nk, userId) {
+    var _a;
+    try {
+      var leaderboardID = BattlePass.config.leaderboardID;
+      var recordData = nk.leaderboardRecordsList(leaderboardID, [userId], 1);
+      var premium = rawData.premium,
+        tier = rawData.tier,
+        tierKeys = rawData.tierKeys;
+      var totalKeys = 0;
+      if (recordData.ownerRecords && recordData.ownerRecords.length > 0) {
+        (_a = recordData.ownerRecords[0].metadata),
+          (premium = _a.premium),
+          (tier = _a.tier),
+          (tierKeys = _a.tierKeys);
+        totalKeys = recordData.ownerRecords[0].score;
+      }
+      return {
+        totalKeys: totalKeys,
+        tier: tier,
+        tierKeys: tierKeys,
+        premium: premium,
+      };
+    } catch (error) {
+      throw new Error("failed to get BattlePass: ".concat(error.message));
+    }
+  }
+  BattlePass.get = get;
+  function update(nk, userId, keys, tierKeys, tier, premium) {
+    try {
+      var leaderboardID = BattlePass.config.leaderboardID;
+      var metadata = get(nk, userId);
+      if (tierKeys !== undefined)
+        metadata.tierKeys = Math.min(MAX_BONUS_BANK_KEYS, tierKeys);
+      if (tier !== undefined) metadata.tier = tier;
+      if (premium !== undefined) metadata.premium = premium;
+      var newMeta = metadata;
+      nk.leaderboardRecordWrite(
+        leaderboardID,
+        userId,
+        undefined,
+        keys,
+        undefined,
+        newMeta
+      );
+    } catch (error) {
+      throw new Error(
+        "failed to set Battlepass metadata: ".concat(error.message)
+      );
+    }
+  }
+  BattlePass.update = update;
+  function addReward(nk, userId, tier, expiry, subType) {
+    var tierRewards = BattlePassRewards[tier][subType];
+    if (tierRewards.length < 1) return;
+    var reward = {
+      id: "BP-".concat(subType, "-").concat(tier),
+      items: tierRewards,
+      type: "BattlePass",
+    };
+    Rewards.add(nk, userId, reward, expiry);
+  }
+  function getStats(nk) {
+    var leaderboard = nk.leaderboardsGetId([
+      BattlePass.config.leaderboardID,
+    ])[0];
+    return leaderboard;
+  }
+  function premiumfy(nk, userId) {
+    var data = get(nk, userId);
+    if (data.premium) return;
+    var stats = getStats(nk);
+    var expiry = stats.nextReset * 1000;
+    for (
+      var tier = 0;
+      tier < data.tier || tier < BattlePassRewards.length;
+      tier++
+    ) {
+      addReward(nk, userId, tier, expiry, "premium");
+    }
+    update(nk, userId, undefined, undefined, undefined, true);
+  }
+  function addKeys(nk, logger, userId, keys) {
+    try {
+      var _a = get(nk, userId),
+        tier = _a.tier,
+        tierKeys = _a.tierKeys,
+        premium = _a.premium;
+      var newTier = getTierByKeys(keys, tier, tierKeys);
+      var stats = getStats(nk);
+      var expiry = stats.nextReset * 1000;
+      while (newTier.tier > tier) {
+        if (premium) addReward(nk, userId, tier, expiry, "premium");
+        addReward(nk, userId, tier, expiry, "free");
+        tier++;
+      }
+      update(nk, userId, keys, newTier.keys, newTier.tier);
+    } catch (error) {
+      throw new Error("failed to add battlepass keys: ".concat(error.message));
+    }
+  }
+  BattlePass.addKeys = addKeys;
+  function getTierByKeys(keys, latestTier, tierKeys) {
+    try {
+      var tier = latestTier;
+      var remainedKeys = keys + tierKeys;
+      var lastTier = BattlePassRewards.length - 1;
+      while (
+        tier < lastTier &&
+        remainedKeys >= BattlePassRewards[tier].requiredKeys
+      ) {
+        remainedKeys -= BattlePassRewards[tier].requiredKeys;
+        tier++;
+      }
+      if (tier >= lastTier)
+        remainedKeys = Math.min(MAX_BONUS_BANK_KEYS, remainedKeys);
+      return { tier: tier, keys: remainedKeys };
+    } catch (error) {
+      throw new Error("failed to getTierByKeys: ".concat(error.message));
+    }
+  }
+  BattlePass.getTierByKeys = getTierByKeys;
+  function BattlePassReset(nk, logger, reset) {
+    var cursor = undefined;
+    var notifications = [];
+    var leaderboardID = BattlePass.config.leaderboardID;
+    var batchSize = 100;
+    do {
+      var recordData = nk.leaderboardRecordsList(
+        leaderboardID,
+        undefined,
+        batchSize,
+        cursor,
+        reset
+      );
+      if (!recordData || !recordData.records) break;
+      var records = recordData.records;
+      for (var _i = 0, records_1 = records; _i < records_1.length; _i++) {
+        var r = records_1[_i];
+        var userId = r.ownerId;
+        var metadata = r.metadata;
+        if (metadata.tier < BattlePassRewards.length - 1) continue;
+        var coins = Math.floor(metadata.tierKeys / 10) * 100;
+        if (coins < 1) continue;
+        var reward = {
+          id: "Bonus Bank",
+          items: [{ id: "Coins", quantity: coins }],
+          type: "BattlePass",
+        };
+        Rewards.add(nk, userId, reward);
+        var content = {
+          reward: reward,
+        };
+        var notif = Notifications.create(
+          Notifications.CODES.BattlePassReset,
+          userId,
+          content
+        );
+        notifications.push(notif);
+      }
+      nk.notificationsSend(notifications);
+      notifications = [];
+      cursor = recordData.nextCursor;
+    } while (cursor);
+  }
+  BattlePass.BattlePassReset = BattlePassReset;
+})(BattlePass || (BattlePass = {}));
 var Category;
 (function (Category) {
   Category[(Category["GLOBAL"] = 0)] = "GLOBAL";
@@ -1343,10 +1691,19 @@ var leaderboardRewards = {
       { id: "Coins", quantity: 200 },
     ],
   },
-  //TODO: Mush change
   Endless: {
     config: { gold: 1 },
-    gold: [{ id: "Coins", quantity: 100 }],
+    gold: [
+      { id: "Hammer", quantity: 4 },
+      { id: "Shuffle", quantity: 4 },
+      { id: "VerticalRocket", quantity: 4 },
+      { id: "HorizontalRocket", quantity: 4 },
+      { id: "Heart", time: 7200 },
+      { id: "Rocket", time: 43200 },
+      { id: "DiscoBall", time: 43200 },
+      { id: "TNT", time: 43200 },
+      { id: "Coins", quantity: 10000 },
+    ],
   },
 };
 var Bucket;
@@ -1893,13 +2250,13 @@ var Leaderboards;
       operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
       resetSchedule: null,
     },
-    PMC: {
-      leaderboardID: "PMC",
-      authoritative: true,
-      sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
-      operator: "set" /* nkruntime.Operator.SET */,
-      resetSchedule: "0 0 * * 1", // Every Monday at 00:00
-    },
+    // PMC: {
+    //   leaderboardID: "PMC",
+    //   authoritative: true,
+    //   sortOrder: nkruntime.SortOrder.DESCENDING,
+    //   operator: nkruntime.Operator.SET,
+    //   resetSchedule: "0 0 * * 1", // Every Monday at 00:00
+    // },
   };
   var Leaderboard = /** @class */ (function () {
     function Leaderboard(config) {
@@ -1956,18 +2313,20 @@ var Leaderboards;
       );
     }
   };
-  function updateBattlePass(nk, userId, keys) {
-    BattlePass.addKeys(nk, userId, keys);
-  }
-  Leaderboards.updateBattlePass = updateBattlePass;
-  Leaderboards.UpdateLeaderboards = function (nk, userId, username, levelLog) {
+  Leaderboards.UpdateLeaderboards = function (
+    nk,
+    logger,
+    userId,
+    username,
+    levelLog
+  ) {
     var levelNumber = levelLog.levelNumber;
     //calculate leaderboard score
     var rushScore = levelLog.atEnd.discoBallTargettedTiles || 0;
     var levelDifficulty = Levels.difficulty[levelNumber] || 0;
     updateGlobal(nk, userId, username, 1);
     if (levelLog.levelNumber > 39)
-      updateBattlePass(nk, userId, levelDifficulty);
+      BattlePass.addKeys(nk, logger, userId, levelDifficulty);
     Object.keys(Bucket.configs).map(function (tournamentId) {
       try {
         switch (tournamentId) {
@@ -2007,7 +2366,7 @@ var leaderboardMetadataRPC = function (ctx, logger, nk, payload) {
 var leaderboardReset = function (ctx, logger, nk, leaderboard, reset) {
   switch (leaderboard.id) {
     case BattlePass.config.leaderboardID:
-      BattlePass.BattlePassReset(nk);
+      BattlePass.BattlePassReset(nk, logger, reset);
       break;
   }
 };
@@ -2115,10 +2474,6 @@ var StorageIndex;
   }
   StorageIndex.registerIndexes = registerIndexes;
 })(StorageIndex || (StorageIndex = {}));
-var initialCrypto = {
-  address: null,
-  balance: null,
-};
 var InitiateUser = function (ctx, logger, nk, data, request) {
   try {
     if (!data.created) return;
@@ -2163,334 +2518,6 @@ var WalletConnect = function (ctx, logger, nk, payload) {
   } catch (error) {
     return Res.Error(logger, "Error While Connecting Wallet", error);
   }
-};
-var _a, _b, _c;
-var GameApi = {
-  LastLevel:
-    ((_a = /** @class */ (function () {
-      function class_1() {}
-      class_1.get = function (nk, userId) {
-        try {
-          var storageObjects = nk.storageRead([
-            {
-              collection: this.Keys.collection,
-              key: this.Keys.key,
-              userId: userId,
-            },
-          ]);
-          var lastLevel = storageObjects[0].value[this.id];
-          return lastLevel;
-        } catch (error) {
-          throw new Error("failed to get Last level: " + error.message);
-        }
-      };
-      class_1.set = function (nk, userId, newValue) {
-        var _a;
-        try {
-          var value = ((_a = {}), (_a[this.id] = newValue), _a);
-          nk.storageWrite([
-            {
-              collection: this.Keys.collection,
-              key: this.Keys.key,
-              userId: userId,
-              value: value,
-            },
-          ]);
-        } catch (error) {
-          throw new Error("failed to set Last level: " + error.message);
-        }
-      };
-      class_1.increment = function (nk, userId) {
-        var lastLevel = GameApi.LastLevel.get(nk, userId);
-        GameApi.LastLevel.set(nk, userId, lastLevel + 1);
-      };
-      return class_1;
-    })()),
-    __setFunctionName(_a, "LastLevel"),
-    (_a.Keys = {
-      collection: "Levels",
-      key: "Data",
-    }),
-    (_a.id = "progress"),
-    _a),
-  LevelLog:
-    ((_b = /** @class */ (function () {
-      function class_2() {}
-      class_2.save = function (nk, userId, data) {
-        try {
-          nk.storageWrite([
-            {
-              collection: this.Keys.collection,
-              key: (data.levelNumber || -1).toString(),
-              userId: userId,
-              value: data,
-              permissionRead: 2,
-              permissionWrite: 0,
-            },
-          ]);
-        } catch (error) {
-          throw new Error("failed to save LevelLog: ".concat(error.message));
-        }
-      };
-      class_2.get = function (nk, userId, levelNumber) {
-        var data = nk.storageRead([
-          {
-            collection: this.Keys.collection,
-            key: levelNumber,
-            userId: userId,
-          },
-        ]);
-        return data;
-      };
-      return class_2;
-    })()),
-    __setFunctionName(_b, "LevelLog"),
-    (_b.Keys = {
-      collection: "Levels",
-    }),
-    _b),
-  Cheat:
-    ((_c = /** @class */ (function () {
-      function class_3() {}
-      class_3.write = function (nk, levelNumber, userId, cheats) {
-        try {
-          nk.storageWrite([
-            {
-              collection: this.Keys.collection,
-              key: levelNumber.toString(),
-              userId: userId,
-              value: { cheats: cheats },
-              permissionRead: 2,
-              permissionWrite: 0,
-            },
-          ]);
-        } catch (error) {
-          throw new Error("failed to save Cheats: ".concat(error.message));
-        }
-      };
-      return class_3;
-    })()),
-    __setFunctionName(_c, "Cheat"),
-    (_c.Keys = {
-      collection: "Cheats",
-    }),
-    _c),
-};
-var Notifications;
-(function (Notifications) {
-  var CODES;
-  (function (CODES) {
-    CODES[(CODES["SYSTEM"] = 0)] = "SYSTEM";
-    CODES[(CODES["BucketReset"] = 1)] = "BucketReset";
-    CODES[(CODES["BattlePassReset"] = 2)] = "BattlePassReset";
-  })((CODES = Notifications.CODES || (Notifications.CODES = {})));
-  Notifications.Notifs = {
-    1: {
-      subject: "Leaderboard End",
-      code: CODES.BucketReset,
-      senderId: SystemUserId,
-      persistent: true,
-    },
-    2: {
-      code: CODES.BattlePassReset,
-      persistent: true,
-      senderId: SystemUserId,
-      subject: "BattlePass Reset",
-    },
-  };
-  function create(code, userId, content) {
-    var _a = Notifications.Notifs[code],
-      persistent = _a.persistent,
-      senderId = _a.senderId,
-      subject = _a.subject;
-    var data = {
-      code: code,
-      content: content,
-      persistent: persistent,
-      senderId: senderId,
-      subject: subject,
-      userId: userId,
-    };
-    return data;
-  }
-  Notifications.create = create;
-})(Notifications || (Notifications = {}));
-var SHOP_ITEMS = [
-  {
-    id: "ADMIRAL_RESOURCES",
-    name: "AdmiralResources",
-    type: "SpecialOffer",
-    items: [
-      { id: "Hammer", quantity: 10 },
-      { id: "Shuffle", quantity: 10 },
-      { id: "VerticalRocket", quantity: 10 },
-      { id: "HorizontalRocket", quantity: 10 },
-      { id: "Heart", time: 64800 },
-      { id: "Rocket", time: 259200 },
-      { id: "DiscoBall", time: 259200 },
-      { id: "TNT", time: 259200 },
-      { id: "Coins", quantity: 50000 },
-    ],
-    price: 99.99,
-  },
-  {
-    id: "ASTRONAUT_RESOURCES",
-    name: "AstronautResources",
-    type: "SpecialOffer",
-    items: [
-      { id: "Hammer", quantity: 2 },
-      { id: "Shuffle", quantity: 2 },
-      { id: "VerticalRocket", quantity: 2 },
-      { id: "HorizontalRocket", quantity: 2 },
-      { id: "Heart", time: 3600 },
-      { id: "Rocket", time: 3600 },
-      { id: "DiscoBall", time: 3600 },
-      { id: "TNT", time: 3600 },
-      { id: "Coins", quantity: 5000 },
-    ],
-    price: 9.99,
-  },
-  {
-    id: "CAPTAIN_RESOURCES",
-    name: "CaptainResources",
-    type: "SpecialOffer",
-    items: [
-      { id: "Hammer", quantity: 4 },
-      { id: "Shuffle", quantity: 4 },
-      { id: "VerticalRocket", quantity: 4 },
-      { id: "HorizontalRocket", quantity: 4 },
-      { id: "Heart", time: 7200 },
-      { id: "Rocket", time: 43200 },
-      { id: "DiscoBall", time: 43200 },
-      { id: "TNT", time: 43200 },
-      { id: "Coins", quantity: 10000 },
-    ],
-    price: 22.99,
-  },
-  {
-    id: "COMMANDER_RESOURCES",
-    name: "CommanderResources",
-    type: "SpecialOffer",
-    items: [
-      { id: "Hammer", quantity: 6 },
-      { id: "Shuffle", quantity: 6 },
-      { id: "VerticalRocket", quantity: 6 },
-      { id: "HorizontalRocket", quantity: 6 },
-      { id: "Heart", time: 21600 },
-      { id: "Rocket", time: 64800 },
-      { id: "DiscoBall", time: 64800 },
-      { id: "TNT", time: 64800 },
-      { id: "Coins", quantity: 10000 },
-    ],
-    price: 44.99,
-  },
-  {
-    id: "ELDER_RESOURCES",
-    name: "ElderResources",
-    type: "SpecialOffer",
-    items: [
-      { id: "Hammer", quantity: 15 },
-      { id: "Shuffle", quantity: 15 },
-      { id: "VerticalRocket", quantity: 15 },
-      { id: "HorizontalRocket", quantity: 15 },
-      { id: "Heart", time: 86400 },
-      { id: "Rocket", time: 36000 },
-      { id: "DiscoBall", time: 36000 },
-      { id: "TNT", time: 36000 },
-      { id: "Coins", quantity: 65000 },
-    ],
-    price: 110.99,
-  },
-  {
-    id: "SPECIAL_OFFER",
-    name: "SpecialOffer",
-    type: "SpecialOffer",
-    items: [
-      { id: "Hammer", quantity: 1 },
-      { id: "Shuffle", quantity: 1 },
-      { id: "VerticalRocket", quantity: 1 },
-      { id: "HorizontalRocket", quantity: 1 },
-      { id: "Heart", time: 3600 },
-      { id: "Rocket", time: 3600 },
-      { id: "DiscoBall", time: 3600 },
-      { id: "TNT", time: 3600 },
-      { id: "Coins", quantity: 5000 },
-    ],
-    price: 1.99,
-  },
-  {
-    id: "VICE_ADMIRAL_RESOURCES",
-    name: "ViceAdmiralResources",
-    type: "SpecialOffer",
-    items: [
-      { id: "Hammer", quantity: 8 },
-      { id: "Shuffle", quantity: 8 },
-      { id: "VerticalRocket", quantity: 8 },
-      { id: "HorizontalRocket", quantity: 8 },
-      { id: "Heart", time: 43200 },
-      { id: "Rocket", time: 86400 },
-      { id: "DiscoBall", time: 86400 },
-      { id: "TNT", time: 86400 },
-      { id: "Coins", quantity: 25000 },
-    ],
-    price: 89.99,
-  },
-  {
-    id: "CURRENCY_PACK_01",
-    name: "Currencypack01",
-    type: "Coin",
-    items: [{ id: "Coins", quantity: 1000 }],
-    price: 1.99,
-  },
-  {
-    id: "CURRENCY_PACK_02",
-    name: "Currencypack02",
-    type: "Coin",
-    items: [{ id: "Coins", quantity: 5000 }],
-    price: 8.99,
-  },
-  {
-    id: "CURRENCY_PACK_03",
-    name: "Currencypack03",
-    type: "Coin",
-    items: [{ id: "Coins", quantity: 10000 }],
-    price: 17.99,
-  },
-  {
-    id: "CURRENCY_PACK_04",
-    name: "Currencypack04",
-    type: "Coin",
-    items: [{ id: "Coins", quantity: 25000 }],
-    price: 34.99,
-  },
-  {
-    id: "CURRENCY_PACK_05",
-    name: "Currencypack05",
-    type: "Coin",
-    items: [{ id: "Coins", quantity: 50000 }],
-    price: 59.99,
-  },
-  {
-    id: "CURRENCY_PACK_06",
-    name: "Currencypack06",
-    type: "Coin",
-    items: [{ id: "Coins", quantity: 100000 }],
-    price: 99.99,
-  },
-];
-var initShop = function (nk) {
-  try {
-    nk.storageWrite([
-      {
-        collection: "Shop",
-        key: "RealMoney",
-        userId: SystemUserId,
-        value: { items: SHOP_ITEMS },
-        permissionRead: 2,
-        permissionWrite: 0,
-      },
-    ]);
-  } catch (error) {}
 };
 var LevelValidation;
 (function (LevelValidation) {
@@ -2749,7 +2776,13 @@ var levelValidatorRPC = function (ctx, logger, nk, payload) {
     }
     if (levelLog.atEnd.result === "win") {
       GameApi.LastLevel.increment(nk, userId);
-      Leaderboards.UpdateLeaderboards(nk, userId, ctx.username, levelLog);
+      Leaderboards.UpdateLeaderboards(
+        nk,
+        logger,
+        userId,
+        ctx.username,
+        levelLog
+      );
     }
     //update inventory
     var changeSet = LevelValidation.extractData(levelLog, initalValues);
