@@ -295,6 +295,333 @@ var Levels;
         "227": 4,
     };
 })(Levels || (Levels = {}));
+var _a, _b, _c;
+var SystemUserId = "00000000-0000-0000-0000-000000000000";
+var GameApi = {
+    LastLevel: (_a = /** @class */ (function () {
+            function class_1() {
+            }
+            class_1.get = function (nk, userId) {
+                try {
+                    var storageObjects = nk.storageRead([
+                        {
+                            collection: this.Keys.collection,
+                            key: this.Keys.key,
+                            userId: userId,
+                        },
+                    ]);
+                    var lastLevel = storageObjects[0].value[this.id];
+                    return lastLevel;
+                }
+                catch (error) {
+                    throw new Error("failed to get Last level: " + error.message);
+                }
+            };
+            class_1.set = function (nk, userId, newValue) {
+                var _a;
+                try {
+                    var value = (_a = {}, _a[this.id] = newValue, _a);
+                    nk.storageWrite([
+                        {
+                            collection: this.Keys.collection,
+                            key: this.Keys.key,
+                            userId: userId,
+                            value: value,
+                        },
+                    ]);
+                }
+                catch (error) {
+                    throw new Error("failed to set Last level: " + error.message);
+                }
+            };
+            class_1.increment = function (nk, userId) {
+                var lastLevel = GameApi.LastLevel.get(nk, userId);
+                GameApi.LastLevel.set(nk, userId, lastLevel + 1);
+            };
+            return class_1;
+        }()),
+        __setFunctionName(_a, "LastLevel"),
+        _a.Keys = {
+            collection: "Levels",
+            key: "Data",
+        },
+        _a.id = "progress",
+        _a),
+    LevelLog: (_b = /** @class */ (function () {
+            function class_2() {
+            }
+            class_2.save = function (nk, userId, data) {
+                try {
+                    nk.storageWrite([
+                        {
+                            collection: this.Keys.collection,
+                            key: (data.levelNumber || -1).toString(),
+                            userId: userId,
+                            value: data,
+                            permissionRead: 2,
+                            permissionWrite: 0,
+                        },
+                    ]);
+                }
+                catch (error) {
+                    throw new Error("failed to save LevelLog: ".concat(error.message));
+                }
+            };
+            class_2.get = function (nk, userId, levelNumber) {
+                var data = nk.storageRead([
+                    { collection: this.Keys.collection, key: levelNumber, userId: userId },
+                ]);
+                return data;
+            };
+            return class_2;
+        }()),
+        __setFunctionName(_b, "LevelLog"),
+        _b.Keys = {
+            collection: "Levels",
+        },
+        _b),
+    Cheat: (_c = /** @class */ (function () {
+            function class_3() {
+            }
+            class_3.write = function (nk, levelNumber, userId, cheats) {
+                try {
+                    nk.storageWrite([
+                        {
+                            collection: this.Keys.collection,
+                            key: levelNumber.toString(),
+                            userId: userId,
+                            value: { cheats: cheats },
+                            permissionRead: 2,
+                            permissionWrite: 0,
+                        },
+                    ]);
+                }
+                catch (error) {
+                    throw new Error("failed to save Cheats: ".concat(error.message));
+                }
+            };
+            return class_3;
+        }()),
+        __setFunctionName(_c, "Cheat"),
+        _c.Keys = {
+            collection: "Cheats",
+        },
+        _c),
+};
+var Notifications;
+(function (Notifications) {
+    var CODES;
+    (function (CODES) {
+        CODES[CODES["SYSTEM"] = 0] = "SYSTEM";
+        CODES[CODES["BucketReset"] = 1] = "BucketReset";
+        CODES[CODES["BattlePassReset"] = 2] = "BattlePassReset";
+    })(CODES = Notifications.CODES || (Notifications.CODES = {}));
+    Notifications.Notifs = {
+        1: {
+            subject: "Leaderboard End",
+            code: CODES.BucketReset,
+            senderId: SystemUserId,
+            persistent: true,
+        },
+        2: {
+            code: CODES.BattlePassReset,
+            persistent: true,
+            senderId: SystemUserId,
+            subject: "BattlePass Reset",
+        },
+    };
+    function create(code, userId, content) {
+        var _a = Notifications.Notifs[code], persistent = _a.persistent, senderId = _a.senderId, subject = _a.subject;
+        var data = {
+            code: code,
+            content: content,
+            persistent: persistent,
+            senderId: senderId,
+            subject: subject,
+            userId: userId,
+        };
+        return data;
+    }
+    Notifications.create = create;
+})(Notifications || (Notifications = {}));
+var SHOP_ITEMS = [
+    {
+        id: "ADMIRAL_RESOURCES",
+        name: "AdmiralResources",
+        type: "SpecialOffer",
+        items: [
+            { id: "Hammer", quantity: 10 },
+            { id: "Shuffle", quantity: 10 },
+            { id: "VerticalRocket", quantity: 10 },
+            { id: "HorizontalRocket", quantity: 10 },
+            { id: "Heart", time: 64800 },
+            { id: "Rocket", time: 259200 },
+            { id: "DiscoBall", time: 259200 },
+            { id: "TNT", time: 259200 },
+            { id: "Coins", quantity: 50000 },
+        ],
+        price: 99.99,
+    },
+    {
+        id: "ASTRONAUT_RESOURCES",
+        name: "AstronautResources",
+        type: "SpecialOffer",
+        items: [
+            { id: "Hammer", quantity: 2 },
+            { id: "Shuffle", quantity: 2 },
+            { id: "VerticalRocket", quantity: 2 },
+            { id: "HorizontalRocket", quantity: 2 },
+            { id: "Heart", time: 3600 },
+            { id: "Rocket", time: 3600 },
+            { id: "DiscoBall", time: 3600 },
+            { id: "TNT", time: 3600 },
+            { id: "Coins", quantity: 5000 },
+        ],
+        price: 9.99,
+    },
+    {
+        id: "CAPTAIN_RESOURCES",
+        name: "CaptainResources",
+        type: "SpecialOffer",
+        items: [
+            { id: "Hammer", quantity: 4 },
+            { id: "Shuffle", quantity: 4 },
+            { id: "VerticalRocket", quantity: 4 },
+            { id: "HorizontalRocket", quantity: 4 },
+            { id: "Heart", time: 7200 },
+            { id: "Rocket", time: 43200 },
+            { id: "DiscoBall", time: 43200 },
+            { id: "TNT", time: 43200 },
+            { id: "Coins", quantity: 10000 },
+        ],
+        price: 22.99,
+    },
+    {
+        id: "COMMANDER_RESOURCES",
+        name: "CommanderResources",
+        type: "SpecialOffer",
+        items: [
+            { id: "Hammer", quantity: 6 },
+            { id: "Shuffle", quantity: 6 },
+            { id: "VerticalRocket", quantity: 6 },
+            { id: "HorizontalRocket", quantity: 6 },
+            { id: "Heart", time: 21600 },
+            { id: "Rocket", time: 64800 },
+            { id: "DiscoBall", time: 64800 },
+            { id: "TNT", time: 64800 },
+            { id: "Coins", quantity: 10000 },
+        ],
+        price: 44.99,
+    },
+    {
+        id: "ELDER_RESOURCES",
+        name: "ElderResources",
+        type: "SpecialOffer",
+        items: [
+            { id: "Hammer", quantity: 15 },
+            { id: "Shuffle", quantity: 15 },
+            { id: "VerticalRocket", quantity: 15 },
+            { id: "HorizontalRocket", quantity: 15 },
+            { id: "Heart", time: 86400 },
+            { id: "Rocket", time: 36000 },
+            { id: "DiscoBall", time: 36000 },
+            { id: "TNT", time: 36000 },
+            { id: "Coins", quantity: 65000 },
+        ],
+        price: 110.99,
+    },
+    {
+        id: "SPECIAL_OFFER",
+        name: "SpecialOffer",
+        type: "SpecialOffer",
+        items: [
+            { id: "Hammer", quantity: 1 },
+            { id: "Shuffle", quantity: 1 },
+            { id: "VerticalRocket", quantity: 1 },
+            { id: "HorizontalRocket", quantity: 1 },
+            { id: "Heart", time: 3600 },
+            { id: "Rocket", time: 3600 },
+            { id: "DiscoBall", time: 3600 },
+            { id: "TNT", time: 3600 },
+            { id: "Coins", quantity: 5000 },
+        ],
+        price: 1.99,
+    },
+    {
+        id: "VICE_ADMIRAL_RESOURCES",
+        name: "ViceAdmiralResources",
+        type: "SpecialOffer",
+        items: [
+            { id: "Hammer", quantity: 8 },
+            { id: "Shuffle", quantity: 8 },
+            { id: "VerticalRocket", quantity: 8 },
+            { id: "HorizontalRocket", quantity: 8 },
+            { id: "Heart", time: 43200 },
+            { id: "Rocket", time: 86400 },
+            { id: "DiscoBall", time: 86400 },
+            { id: "TNT", time: 86400 },
+            { id: "Coins", quantity: 25000 },
+        ],
+        price: 89.99,
+    },
+    {
+        id: "CURRENCY_PACK_01",
+        name: "Currencypack01",
+        type: "Coin",
+        items: [{ id: "Coins", quantity: 1000 }],
+        price: 1.99,
+    },
+    {
+        id: "CURRENCY_PACK_02",
+        name: "Currencypack02",
+        type: "Coin",
+        items: [{ id: "Coins", quantity: 5000 }],
+        price: 8.99,
+    },
+    {
+        id: "CURRENCY_PACK_03",
+        name: "Currencypack03",
+        type: "Coin",
+        items: [{ id: "Coins", quantity: 10000 }],
+        price: 17.99,
+    },
+    {
+        id: "CURRENCY_PACK_04",
+        name: "Currencypack04",
+        type: "Coin",
+        items: [{ id: "Coins", quantity: 25000 }],
+        price: 34.99,
+    },
+    {
+        id: "CURRENCY_PACK_05",
+        name: "Currencypack05",
+        type: "Coin",
+        items: [{ id: "Coins", quantity: 50000 }],
+        price: 59.99,
+    },
+    {
+        id: "CURRENCY_PACK_06",
+        name: "Currencypack06",
+        type: "Coin",
+        items: [{ id: "Coins", quantity: 100000 }],
+        price: 99.99,
+    },
+];
+var initShop = function (nk) {
+    try {
+        nk.storageWrite([
+            {
+                collection: "Shop",
+                key: "RealMoney",
+                userId: SystemUserId,
+                value: { items: SHOP_ITEMS },
+                permissionRead: 2,
+                permissionWrite: 0,
+            },
+        ]);
+    }
+    catch (error) { }
+};
 var BattlePassRewards = [
     {
         free: [{ id: "DiscoBall", quantity: 1 }],
@@ -1198,7 +1525,6 @@ var BeforeGetStorage = function (ctx, logger, nk, data) {
     });
     return data;
 };
-var SystemUserId = "00000000-0000-0000-0000-000000000000";
 var Category;
 (function (Category) {
     Category[Category["GLOBAL"] = 0] = "GLOBAL";
@@ -1304,10 +1630,19 @@ var leaderboardRewards = {
             { id: "Coins", quantity: 200 },
         ],
     },
-    //TODO: Mush change
     Endless: {
         config: { gold: 1 },
-        gold: [{ id: "Coins", quantity: 100 }],
+        gold: [
+            { id: "Hammer", quantity: 4 },
+            { id: "Shuffle", quantity: 4 },
+            { id: "VerticalRocket", quantity: 4 },
+            { id: "HorizontalRocket", quantity: 4 },
+            { id: "Heart", time: 7200 },
+            { id: "Rocket", time: 43200 },
+            { id: "DiscoBall", time: 43200 },
+            { id: "TNT", time: 43200 },
+            { id: "Coins", quantity: 10000 },
+        ],
     },
 };
 var Bucket;
@@ -1971,332 +2306,6 @@ var WalletConnect = function (ctx, logger, nk, payload) {
     catch (error) {
         return Res.Error(logger, "Error While Connecting Wallet", error);
     }
-};
-var _a, _b, _c;
-var GameApi = {
-    LastLevel: (_a = /** @class */ (function () {
-            function class_1() {
-            }
-            class_1.get = function (nk, userId) {
-                try {
-                    var storageObjects = nk.storageRead([
-                        {
-                            collection: this.Keys.collection,
-                            key: this.Keys.key,
-                            userId: userId,
-                        },
-                    ]);
-                    var lastLevel = storageObjects[0].value[this.id];
-                    return lastLevel;
-                }
-                catch (error) {
-                    throw new Error("failed to get Last level: " + error.message);
-                }
-            };
-            class_1.set = function (nk, userId, newValue) {
-                var _a;
-                try {
-                    var value = (_a = {}, _a[this.id] = newValue, _a);
-                    nk.storageWrite([
-                        {
-                            collection: this.Keys.collection,
-                            key: this.Keys.key,
-                            userId: userId,
-                            value: value,
-                        },
-                    ]);
-                }
-                catch (error) {
-                    throw new Error("failed to set Last level: " + error.message);
-                }
-            };
-            class_1.increment = function (nk, userId) {
-                var lastLevel = GameApi.LastLevel.get(nk, userId);
-                GameApi.LastLevel.set(nk, userId, lastLevel + 1);
-            };
-            return class_1;
-        }()),
-        __setFunctionName(_a, "LastLevel"),
-        _a.Keys = {
-            collection: "Levels",
-            key: "Data",
-        },
-        _a.id = "progress",
-        _a),
-    LevelLog: (_b = /** @class */ (function () {
-            function class_2() {
-            }
-            class_2.save = function (nk, userId, data) {
-                try {
-                    nk.storageWrite([
-                        {
-                            collection: this.Keys.collection,
-                            key: (data.levelNumber || -1).toString(),
-                            userId: userId,
-                            value: data,
-                            permissionRead: 2,
-                            permissionWrite: 0,
-                        },
-                    ]);
-                }
-                catch (error) {
-                    throw new Error("failed to save LevelLog: ".concat(error.message));
-                }
-            };
-            class_2.get = function (nk, userId, levelNumber) {
-                var data = nk.storageRead([
-                    { collection: this.Keys.collection, key: levelNumber, userId: userId },
-                ]);
-                return data;
-            };
-            return class_2;
-        }()),
-        __setFunctionName(_b, "LevelLog"),
-        _b.Keys = {
-            collection: "Levels",
-        },
-        _b),
-    Cheat: (_c = /** @class */ (function () {
-            function class_3() {
-            }
-            class_3.write = function (nk, levelNumber, userId, cheats) {
-                try {
-                    nk.storageWrite([
-                        {
-                            collection: this.Keys.collection,
-                            key: levelNumber.toString(),
-                            userId: userId,
-                            value: { cheats: cheats },
-                            permissionRead: 2,
-                            permissionWrite: 0,
-                        },
-                    ]);
-                }
-                catch (error) {
-                    throw new Error("failed to save Cheats: ".concat(error.message));
-                }
-            };
-            return class_3;
-        }()),
-        __setFunctionName(_c, "Cheat"),
-        _c.Keys = {
-            collection: "Cheats",
-        },
-        _c),
-};
-var Notifications;
-(function (Notifications) {
-    var CODES;
-    (function (CODES) {
-        CODES[CODES["SYSTEM"] = 0] = "SYSTEM";
-        CODES[CODES["BucketReset"] = 1] = "BucketReset";
-        CODES[CODES["BattlePassReset"] = 2] = "BattlePassReset";
-    })(CODES = Notifications.CODES || (Notifications.CODES = {}));
-    Notifications.Notifs = {
-        1: {
-            subject: "Leaderboard End",
-            code: CODES.BucketReset,
-            senderId: SystemUserId,
-            persistent: true,
-        },
-        2: {
-            code: CODES.BattlePassReset,
-            persistent: true,
-            senderId: SystemUserId,
-            subject: "BattlePass Reset",
-        },
-    };
-    function create(code, userId, content) {
-        var _a = Notifications.Notifs[code], persistent = _a.persistent, senderId = _a.senderId, subject = _a.subject;
-        var data = {
-            code: code,
-            content: content,
-            persistent: persistent,
-            senderId: senderId,
-            subject: subject,
-            userId: userId,
-        };
-        return data;
-    }
-    Notifications.create = create;
-})(Notifications || (Notifications = {}));
-var SHOP_ITEMS = [
-    {
-        id: "ADMIRAL_RESOURCES",
-        name: "AdmiralResources",
-        type: "SpecialOffer",
-        items: [
-            { id: "Hammer", quantity: 10 },
-            { id: "Shuffle", quantity: 10 },
-            { id: "VerticalRocket", quantity: 10 },
-            { id: "HorizontalRocket", quantity: 10 },
-            { id: "Heart", time: 64800 },
-            { id: "Rocket", time: 259200 },
-            { id: "DiscoBall", time: 259200 },
-            { id: "TNT", time: 259200 },
-            { id: "Coins", quantity: 50000 },
-        ],
-        price: 99.99,
-    },
-    {
-        id: "ASTRONAUT_RESOURCES",
-        name: "AstronautResources",
-        type: "SpecialOffer",
-        items: [
-            { id: "Hammer", quantity: 2 },
-            { id: "Shuffle", quantity: 2 },
-            { id: "VerticalRocket", quantity: 2 },
-            { id: "HorizontalRocket", quantity: 2 },
-            { id: "Heart", time: 3600 },
-            { id: "Rocket", time: 3600 },
-            { id: "DiscoBall", time: 3600 },
-            { id: "TNT", time: 3600 },
-            { id: "Coins", quantity: 5000 },
-        ],
-        price: 9.99,
-    },
-    {
-        id: "CAPTAIN_RESOURCES",
-        name: "CaptainResources",
-        type: "SpecialOffer",
-        items: [
-            { id: "Hammer", quantity: 4 },
-            { id: "Shuffle", quantity: 4 },
-            { id: "VerticalRocket", quantity: 4 },
-            { id: "HorizontalRocket", quantity: 4 },
-            { id: "Heart", time: 7200 },
-            { id: "Rocket", time: 43200 },
-            { id: "DiscoBall", time: 43200 },
-            { id: "TNT", time: 43200 },
-            { id: "Coins", quantity: 10000 },
-        ],
-        price: 22.99,
-    },
-    {
-        id: "COMMANDER_RESOURCES",
-        name: "CommanderResources",
-        type: "SpecialOffer",
-        items: [
-            { id: "Hammer", quantity: 6 },
-            { id: "Shuffle", quantity: 6 },
-            { id: "VerticalRocket", quantity: 6 },
-            { id: "HorizontalRocket", quantity: 6 },
-            { id: "Heart", time: 21600 },
-            { id: "Rocket", time: 64800 },
-            { id: "DiscoBall", time: 64800 },
-            { id: "TNT", time: 64800 },
-            { id: "Coins", quantity: 10000 },
-        ],
-        price: 44.99,
-    },
-    {
-        id: "ELDER_RESOURCES",
-        name: "ElderResources",
-        type: "SpecialOffer",
-        items: [
-            { id: "Hammer", quantity: 15 },
-            { id: "Shuffle", quantity: 15 },
-            { id: "VerticalRocket", quantity: 15 },
-            { id: "HorizontalRocket", quantity: 15 },
-            { id: "Heart", time: 86400 },
-            { id: "Rocket", time: 36000 },
-            { id: "DiscoBall", time: 36000 },
-            { id: "TNT", time: 36000 },
-            { id: "Coins", quantity: 65000 },
-        ],
-        price: 110.99,
-    },
-    {
-        id: "SPECIAL_OFFER",
-        name: "SpecialOffer",
-        type: "SpecialOffer",
-        items: [
-            { id: "Hammer", quantity: 1 },
-            { id: "Shuffle", quantity: 1 },
-            { id: "VerticalRocket", quantity: 1 },
-            { id: "HorizontalRocket", quantity: 1 },
-            { id: "Heart", time: 3600 },
-            { id: "Rocket", time: 3600 },
-            { id: "DiscoBall", time: 3600 },
-            { id: "TNT", time: 3600 },
-            { id: "Coins", quantity: 5000 },
-        ],
-        price: 1.99,
-    },
-    {
-        id: "VICE_ADMIRAL_RESOURCES",
-        name: "ViceAdmiralResources",
-        type: "SpecialOffer",
-        items: [
-            { id: "Hammer", quantity: 8 },
-            { id: "Shuffle", quantity: 8 },
-            { id: "VerticalRocket", quantity: 8 },
-            { id: "HorizontalRocket", quantity: 8 },
-            { id: "Heart", time: 43200 },
-            { id: "Rocket", time: 86400 },
-            { id: "DiscoBall", time: 86400 },
-            { id: "TNT", time: 86400 },
-            { id: "Coins", quantity: 25000 },
-        ],
-        price: 89.99,
-    },
-    {
-        id: "CURRENCY_PACK_01",
-        name: "Currencypack01",
-        type: "Coin",
-        items: [{ id: "Coins", quantity: 1000 }],
-        price: 1.99,
-    },
-    {
-        id: "CURRENCY_PACK_02",
-        name: "Currencypack02",
-        type: "Coin",
-        items: [{ id: "Coins", quantity: 5000 }],
-        price: 8.99,
-    },
-    {
-        id: "CURRENCY_PACK_03",
-        name: "Currencypack03",
-        type: "Coin",
-        items: [{ id: "Coins", quantity: 10000 }],
-        price: 17.99,
-    },
-    {
-        id: "CURRENCY_PACK_04",
-        name: "Currencypack04",
-        type: "Coin",
-        items: [{ id: "Coins", quantity: 25000 }],
-        price: 34.99,
-    },
-    {
-        id: "CURRENCY_PACK_05",
-        name: "Currencypack05",
-        type: "Coin",
-        items: [{ id: "Coins", quantity: 50000 }],
-        price: 59.99,
-    },
-    {
-        id: "CURRENCY_PACK_06",
-        name: "Currencypack06",
-        type: "Coin",
-        items: [{ id: "Coins", quantity: 100000 }],
-        price: 99.99,
-    },
-];
-var initShop = function (nk) {
-    try {
-        nk.storageWrite([
-            {
-                collection: "Shop",
-                key: "RealMoney",
-                userId: SystemUserId,
-                value: { items: SHOP_ITEMS },
-                permissionRead: 2,
-                permissionWrite: 0,
-            },
-        ]);
-    }
-    catch (error) { }
 };
 var LevelValidation;
 (function (LevelValidation) {
