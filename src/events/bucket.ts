@@ -1,5 +1,3 @@
-const SystemUserId = "00000000-0000-0000-0000-000000000000";
-
 enum Category {
   GLOBAL,
   WEEKLY,
@@ -110,10 +108,19 @@ const leaderboardRewards: {
       { id: "Coins", quantity: 200 },
     ],
   },
-  //TODO: Mush change
   Endless: {
     config: { gold: 1 },
-    gold: [{ id: "Coins", quantity: 100 }],
+    gold: [
+      { id: "Hammer", quantity: 4 },
+      { id: "Shuffle", quantity: 4 },
+      { id: "VerticalRocket", quantity: 4 },
+      { id: "HorizontalRocket", quantity: 4 },
+      { id: "Heart", time: 7200 },
+      { id: "Rocket", time: 43200 },
+      { id: "DiscoBall", time: 43200 },
+      { id: "TNT", time: 43200 },
+      { id: "Coins", quantity: 10000 },
+    ],
   },
 };
 
