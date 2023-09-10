@@ -622,369 +622,6 @@ var initShop = function (nk) {
     }
     catch (error) { }
 };
-var BattlePassRewards = [
-    {
-        free: [{ id: "DiscoBall", quantity: 1 }],
-        premium: [{ id: "DiscoBall", quantity: 2 }],
-        requiredKeys: 1,
-    },
-    {
-        free: [{ id: "TNT", quantity: 1 }],
-        premium: [{ id: "TNT", quantity: 2 }],
-        requiredKeys: 2,
-    },
-    {
-        free: [{ id: "HorizontalRocket", quantity: 1 }],
-        premium: [{ id: "HorizontalRocket", quantity: 2 }],
-        requiredKeys: 5,
-    },
-    {
-        free: [{ id: "Coins", quantity: 100 }],
-        premium: [{ id: "Coins", quantity: 200 }],
-        requiredKeys: 5,
-    },
-    {
-        free: [
-            { id: "Rocket", quantity: 1 },
-            { id: "Heart", time: 15 * 60 },
-        ],
-        premium: [
-            { id: "Rocket", quantity: 2 },
-            { id: "Heart", time: 30 * 60 },
-        ],
-        requiredKeys: 10,
-    },
-    {
-        free: [{ id: "Hammer", quantity: 1 }],
-        premium: [{ id: "Hammer", quantity: 2 }],
-        requiredKeys: 10,
-    },
-    {
-        free: [{ id: "DiscoBall", time: 15 * 60 }],
-        premium: [{ id: "DiscoBall", time: 30 * 60 }],
-        requiredKeys: 10,
-    },
-    {
-        free: [{ id: "TNT", quantity: 1 }],
-        premium: [{ id: "TNT", quantity: 2 }],
-        requiredKeys: 10,
-    },
-    {
-        free: [{ id: "Rocket", quantity: 1 }],
-        premium: [{ id: "Rocket", quantity: 2 }],
-        requiredKeys: 10,
-    },
-    {
-        free: [
-            { id: "DiscoBall", quantity: 1 },
-            { id: "Rocket", quantity: 1 },
-            { id: "Shuffle", quantity: 1 },
-        ],
-        premium: [
-            { id: "DiscoBall", quantity: 2 },
-            { id: "Rocket", quantity: 2 },
-            { id: "Shuffle", quantity: 2 },
-        ],
-        requiredKeys: 10,
-    },
-    {
-        free: [{ id: "VerticalRocket", quantity: 1 }],
-        premium: [{ id: "VerticalRocket", quantity: 2 }],
-        requiredKeys: 15,
-    },
-    {
-        free: [{ id: "Coins", quantity: 250 }],
-        premium: [{ id: "Coins", quantity: 500 }],
-        requiredKeys: 15,
-    },
-    {
-        free: [{ id: "Shuffle", quantity: 1 }],
-        premium: [{ id: "Shuffle", quantity: 2 }],
-        requiredKeys: 15,
-    },
-    {
-        free: [{ id: "Rocket", quantity: 1 }],
-        premium: [{ id: "Rocket", quantity: 2 }],
-        requiredKeys: 15,
-    },
-    {
-        free: [
-            { id: "TNT", quantity: 1 },
-            { id: "VerticalRocket", quantity: 1 },
-        ],
-        premium: [
-            { id: "TNT", quantity: 2 },
-            { id: "VerticalRocket", quantity: 2 },
-        ],
-        requiredKeys: 15,
-    },
-    {
-        free: [{ id: "TNT", time: 15 * 60 }],
-        premium: [{ id: "TNT", time: 30 * 60 }],
-        requiredKeys: 15,
-    },
-    {
-        free: [{ id: "Hammer", quantity: 1 }],
-        premium: [{ id: "Hammer", quantity: 2 }],
-        requiredKeys: 15,
-    },
-    {
-        free: [{ id: "DiscoBall", quantity: 1 }],
-        premium: [{ id: "DiscoBall", quantity: 2 }],
-        requiredKeys: 15,
-    },
-    {
-        free: [{ id: "Heart", time: 30 * 60 }],
-        premium: [{ id: "Heart", time: 60 * 60 }],
-        requiredKeys: 15,
-    },
-    {
-        free: [
-            { id: "VerticalRocket", quantity: 1 },
-            { id: "Rocket", quantity: 1 },
-            { id: "TNT", quantity: 1 },
-        ],
-        premium: [
-            { id: "VerticalRocket", quantity: 2 },
-            { id: "Rocket", quantity: 2 },
-            { id: "TNT", quantity: 2 },
-        ],
-        requiredKeys: 15,
-    },
-    {
-        free: [{ id: "TNT", quantity: 2 }],
-        premium: [{ id: "TNT", quantity: 4 }],
-        requiredKeys: 20,
-    },
-    {
-        free: [{ id: "DiscoBall", quantity: 2 }],
-        premium: [{ id: "DiscoBall", quantity: 4 }],
-        requiredKeys: 20,
-    },
-    {
-        free: [{ id: "Rocket", time: 15 * 60 }],
-        premium: [{ id: "Rocket", time: 30 * 60 }],
-        requiredKeys: 20,
-    },
-    {
-        free: [{ id: "Coins", quantity: 500 }],
-        premium: [{ id: "Coins", quantity: 1000 }],
-        requiredKeys: 20,
-    },
-    {
-        free: [
-            { id: "Heart", time: 30 * 60 },
-            { id: "Hammer", quantity: 1 },
-            { id: "DiscoBall", quantity: 1 },
-        ],
-        premium: [
-            { id: "Heart", time: 60 * 60 },
-            { id: "Hammer", quantity: 2 },
-            { id: "DiscoBall", quantity: 2 },
-        ],
-        requiredKeys: 20,
-    },
-    {
-        free: [{ id: "HorizontalRocket", quantity: 1 }],
-        premium: [{ id: "HorizontalRocket", quantity: 2 }],
-        requiredKeys: 20,
-    },
-    {
-        free: [{ id: "Shuffle", quantity: 2 }],
-        premium: [{ id: "Shuffle", quantity: 3 }],
-        requiredKeys: 20,
-    },
-    {
-        free: [{ id: "DiscoBall", quantity: 1 }],
-        premium: [{ id: "DiscoBall", quantity: 2 }],
-        requiredKeys: 20,
-    },
-    {
-        free: [{ id: "TNT", time: 30 * 60 }],
-        premium: [{ id: "TNT", time: 60 * 60 }],
-        requiredKeys: 20,
-    },
-    {
-        free: [
-            { id: "Rocket", quantity: 3 },
-            { id: "DiscoBall", quantity: 3 },
-            { id: "TNT", quantity: 3 },
-            { id: "Shuffle", quantity: 3 },
-        ],
-        premium: [
-            { id: "Rocket", quantity: 6 },
-            { id: "DiscoBall", quantity: 6 },
-            { id: "TNT", quantity: 6 },
-            { id: "Shuffle", quantity: 6 },
-        ],
-        requiredKeys: 20,
-    },
-    {
-        free: [],
-        premium: [],
-        requiredKeys: 500,
-    },
-];
-var BattlePass;
-(function (BattlePass) {
-    var MAX_BONUS_BANK_KEYS = 500;
-    var rawData = {
-        tier: 0,
-        tierKeys: 0,
-        premium: false,
-    };
-    BattlePass.config = {
-        leaderboardID: "BattlePass",
-        authoritative: true,
-        metadata: { rewards: BattlePassRewards },
-        operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
-        // resetSchedule: "0 0 * 1 *",
-        resetSchedule: "*/30 * * * *",
-        sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
-    };
-    function init(nk) {
-        nk.leaderboardCreate(BattlePass.config.leaderboardID, BattlePass.config.authoritative, BattlePass.config.sortOrder, BattlePass.config.operator, BattlePass.config.resetSchedule, BattlePass.config.metadata);
-    }
-    BattlePass.init = init;
-    function get(nk, userId) {
-        var _a;
-        try {
-            var leaderboardID = BattlePass.config.leaderboardID;
-            var recordData = nk.leaderboardRecordsList(leaderboardID, [userId], 1);
-            var premium = rawData.premium, tier = rawData.tier, tierKeys = rawData.tierKeys;
-            var totalKeys = 0;
-            if (recordData.ownerRecords && recordData.ownerRecords.length > 0) {
-                (_a = recordData.ownerRecords[0]
-                    .metadata, premium = _a.premium, tier = _a.tier, tierKeys = _a.tierKeys);
-                totalKeys = recordData.ownerRecords[0].score;
-            }
-            return { totalKeys: totalKeys, tier: tier, tierKeys: tierKeys, premium: premium };
-        }
-        catch (error) {
-            throw new Error("failed to get BattlePass: ".concat(error.message));
-        }
-    }
-    BattlePass.get = get;
-    function update(nk, userId, keys, tierKeys, tier, premium) {
-        try {
-            var leaderboardID = BattlePass.config.leaderboardID;
-            var metadata = get(nk, userId);
-            if (tierKeys !== undefined)
-                metadata.tierKeys = Math.min(MAX_BONUS_BANK_KEYS, tierKeys);
-            if (tier !== undefined)
-                metadata.tier = tier;
-            if (premium !== undefined)
-                metadata.premium = premium;
-            var newMeta = metadata;
-            nk.leaderboardRecordWrite(leaderboardID, userId, undefined, keys, undefined, newMeta);
-        }
-        catch (error) {
-            throw new Error("failed to set Battlepass metadata: ".concat(error.message));
-        }
-    }
-    BattlePass.update = update;
-    function addReward(nk, userId, tier, expiry, subType) {
-        var tierRewards = BattlePassRewards[tier][subType];
-        if (tierRewards.length < 1)
-            return;
-        var reward = {
-            id: "BP-".concat(subType, "-").concat(tier),
-            items: tierRewards,
-            type: "BattlePass",
-        };
-        Rewards.add(nk, userId, reward, expiry);
-    }
-    function getStats(nk) {
-        var leaderboard = nk.leaderboardsGetId([BattlePass.config.leaderboardID])[0];
-        return leaderboard;
-    }
-    function premiumfy(nk, userId) {
-        var data = get(nk, userId);
-        if (data.premium)
-            return;
-        var stats = getStats(nk);
-        var expiry = stats.nextReset * 1000;
-        for (var tier = 0; tier < data.tier || tier < BattlePassRewards.length; tier++) {
-            addReward(nk, userId, tier, expiry, "premium");
-        }
-        update(nk, userId, undefined, undefined, undefined, true);
-    }
-    function addKeys(nk, logger, userId, keys) {
-        try {
-            var _a = get(nk, userId), tier = _a.tier, tierKeys = _a.tierKeys, premium = _a.premium;
-            var newTier = getTierByKeys(keys, tier, tierKeys);
-            var stats = getStats(nk);
-            var expiry = stats.nextReset * 1000;
-            while (newTier.tier > tier) {
-                if (premium)
-                    addReward(nk, userId, tier, expiry, "premium");
-                addReward(nk, userId, tier, expiry, "free");
-                tier++;
-            }
-            update(nk, userId, keys, newTier.keys, newTier.tier);
-        }
-        catch (error) {
-            throw new Error("failed to add battlepass keys: ".concat(error.message));
-        }
-    }
-    BattlePass.addKeys = addKeys;
-    function getTierByKeys(keys, latestTier, tierKeys) {
-        try {
-            var tier = latestTier;
-            var remainedKeys = keys + tierKeys;
-            var lastTier = BattlePassRewards.length - 1;
-            while (tier < lastTier &&
-                remainedKeys >= BattlePassRewards[tier].requiredKeys) {
-                remainedKeys -= BattlePassRewards[tier].requiredKeys;
-                tier++;
-            }
-            if (tier >= lastTier)
-                remainedKeys = Math.min(MAX_BONUS_BANK_KEYS, remainedKeys);
-            return { tier: tier, keys: remainedKeys };
-        }
-        catch (error) {
-            throw new Error("failed to getTierByKeys: ".concat(error.message));
-        }
-    }
-    BattlePass.getTierByKeys = getTierByKeys;
-    function BattlePassReset(nk, logger, reset) {
-        var cursor = undefined;
-        var notifications = [];
-        var leaderboardID = BattlePass.config.leaderboardID;
-        var batchSize = 100;
-        do {
-            var recordData = nk.leaderboardRecordsList(leaderboardID, undefined, batchSize, cursor, reset);
-            if (!recordData || !recordData.records)
-                break;
-            var records = recordData.records;
-            for (var _i = 0, records_1 = records; _i < records_1.length; _i++) {
-                var r = records_1[_i];
-                var userId = r.ownerId;
-                var metadata = r.metadata;
-                if (metadata.tier < BattlePassRewards.length - 1)
-                    continue;
-                var coins = Math.floor(metadata.tierKeys / 10) * 100;
-                if (coins < 1)
-                    continue;
-                var reward = {
-                    id: "Bonus Bank",
-                    items: [{ id: "Coins", quantity: coins }],
-                    type: "BattlePass",
-                };
-                Rewards.add(nk, userId, reward);
-                var content = {
-                    reward: reward,
-                };
-                var notif = Notifications.create(Notifications.CODES.BattlePassReset, userId, content);
-                notifications.push(notif);
-            }
-            nk.notificationsSend(notifications);
-            notifications = [];
-            cursor = recordData.nextCursor;
-        } while (cursor);
-    }
-    BattlePass.BattlePassReset = BattlePassReset;
-})(BattlePass || (BattlePass = {}));
 var CryptoPurchase;
 (function (CryptoPurchase) {
     CryptoPurchase.collection = "Purchase";
@@ -1525,6 +1162,369 @@ var BeforeGetStorage = function (ctx, logger, nk, data) {
     });
     return data;
 };
+var BattlePassRewards = [
+    {
+        free: [{ id: "DiscoBall", quantity: 1 }],
+        premium: [{ id: "DiscoBall", quantity: 2 }],
+        requiredKeys: 1,
+    },
+    {
+        free: [{ id: "TNT", quantity: 1 }],
+        premium: [{ id: "TNT", quantity: 2 }],
+        requiredKeys: 2,
+    },
+    {
+        free: [{ id: "HorizontalRocket", quantity: 1 }],
+        premium: [{ id: "HorizontalRocket", quantity: 2 }],
+        requiredKeys: 5,
+    },
+    {
+        free: [{ id: "Coins", quantity: 100 }],
+        premium: [{ id: "Coins", quantity: 200 }],
+        requiredKeys: 5,
+    },
+    {
+        free: [
+            { id: "Rocket", quantity: 1 },
+            { id: "Heart", time: 15 * 60 },
+        ],
+        premium: [
+            { id: "Rocket", quantity: 2 },
+            { id: "Heart", time: 30 * 60 },
+        ],
+        requiredKeys: 10,
+    },
+    {
+        free: [{ id: "Hammer", quantity: 1 }],
+        premium: [{ id: "Hammer", quantity: 2 }],
+        requiredKeys: 10,
+    },
+    {
+        free: [{ id: "DiscoBall", time: 15 * 60 }],
+        premium: [{ id: "DiscoBall", time: 30 * 60 }],
+        requiredKeys: 10,
+    },
+    {
+        free: [{ id: "TNT", quantity: 1 }],
+        premium: [{ id: "TNT", quantity: 2 }],
+        requiredKeys: 10,
+    },
+    {
+        free: [{ id: "Rocket", quantity: 1 }],
+        premium: [{ id: "Rocket", quantity: 2 }],
+        requiredKeys: 10,
+    },
+    {
+        free: [
+            { id: "DiscoBall", quantity: 1 },
+            { id: "Rocket", quantity: 1 },
+            { id: "Shuffle", quantity: 1 },
+        ],
+        premium: [
+            { id: "DiscoBall", quantity: 2 },
+            { id: "Rocket", quantity: 2 },
+            { id: "Shuffle", quantity: 2 },
+        ],
+        requiredKeys: 10,
+    },
+    {
+        free: [{ id: "VerticalRocket", quantity: 1 }],
+        premium: [{ id: "VerticalRocket", quantity: 2 }],
+        requiredKeys: 15,
+    },
+    {
+        free: [{ id: "Coins", quantity: 250 }],
+        premium: [{ id: "Coins", quantity: 500 }],
+        requiredKeys: 15,
+    },
+    {
+        free: [{ id: "Shuffle", quantity: 1 }],
+        premium: [{ id: "Shuffle", quantity: 2 }],
+        requiredKeys: 15,
+    },
+    {
+        free: [{ id: "Rocket", quantity: 1 }],
+        premium: [{ id: "Rocket", quantity: 2 }],
+        requiredKeys: 15,
+    },
+    {
+        free: [
+            { id: "TNT", quantity: 1 },
+            { id: "VerticalRocket", quantity: 1 },
+        ],
+        premium: [
+            { id: "TNT", quantity: 2 },
+            { id: "VerticalRocket", quantity: 2 },
+        ],
+        requiredKeys: 15,
+    },
+    {
+        free: [{ id: "TNT", time: 15 * 60 }],
+        premium: [{ id: "TNT", time: 30 * 60 }],
+        requiredKeys: 15,
+    },
+    {
+        free: [{ id: "Hammer", quantity: 1 }],
+        premium: [{ id: "Hammer", quantity: 2 }],
+        requiredKeys: 15,
+    },
+    {
+        free: [{ id: "DiscoBall", quantity: 1 }],
+        premium: [{ id: "DiscoBall", quantity: 2 }],
+        requiredKeys: 15,
+    },
+    {
+        free: [{ id: "Heart", time: 30 * 60 }],
+        premium: [{ id: "Heart", time: 60 * 60 }],
+        requiredKeys: 15,
+    },
+    {
+        free: [
+            { id: "VerticalRocket", quantity: 1 },
+            { id: "Rocket", quantity: 1 },
+            { id: "TNT", quantity: 1 },
+        ],
+        premium: [
+            { id: "VerticalRocket", quantity: 2 },
+            { id: "Rocket", quantity: 2 },
+            { id: "TNT", quantity: 2 },
+        ],
+        requiredKeys: 15,
+    },
+    {
+        free: [{ id: "TNT", quantity: 2 }],
+        premium: [{ id: "TNT", quantity: 4 }],
+        requiredKeys: 20,
+    },
+    {
+        free: [{ id: "DiscoBall", quantity: 2 }],
+        premium: [{ id: "DiscoBall", quantity: 4 }],
+        requiredKeys: 20,
+    },
+    {
+        free: [{ id: "Rocket", time: 15 * 60 }],
+        premium: [{ id: "Rocket", time: 30 * 60 }],
+        requiredKeys: 20,
+    },
+    {
+        free: [{ id: "Coins", quantity: 500 }],
+        premium: [{ id: "Coins", quantity: 1000 }],
+        requiredKeys: 20,
+    },
+    {
+        free: [
+            { id: "Heart", time: 30 * 60 },
+            { id: "Hammer", quantity: 1 },
+            { id: "DiscoBall", quantity: 1 },
+        ],
+        premium: [
+            { id: "Heart", time: 60 * 60 },
+            { id: "Hammer", quantity: 2 },
+            { id: "DiscoBall", quantity: 2 },
+        ],
+        requiredKeys: 20,
+    },
+    {
+        free: [{ id: "HorizontalRocket", quantity: 1 }],
+        premium: [{ id: "HorizontalRocket", quantity: 2 }],
+        requiredKeys: 20,
+    },
+    {
+        free: [{ id: "Shuffle", quantity: 2 }],
+        premium: [{ id: "Shuffle", quantity: 3 }],
+        requiredKeys: 20,
+    },
+    {
+        free: [{ id: "DiscoBall", quantity: 1 }],
+        premium: [{ id: "DiscoBall", quantity: 2 }],
+        requiredKeys: 20,
+    },
+    {
+        free: [{ id: "TNT", time: 30 * 60 }],
+        premium: [{ id: "TNT", time: 60 * 60 }],
+        requiredKeys: 20,
+    },
+    {
+        free: [
+            { id: "Rocket", quantity: 3 },
+            { id: "DiscoBall", quantity: 3 },
+            { id: "TNT", quantity: 3 },
+            { id: "Shuffle", quantity: 3 },
+        ],
+        premium: [
+            { id: "Rocket", quantity: 6 },
+            { id: "DiscoBall", quantity: 6 },
+            { id: "TNT", quantity: 6 },
+            { id: "Shuffle", quantity: 6 },
+        ],
+        requiredKeys: 20,
+    },
+    {
+        free: [],
+        premium: [],
+        requiredKeys: 500,
+    },
+];
+var BattlePass;
+(function (BattlePass) {
+    var MAX_BONUS_BANK_KEYS = 500;
+    var rawData = {
+        tier: 0,
+        tierKeys: 0,
+        premium: false,
+    };
+    BattlePass.config = {
+        leaderboardID: "BattlePass",
+        authoritative: true,
+        metadata: { rewards: BattlePassRewards },
+        operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
+        // resetSchedule: "0 0 * 1 *",
+        resetSchedule: "*/30 * * * *",
+        sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
+    };
+    function init(nk) {
+        nk.leaderboardCreate(BattlePass.config.leaderboardID, BattlePass.config.authoritative, BattlePass.config.sortOrder, BattlePass.config.operator, BattlePass.config.resetSchedule, BattlePass.config.metadata);
+    }
+    BattlePass.init = init;
+    function get(nk, userId) {
+        var _a;
+        try {
+            var leaderboardID = BattlePass.config.leaderboardID;
+            var recordData = nk.leaderboardRecordsList(leaderboardID, [userId], 1);
+            var premium = rawData.premium, tier = rawData.tier, tierKeys = rawData.tierKeys;
+            var totalKeys = 0;
+            if (recordData.ownerRecords && recordData.ownerRecords.length > 0) {
+                (_a = recordData.ownerRecords[0]
+                    .metadata, premium = _a.premium, tier = _a.tier, tierKeys = _a.tierKeys);
+                totalKeys = recordData.ownerRecords[0].score;
+            }
+            return { totalKeys: totalKeys, tier: tier, tierKeys: tierKeys, premium: premium };
+        }
+        catch (error) {
+            throw new Error("failed to get BattlePass: ".concat(error.message));
+        }
+    }
+    BattlePass.get = get;
+    function update(nk, userId, keys, tierKeys, tier, premium) {
+        try {
+            var leaderboardID = BattlePass.config.leaderboardID;
+            var metadata = get(nk, userId);
+            if (tierKeys !== undefined)
+                metadata.tierKeys = Math.min(MAX_BONUS_BANK_KEYS, tierKeys);
+            if (tier !== undefined)
+                metadata.tier = tier;
+            if (premium !== undefined)
+                metadata.premium = premium;
+            var newMeta = metadata;
+            nk.leaderboardRecordWrite(leaderboardID, userId, undefined, keys, undefined, newMeta);
+        }
+        catch (error) {
+            throw new Error("failed to set Battlepass metadata: ".concat(error.message));
+        }
+    }
+    BattlePass.update = update;
+    function addReward(nk, userId, tier, expiry, subType) {
+        var tierRewards = BattlePassRewards[tier][subType];
+        if (tierRewards.length < 1)
+            return;
+        var reward = {
+            id: "BP-".concat(subType, "-").concat(tier),
+            items: tierRewards,
+            type: "BattlePass",
+        };
+        Rewards.add(nk, userId, reward, expiry);
+    }
+    function getStats(nk) {
+        var leaderboard = nk.leaderboardsGetId([BattlePass.config.leaderboardID])[0];
+        return leaderboard;
+    }
+    function premiumfy(nk, userId) {
+        var data = get(nk, userId);
+        if (data.premium)
+            return;
+        var stats = getStats(nk);
+        var expiry = stats.nextReset * 1000;
+        for (var tier = 0; tier < data.tier || tier < BattlePassRewards.length; tier++) {
+            addReward(nk, userId, tier, expiry, "premium");
+        }
+        update(nk, userId, undefined, undefined, undefined, true);
+    }
+    function addKeys(nk, logger, userId, keys) {
+        try {
+            var _a = get(nk, userId), tier = _a.tier, tierKeys = _a.tierKeys, premium = _a.premium;
+            var newTier = getTierByKeys(keys, tier, tierKeys);
+            var stats = getStats(nk);
+            var expiry = stats.nextReset * 1000;
+            while (newTier.tier > tier) {
+                if (premium)
+                    addReward(nk, userId, tier, expiry, "premium");
+                addReward(nk, userId, tier, expiry, "free");
+                tier++;
+            }
+            update(nk, userId, keys, newTier.keys, newTier.tier);
+        }
+        catch (error) {
+            throw new Error("failed to add battlepass keys: ".concat(error.message));
+        }
+    }
+    BattlePass.addKeys = addKeys;
+    function getTierByKeys(keys, latestTier, tierKeys) {
+        try {
+            var tier = latestTier;
+            var remainedKeys = keys + tierKeys;
+            var lastTier = BattlePassRewards.length - 1;
+            while (tier < lastTier &&
+                remainedKeys >= BattlePassRewards[tier].requiredKeys) {
+                remainedKeys -= BattlePassRewards[tier].requiredKeys;
+                tier++;
+            }
+            if (tier >= lastTier)
+                remainedKeys = Math.min(MAX_BONUS_BANK_KEYS, remainedKeys);
+            return { tier: tier, keys: remainedKeys };
+        }
+        catch (error) {
+            throw new Error("failed to getTierByKeys: ".concat(error.message));
+        }
+    }
+    BattlePass.getTierByKeys = getTierByKeys;
+    function BattlePassReset(nk, logger, reset) {
+        var cursor = undefined;
+        var notifications = [];
+        var leaderboardID = BattlePass.config.leaderboardID;
+        var batchSize = 100;
+        do {
+            var recordData = nk.leaderboardRecordsList(leaderboardID, undefined, batchSize, cursor, reset);
+            if (!recordData || !recordData.records)
+                break;
+            var records = recordData.records;
+            for (var _i = 0, records_1 = records; _i < records_1.length; _i++) {
+                var r = records_1[_i];
+                var userId = r.ownerId;
+                var metadata = r.metadata;
+                if (metadata.tier < BattlePassRewards.length - 1)
+                    continue;
+                var coins = Math.floor(metadata.tierKeys / 10) * 100;
+                if (coins < 1)
+                    continue;
+                var reward = {
+                    id: "Bonus Bank",
+                    items: [{ id: "Coins", quantity: coins }],
+                    type: "BattlePass",
+                };
+                Rewards.add(nk, userId, reward);
+                var content = {
+                    reward: reward,
+                };
+                var notif = Notifications.create(Notifications.CODES.BattlePassReset, userId, content);
+                notifications.push(notif);
+            }
+            nk.notificationsSend(notifications);
+            notifications = [];
+            cursor = recordData.nextCursor;
+        } while (cursor);
+    }
+    BattlePass.BattlePassReset = BattlePassReset;
+})(BattlePass || (BattlePass = {}));
 var Category;
 (function (Category) {
     Category[Category["GLOBAL"] = 0] = "GLOBAL";
@@ -2186,6 +2186,18 @@ var leaderboardReset = function (ctx, logger, nk, leaderboard, reset) {
             break;
     }
 };
+var PropellerMadness;
+(function (PropellerMadness) {
+    var config = {
+        leaderboardID: "Propeller Madness",
+        authoritative: true,
+        operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
+        sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
+        // resetSchedule:'* * */3 * *',
+        resetSchedule: "*/15 * * * *",
+        metadata: {},
+    };
+})(PropellerMadness || (PropellerMadness = {}));
 var Res;
 (function (Res) {
     var Code;
