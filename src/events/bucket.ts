@@ -265,7 +265,7 @@ namespace Bucket {
       joinRequired: true,
       maxNumScore: MAX_SCORE,
       maxSize: 100000000,
-      metadata: {},
+      metadata: leaderboardRewards.Endless,
       operator: nkruntime.Operator.INCREMENTAL,
       // resetSchedule: "0 0 */3 * *",
       resetSchedule: "*/10 * * * *",
