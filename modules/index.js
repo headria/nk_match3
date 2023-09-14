@@ -1966,9 +1966,17 @@ var Bucket;
     }
     Bucket.joinLeaderboard = joinLeaderboard;
     function getBucketRecords(nk, bucket, config, time) {
+        var _a;
         try {
             var tournament = nk.tournamentRecordsList(config.tournamentID, bucket.userIds, config.bucketSize, undefined, time);
-            return tournament.ownerRecords;
+            var sorted = (_a = tournament.ownerRecords) === null || _a === void 0 ? void 0 : _a.sort(function (a, b) {
+                if (b.score !== a.score) {
+                    return b.score - a.score;
+                }
+                return a.updateTime - b.updateTime;
+            });
+            sorted === null || sorted === void 0 ? void 0 : sorted.forEach(function (scoreObj, index) { return (scoreObj.rank = index + 1); });
+            return sorted;
         }
         catch (error) {
             throw new Error("failed to getRecords: ".concat(error.message));
@@ -2025,7 +2033,7 @@ var Bucket;
                                 var rewardItems = leaderboardRewards[leaderBoadrdId_1][tier];
                                 if (rewardItems) {
                                     reward = {
-                                        id: tournament.id,
+                                        id: leaderBoadrdId_1,
                                         type: "Leaderboard",
                                         items: rewardItems,
                                     };

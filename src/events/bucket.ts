@@ -546,7 +546,14 @@ namespace Bucket {
         undefined,
         time
       );
-      return tournament.ownerRecords;
+      const sorted = tournament.ownerRecords?.sort((a, b) => {
+        if (b.score !== a.score) {
+          return b.score - a.score;
+        }
+        return a.updateTime - b.updateTime;
+      });
+      sorted?.forEach((scoreObj, index) => (scoreObj.rank = index + 1));
+      return sorted;
     } catch (error: any) {
       throw new Error(`failed to getRecords: ${error.message}`);
     }
@@ -605,7 +612,7 @@ namespace Bucket {
           const obj: nkruntime.StorageDeleteRequest = {
             collection: bucketCollection,
             key: leaderBoadrdId,
-            userId: userId,
+            userId,
           };
           if (b.value && b.value.id) {
             const bucketId = b.value.id;
@@ -631,7 +638,7 @@ namespace Bucket {
                 const rewardItems = leaderboardRewards[leaderBoadrdId][tier];
                 if (rewardItems) {
                   reward = {
-                    id: tournament.id,
+                    id: leaderBoadrdId,
                     type: "Leaderboard",
                     items: rewardItems,
                   };
@@ -644,7 +651,6 @@ namespace Bucket {
               records: records,
               reward: reward,
             };
-
             let notif = Notifications.create(
               Notifications.CODES.BucketReset,
               userId,
