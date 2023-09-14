@@ -7,7 +7,10 @@ const GameApi = {
       key: "Data",
     };
     static id = "progress";
-    static get(nk: nkruntime.Nakama, userId: string): number {
+    static get(
+      nk: nkruntime.Nakama,
+      userId: string
+    ): { level: number; version: string } {
       try {
         const storageObjects = nk.storageRead([
           {
@@ -17,30 +20,35 @@ const GameApi = {
           },
         ]);
         const lastLevel: number = storageObjects[0].value[this.id];
-        return lastLevel;
+        return { version: storageObjects[0].version, level: lastLevel };
       } catch (error: any) {
         throw new Error("failed to get Last level: " + error.message);
       }
     }
 
-    static set(nk: nkruntime.Nakama, userId: string, newValue: number) {
+    static set(
+      nk: nkruntime.Nakama,
+      userId: string,
+      newValue: number,
+      version?: string
+    ) {
       try {
         const value = { [this.id]: newValue };
-        nk.storageWrite([
-          {
-            collection: this.Keys.collection,
-            key: this.Keys.key,
-            userId,
-            value,
-          },
-        ]);
+        const writeReq: nkruntime.StorageWriteRequest = {
+          collection: this.Keys.collection,
+          key: this.Keys.key,
+          userId,
+          value,
+        };
+        if (version !== undefined) writeReq.version = version;
+        nk.storageWrite([writeReq]);
       } catch (error: any) {
-        throw new Error("failed to set Last level: " + error.message);
+        throw new Error("failed to set Last level => " + error.message);
       }
     }
     static increment(nk: nkruntime.Nakama, userId: string) {
-      const lastLevel = GameApi.LastLevel.get(nk, userId);
-      GameApi.LastLevel.set(nk, userId, lastLevel + 1);
+      const { level, version } = GameApi.LastLevel.get(nk, userId);
+      GameApi.LastLevel.set(nk, userId, level + 1, version);
     }
   },
   LevelLog: class {
@@ -65,7 +73,7 @@ const GameApi = {
           },
         ]);
       } catch (error: any) {
-        throw new Error(`failed to save LevelLog: ${error.message}`);
+        throw new Error(`failed to save LevelLog => ${error.message}`);
       }
     }
     static get(nk: nkruntime.Nakama, userId: string, levelNumber: string) {
@@ -97,7 +105,7 @@ const GameApi = {
           },
         ]);
       } catch (error: any) {
-        throw new Error(`failed to save Cheats: ${error.message}`);
+        throw new Error(`failed to save Cheats => ${error.message}`);
       }
     }
   },
