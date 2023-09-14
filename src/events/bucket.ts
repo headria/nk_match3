@@ -657,7 +657,7 @@ namespace Bucket {
         });
         nk.notificationsSend(notifications);
         nk.storageDelete(userObjToDelete);
-
+        notifications = [];
         cursur = userBuckets.cursor;
       } while (cursur);
     } catch (error: any) {
