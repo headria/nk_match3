@@ -62,7 +62,7 @@ namespace Rewards {
       permissionRead: 1,
       permissionWrite: 0,
     };
-    writeObj.version = version !== undefined ? version : "*";
+    if (version !== undefined) writeObj.version = version;
     const res = nk.storageWrite([writeObj]);
     return res[0].version;
   }
@@ -73,15 +73,19 @@ namespace Rewards {
     reward: Reward,
     expiry?: number
   ) {
-    try {
-      const { rewards, version } = get(nk, reward.type, userId);
-      reward.claimed = false;
-      reward.addTime = Date.now();
-      if (expiry !== undefined) reward.expiry = expiry;
-      rewards.push(reward);
-      set(nk, userId, reward.type, rewards, version);
-    } catch (error: any) {
-      throw new Error(`failed to add reward: ${error.message}`);
+    while (true) {
+      try {
+        const { rewards, version } = get(nk, reward.type, userId);
+        reward.claimed = false;
+        reward.addTime = Date.now();
+        if (expiry !== undefined) reward.expiry = expiry;
+        rewards.push(reward);
+        set(nk, userId, reward.type, rewards, version);
+        break;
+      } catch (error: any) {
+        if (error.message.indexOf("version check failed") === -1)
+          throw new Error(`failed to add reward: ${error.message}`);
+      }
     }
   }
 
@@ -111,6 +115,7 @@ namespace Rewards {
     }
     return rewardIndex;
   }
+
   export function claim(
     nk: nkruntime.Nakama,
     userId: string,

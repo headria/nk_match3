@@ -81,20 +81,13 @@ namespace Leaderboards {
     }
   };
 
-  export const UpdateLeaderboards = (
+  function updateEvents(
     nk: nkruntime.Nakama,
-    logger: nkruntime.Logger,
     userId: string,
     username: string,
-    levelLog: LevelValidation.ILevelLog
-  ): void => {
-    const { levelNumber } = levelLog;
-    //calculate leaderboard score
-    const rushScore = levelLog.atEnd.discoBallTargettedTiles || 0;
-    const levelDifficulty = Levels.difficulty[levelNumber] || 0;
-    updateGlobal(nk, userId, username, 1);
-    if (levelLog.levelNumber > 39)
-      BattlePass.addKeys(nk, logger, userId, levelDifficulty);
+    levelDifficulty: number,
+    rushScore: number
+  ) {
     Object.keys(Bucket.configs).map((tournamentId) => {
       try {
         switch (tournamentId) {
@@ -115,6 +108,23 @@ namespace Leaderboards {
         }
       } catch (error) {}
     });
+  }
+
+  export const UpdateLeaderboards = (
+    nk: nkruntime.Nakama,
+    logger: nkruntime.Logger,
+    userId: string,
+    username: string,
+    levelLog: LevelValidation.ILevelLog
+  ): void => {
+    const { levelNumber } = levelLog;
+    //calculate leaderboard score
+    const rushScore = levelLog.atEnd.discoBallTargettedTiles || 0;
+    const levelDifficulty = Levels.difficulty[levelNumber] || 0;
+    updateGlobal(nk, userId, username, 1);
+    if (levelLog.levelNumber > 39)
+      BattlePass.addKeys(nk, logger, userId, levelDifficulty);
+    updateEvents(nk, userId, username, levelDifficulty, rushScore);
   };
 }
 

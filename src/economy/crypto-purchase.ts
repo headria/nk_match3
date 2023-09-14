@@ -2,38 +2,28 @@ namespace CryptoPurchase {
   export const collection: string = "Purchase";
   export const key = "Crypto";
 
-  type Transaction = {
-    hash: string;
-    packageId: string;
-  };
-
   export function init(initializer: nkruntime.Initializer) {
     initializer.registerRpc("crypto/validate", validateTransaction);
   }
 
-  const TIMEOUT = 10000; //ms
-  const headers = {
-    "Content-Type": "application/json",
-    Accept: "application/json",
-  };
-  const url: string = "https://api.planetmemes.com/iap-mcm/crypto/validate";
-  //   const url: string = "http://localhost:8010/iap-mcm/crypto/validate/";
   export function validator(
     nk: nkruntime.Nakama,
     address: string,
     txHash: string
   ) {
-    const body = JSON.stringify({
+    const body = {
       address,
       txHash,
-    });
+    };
     try {
-      const res = nk.httpRequest(url, "post", headers, body, TIMEOUT);
-      const resBody = JSON.parse(res.body);
-      if (!resBody.success) {
-        throw new Error(resBody.message);
-      }
-      const { packageId } = resBody.data;
+      const res = HTTP.request(
+        nk,
+        HTTP.CustomServerUrl + "iap-mcm/crypto/validate",
+        "post",
+        body
+      );
+      if (!res.success) throw new Error(res.message);
+      const { packageId } = res.data;
       if (!packageId) throw new Error("invalid transaction method");
       return packageId;
     } catch (error: any) {
@@ -44,8 +34,7 @@ namespace CryptoPurchase {
   export function addTransaction(
     nk: nkruntime.Nakama,
     userId: string,
-    hash: string,
-    packageId: string
+    hash: string
   ) {
     try {
       const data = nk.storageRead([{ collection, key, userId }]);
@@ -114,7 +103,7 @@ const validateTransaction: nkruntime.RpcFunction = (
     const newWallet = Rewards.addNcliam(nk, userId, reward);
 
     //write purchase record
-    CryptoPurchase.addTransaction(nk, userId, hash, packageId);
+    CryptoPurchase.addTransaction(nk, userId, hash);
 
     return newWallet.code === Res.Code.success
       ? Res.Success(newWallet.data)
