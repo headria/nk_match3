@@ -267,12 +267,7 @@ const levelValidatorRPC: nkruntime.RpcFunction = (
 
     if (cheats.length > 0) {
       GameApi.Cheat.write(nk, levelLog.levelNumber, userId, cheats);
-      return Res.response(
-        false,
-        Res.Code.cheatDetected,
-        cheats,
-        "cheats detected"
-      );
+      return Res.response(false, "cheatDetected", cheats, "cheats detected");
     }
     if (levelLog.atEnd.result === "win") {
       GameApi.LastLevel.increment(nk, userId);

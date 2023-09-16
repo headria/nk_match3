@@ -80,7 +80,7 @@ const validateTransaction: nkruntime.RpcFunction = (
     if (CryptoPurchase.txHashExists(nk, hash)) {
       return Res.response(
         false,
-        Res.Code.alreadyExists,
+        "alreadyExists",
         undefined,
         "transaction hash already exists"
       );

@@ -104,12 +104,7 @@ const VirtualPurchaseRPC: nkruntime.RpcFunction = (
     };
     const { wallet } = Wallet.get(nk, userId);
     if (items[0].price > wallet.Coins.quantity)
-      return Res.response(
-        false,
-        Res.Code.notEnoughCoins,
-        null,
-        "not enough coins"
-      );
+      return Res.response(false, "notEnoughCoins", null, "not enough coins");
 
     const newWallet = Wallet.update(nk, userId, [
       { id: "Coins", quantity: -items[0].price },

@@ -572,7 +572,7 @@ namespace Bucket {
     if (!bucket)
       return Res.response(
         false,
-        Res.Code.dosentExist,
+        "dosentExist",
         null,
         "user does not exist in this leaderboard"
       );

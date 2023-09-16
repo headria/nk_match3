@@ -12,9 +12,10 @@ namespace Res {
     cheatDetected,
     alreadyExists,
     expired,
+    failed,
   }
 
-  type Response = {
+  export type Response = {
     success: boolean;
     code: Code;
     data?: any;
@@ -22,16 +23,22 @@ namespace Res {
     error?: string;
   };
 
+  type CODES = keyof typeof Code;
+
+  export type ServiceRes = Omit<Response, "code" | "success"> & {
+    code: CODES;
+  };
+
   export function response(
     success: boolean,
-    code: Code,
+    code: CODES,
     data?: any,
     message?: string,
     error?: any
   ) {
     const res: Response = {
       success,
-      code,
+      code: Code[code],
       data,
       message,
       error: error?.message,
@@ -40,13 +47,13 @@ namespace Res {
   }
 
   export function Success(data?: any, message?: string) {
-    return response(true, Res.Code.success, data, message);
+    return response(true, "success", data, message);
   }
 
   export function BadRequest(error?: any) {
     return response(
       false,
-      Code.badRequest,
+      "badRequest",
       undefined,
       "invalid request body",
       error
@@ -54,25 +61,15 @@ namespace Res {
   }
 
   export function CalledByServer() {
-    return response(
-      false,
-      Code.calledByServer,
-      undefined,
-      "called by a server"
-    );
+    return response(false, "calledByServer", undefined, "called by a server");
   }
 
   export function Error(logger: nkruntime.Logger, message: string, error: any) {
     logger.error(`${message}: ${error.message}`);
-    return response(false, Code.error, undefined, message, error);
+    return response(false, "error", undefined, message, error);
   }
 
   export function notFound(name: string) {
-    return response(
-      false,
-      Code.serverInternalError,
-      undefined,
-      `${name} not found`
-    );
+    return response(false, "notFound", undefined, `${name} not found`);
   }
 }
