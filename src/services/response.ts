@@ -25,7 +25,7 @@ namespace Res {
 
   type CODES = keyof typeof Code;
 
-  export type ServiceRes = Omit<Response, "code" | "success"> & {
+  export type ServiceRes = Omit<Response, "code" | "success" | "error"> & {
     code: CODES;
   };
 

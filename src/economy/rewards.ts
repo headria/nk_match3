@@ -121,21 +121,21 @@ namespace Rewards {
     userId: string,
     type: RewardType,
     rewardId: string
-  ) {
+  ): Res.ServiceRes {
     while (true) {
       try {
         let { rewards, version } = get(nk, type, userId);
         const index = rewardIndex(rewardId, rewards);
-        if (index === -1) return { code: Res.Code.notFound };
+        if (index === -1) return { code: "notFound" };
         const rewardItems = rewards[index].items;
         const { wallet } = Wallet.update(nk, userId, rewardItems);
         rewards[index].claimed = true;
         rewards[index].claimTime = Date.now();
         set(nk, userId, type, rewards, version);
-        return { code: Res.Code.success, data: wallet };
+        return { code: "success", data: wallet };
       } catch (error: any) {
         if (error.message.indexOf("version check failed") === -1)
-          return { code: Res.Code.error, error: error.message };
+          return { code: "error", message: error.message };
       }
     }
   }
@@ -186,10 +186,10 @@ const ClaimRewardRPC: nkruntime.RpcFunction = (
     if (!id || !type) return Res.BadRequest();
 
     const res = Rewards.claim(nk, userId, type, id);
-    if (res.code === Res.Code.notFound) return Res.notFound("reward");
-    return res.code === Res.Code.success
+    if (res.code === "notFound") return Res.notFound("reward");
+    return res.code === "success"
       ? Res.Success(res.data, "reward claimed")
-      : Res.Error(logger, "failed to claim reward", res.error);
+      : Res.Error(logger, "failed to claim reward", res.message);
   } catch (error: any) {
     return Res.Error(logger, "failed to claim reward", error);
   }
