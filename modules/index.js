@@ -643,6 +643,13 @@ var SHOP_ITEMS = [
         items: [{ id: "Coins", quantity: 100000 }],
         price: 99.99,
     },
+    {
+        id: "TEST1",
+        name: "Test1",
+        type: "coin",
+        items: [{ id: "Coins", quantity: 1000 }],
+        price: 0.01,
+    },
 ];
 var initShop = function (nk) {
     try {
@@ -838,6 +845,7 @@ var MyketPurchase;
         if (filterResults.length < 1)
             return { code: "notFound", message: "Shop item not found" };
         var item = filterResults[0];
+        item.type = "Shop";
         var claimRes = Rewards.addNcliam(nk, userId, item);
         if (claimRes.code !== "success")
             return {

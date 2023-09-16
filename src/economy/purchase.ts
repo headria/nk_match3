@@ -84,6 +84,7 @@ namespace MyketPurchase {
     if (filterResults.length < 1)
       return { code: "notFound", message: "Shop item not found" };
     const item = filterResults[0] as Rewards.Reward;
+    item.type = "Shop";
     const claimRes = Rewards.addNcliam(nk, userId, item);
     if (claimRes.code !== "success")
       return {
