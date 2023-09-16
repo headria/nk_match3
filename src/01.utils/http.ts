@@ -7,7 +7,7 @@ namespace HTTP {
   };
 
   const TIMEOUT = 4000; //ms
-  const headers = {
+  const BaseHeaders = {
     "Content-Type": "application/json",
     Accept: "application/json",
   };
@@ -19,17 +19,21 @@ namespace HTTP {
     nk: nkruntime.Nakama,
     url: string,
     method: nkruntime.RequestMethod,
-    body: any
+    body?: any,
+    headers?: { [key: string]: string }
   ) {
     try {
+      const finalHeaders = { ...BaseHeaders, ...headers };
+      const requestBody = body !== undefined ? JSON.stringify(body) : undefined;
+
       const res = nk.httpRequest(
         url,
         method,
-        headers,
-        JSON.stringify(body),
+        finalHeaders,
+        requestBody,
         TIMEOUT
       );
-      const resBody: Response = JSON.parse(res.body);
+      const resBody = JSON.parse(res.body);
       return resBody;
     } catch (error: any) {
       throw new Error(`failed to get response: ${error.message}`);
