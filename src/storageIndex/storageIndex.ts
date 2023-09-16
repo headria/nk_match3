@@ -9,9 +9,9 @@ namespace StorageIndex {
     maxEntries: number;
   };
 
-  type ConfigNames = "cryptoWallet" | "txHash";
+  export type Names = "cryptoWallet" | "txHash" | "purchase";
 
-  export const configs: { [id in ConfigNames]: IndexConfig } = {
+  export const configs: { [id in Names]: IndexConfig } = {
     cryptoWallet: {
       name: "crypto-wallet",
       collection: "Crypto",
@@ -26,11 +26,18 @@ namespace StorageIndex {
       maxEntries: MAX_ENTRIES,
       storageKey: CryptoPurchase.key,
     },
+    purchase: {
+      name: "purchase",
+      collection: MyketPurchase.collection,
+      fields: ["token"],
+      maxEntries: MAX_ENTRIES,
+      storageKey: MyketPurchase.key,
+    },
   };
 
   export function registerIndexes(initializer: nkruntime.Initializer) {
     for (const key in configs) {
-      const config = configs[key as ConfigNames];
+      const config = configs[key as Names];
       const { collection, fields, maxEntries, name, storageKey } = config;
       initializer.registerStorageIndex(
         name,
