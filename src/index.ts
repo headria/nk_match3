@@ -14,9 +14,8 @@ const InitModule: nkruntime.InitModule = function (
   //initialize shop
   initShop(nk);
   VirtualShop.init(initializer, nk);
-
   CryptoPurchase.init(initializer);
-
+  MyketPurchase.init(initializer);
   //initiate user wallet
   initializer.registerAfterAuthenticateDevice(InitiateUser);
   initializer.registerBeforeReadStorageObjects(BeforeGetStorage);
