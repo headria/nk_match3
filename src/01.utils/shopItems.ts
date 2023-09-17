@@ -168,6 +168,13 @@ const SHOP_ITEMS: ShopItem[] = [
     items: [{ id: "Coins", quantity: 100000 }],
     price: 99.99,
   },
+  {
+    id: "TEST1",
+    name: "Test1",
+    type: "coin",
+    items: [{ id: "Coins", quantity: 1000 }],
+    price: 0.01,
+  },
 ];
 
 const initShop = (nk: nkruntime.Nakama) => {

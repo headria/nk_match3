@@ -80,7 +80,7 @@ const validateTransaction: nkruntime.RpcFunction = (
     if (CryptoPurchase.txHashExists(nk, hash)) {
       return Res.response(
         false,
-        Res.Code.alreadyExists,
+        "alreadyExists",
         undefined,
         "transaction hash already exists"
       );
@@ -105,9 +105,9 @@ const validateTransaction: nkruntime.RpcFunction = (
     //write purchase record
     CryptoPurchase.addTransaction(nk, userId, hash);
 
-    return newWallet.code === Res.Code.success
+    return newWallet.code === "success"
       ? Res.Success(newWallet.data)
-      : Res.Error(logger, "failed to claim reward", newWallet.error);
+      : Res.Error(logger, "failed to claim reward", newWallet.message);
   } catch (error) {
     return Res.Error(logger, "failed to validate purchase", error);
   }
