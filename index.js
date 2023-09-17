@@ -9,6 +9,21 @@ var __setFunctionName =
       value: prefix ? "".concat(prefix, " ", name) : name,
     });
   };
+var __assign =
+  (this && this.__assign) ||
+  function () {
+    __assign =
+      Object.assign ||
+      function (t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+          s = arguments[i];
+          for (var p in s)
+            if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];
+        }
+        return t;
+      };
+    return __assign.apply(this, arguments);
+  };
 var __spreadArray =
   (this && this.__spreadArray) ||
   function (to, from, pack) {
@@ -31,6 +46,7 @@ var InitModule = function (ctx, logger, nk, initializer) {
   initShop(nk);
   VirtualShop.init(initializer, nk);
   CryptoPurchase.init(initializer);
+  MyketPurchase.init(initializer);
   //initiate user wallet
   initializer.registerAfterAuthenticateDevice(InitiateUser);
   initializer.registerBeforeReadStorageObjects(BeforeGetStorage);
@@ -422,22 +438,18 @@ var GameApi = {
 var HTTP;
 (function (HTTP) {
   var TIMEOUT = 4000; //ms
-  var headers = {
+  var BaseHeaders = {
     "Content-Type": "application/json",
     Accept: "application/json",
   };
   // export const BaseUrl: string = "http://host.docker.internal:8003/";
   HTTP.BaseUrl = "http://nk.planetmemes.com/";
   HTTP.CustomServerUrl = "https://api.planetmemes.com/";
-  function request(nk, url, method, body) {
+  function request(nk, url, method, body, headers) {
     try {
-      var res = nk.httpRequest(
-        url,
-        method,
-        headers,
-        JSON.stringify(body),
-        TIMEOUT
-      );
+      var finalHeaders = __assign(__assign({}, BaseHeaders), headers);
+      var requestBody = body !== undefined ? JSON.stringify(body) : undefined;
+      var res = nk.httpRequest(url, method, finalHeaders, requestBody, TIMEOUT);
       var resBody = JSON.parse(res.body);
       return resBody;
     } catch (error) {
@@ -647,6 +659,13 @@ var SHOP_ITEMS = [
     items: [{ id: "Coins", quantity: 100000 }],
     price: 99.99,
   },
+  {
+    id: "TEST1",
+    name: "Test1",
+    type: "coin",
+    items: [{ id: "Coins", quantity: 1000 }],
+    price: 0.01,
+  },
 ];
 var initShop = function (nk) {
   try {
@@ -734,7 +753,7 @@ var validateTransaction = function (ctx, logger, nk, payload) {
     if (CryptoPurchase.txHashExists(nk, hash)) {
       return Res.response(
         false,
-        Res.Code.alreadyExists,
+        "alreadyExists",
         undefined,
         "transaction hash already exists"
       );
@@ -755,9 +774,9 @@ var validateTransaction = function (ctx, logger, nk, payload) {
     var newWallet = Rewards.addNcliam(nk, userId, reward);
     //write purchase record
     CryptoPurchase.addTransaction(nk, userId, hash);
-    return newWallet.code === Res.Code.success
+    return newWallet.code === "success"
       ? Res.Success(newWallet.data)
-      : Res.Error(logger, "failed to claim reward", newWallet.error);
+      : Res.Error(logger, "failed to claim reward", newWallet.message);
   } catch (error) {
     return Res.Error(logger, "failed to validate purchase", error);
   }
@@ -788,6 +807,130 @@ var CryptoWallet;
   }
   CryptoWallet.set = set;
 })(CryptoWallet || (CryptoWallet = {}));
+var MyketPurchase;
+(function (MyketPurchase) {
+  MyketPurchase.collection = "Purchase";
+  MyketPurchase.key = "Myket";
+  var accessToken = "044f102f-f59a-4bd8-a0a5-51090647767f";
+  var PackageName = "com.PlanetMemes.MemeCoinMania";
+  var ValidateURL = function (sku, token) {
+    return "https://developer.myket.ir/api/applications/"
+      .concat(PackageName, "/purchases/products/")
+      .concat(sku, "/tokens/")
+      .concat(token);
+  };
+  function init(initializer) {
+    initializer.registerRpc("purchase", PurchaseRPC);
+  }
+  MyketPurchase.init = init;
+  function save(nk, userId, data) {
+    try {
+      nk.storageWrite([
+        {
+          collection: MyketPurchase.collection,
+          key: MyketPurchase.key,
+          userId: userId,
+          value: data,
+          permissionRead: 2,
+          permissionWrite: 0,
+        },
+      ]);
+    } catch (error) {
+      throw new Error("failed to save Purchase data => ".concat(error.message));
+    }
+  }
+  function validateToken(nk, sku, token) {
+    var url = ValidateURL(sku, token);
+    var headers = { "X-Access-Token": accessToken };
+    var res;
+    try {
+      res = HTTP.request(nk, url, "get", undefined, headers);
+    } catch (error) {
+      return {
+        code: "error",
+        message: "validation request failed => ".concat(error.message),
+      };
+    }
+    var body = JSON.parse(res);
+    var data = {
+      purchaseTime: body.purchaseTime,
+      payload: body.developerPayload,
+    };
+    return res.purchaseState === 0
+      ? { code: "success", data: data }
+      : { code: "failed", message: "purchase has been failed" };
+  }
+  function purchaseTokenExists(nk, token) {
+    var query = "+token:".concat(token);
+    var name = StorageIndex.configs.purchase.name;
+    var results = nk.storageIndexList(name, query, 1);
+    return results.length > 0;
+  }
+  function processPurchase(nk, userId, packageId) {
+    var filterResults = SHOP_ITEMS.filter(function (item) {
+      return item.id === packageId;
+    });
+    if (filterResults.length < 1)
+      return { code: "notFound", message: "Shop item not found" };
+    var item = filterResults[0];
+    item.type = "Shop";
+    var claimRes = Rewards.addNcliam(nk, userId, item);
+    if (claimRes.code !== "success")
+      return {
+        code: claimRes.code,
+        message: "failed to claim item => ".concat(claimRes.message),
+      };
+    return { code: "success" };
+  }
+  MyketPurchase.purchase = function (ctx, logger, nk, payload) {
+    var userId = ctx.userId;
+    if (!userId) return Res.CalledByServer();
+    var _a = JSON.parse(payload),
+      token = _a.token,
+      sku = _a.sku;
+    if (!token || !sku) return Res.BadRequest();
+    var tokenExists = purchaseTokenExists(nk, token);
+    if (tokenExists)
+      return Res.response(
+        false,
+        "alreadyExists",
+        undefined,
+        "Duplicate purchase token"
+      );
+    var validateRes = validateToken(nk, sku, token);
+    if (validateRes.code !== "success")
+      return Res.response(
+        false,
+        validateRes.code,
+        undefined,
+        validateRes.message
+      );
+    var _b = validateRes.data,
+      purchaseTime = _b.purchaseTime,
+      purchasePayload = _b.payload;
+    var result = processPurchase(nk, userId, sku);
+    if (result.code !== "success")
+      return Res.response(false, result.code, undefined, result.message);
+    try {
+      save(nk, userId, {
+        sku: sku,
+        purchaseTime: purchaseTime,
+        token: token,
+        payload: purchasePayload,
+      });
+    } catch (error) {
+      return Res.Error(
+        logger,
+        "failed to save Purchase data in database",
+        error
+      );
+    }
+    return Res.Success();
+  };
+})(MyketPurchase || (MyketPurchase = {}));
+var PurchaseRPC = function (ctx, logger, nk, payload) {
+  return MyketPurchase.purchase(ctx, logger, nk, payload);
+};
 var Rewards;
 (function (Rewards) {
   var collection = "Rewards";
@@ -866,16 +1009,16 @@ var Rewards;
           rewards = _a.rewards,
           version = _a.version;
         var index = rewardIndex(rewardId, rewards);
-        if (index === -1) return { code: Res.Code.notFound };
+        if (index === -1) return { code: "notFound" };
         var rewardItems = rewards[index].items;
         var wallet = Wallet.update(nk, userId, rewardItems).wallet;
         rewards[index].claimed = true;
         rewards[index].claimTime = Date.now();
         set(nk, userId, type, rewards, version);
-        return { code: Res.Code.success, data: wallet };
+        return { code: "success", data: wallet };
       } catch (error) {
         if (error.message.indexOf("version check failed") === -1)
-          return { code: Res.Code.error, error: error.message };
+          return { code: "error", message: error.message };
       }
     }
   }
@@ -919,10 +1062,10 @@ var ClaimRewardRPC = function (ctx, logger, nk, payload) {
       type = input.type;
     if (!id || !type) return Res.BadRequest();
     var res = Rewards.claim(nk, userId, type, id);
-    if (res.code === Res.Code.notFound) return Res.notFound("reward");
-    return res.code === Res.Code.success
+    if (res.code === "notFound") return Res.notFound("reward");
+    return res.code === "success"
       ? Res.Success(res.data, "reward claimed")
-      : Res.Error(logger, "failed to claim reward", res.error);
+      : Res.Error(logger, "failed to claim reward", res.message);
   } catch (error) {
     return Res.Error(logger, "failed to claim reward", error);
   }
@@ -1034,12 +1177,7 @@ var VirtualPurchaseRPC = function (ctx, logger, nk, payload) {
     };
     var wallet = Wallet.get(nk, userId).wallet;
     if (items[0].price > wallet.Coins.quantity)
-      return Res.response(
-        false,
-        Res.Code.notEnoughCoins,
-        null,
-        "not enough coins"
-      );
+      return Res.response(false, "notEnoughCoins", null, "not enough coins");
     var newWallet = Wallet.update(nk, userId, [
       { id: "Coins", quantity: -items[0].price },
     ]);
@@ -1776,8 +1914,8 @@ var Bucket;
       tournamentID: "Weekly",
       authoritative: true,
       category: Category.WEEKLY,
-      // duration: 7 * 24 * 60 * 60,
-      duration: 15 * 60,
+      duration: 7 * 24 * 60 * 60,
+      // duration: 15 * 60, development
       description: "",
       bucketSize: 10,
       endTime: null,
@@ -1786,8 +1924,8 @@ var Bucket;
       maxSize: 1000000,
       metadata: leaderboardRewards.Weekly,
       operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
-      // resetSchedule: "0 0 * * 1",
-      resetSchedule: "*/15 * * * *",
+      resetSchedule: "0 0 * * 1",
+      // resetSchedule: "*/15 * * * *",
       sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
       startTime: 0,
       title: "Weekly Leaderboard",
@@ -1796,8 +1934,8 @@ var Bucket;
       tournamentID: "Cup",
       authoritative: true,
       category: Category.CUP,
-      // duration: 3 * 24 * 60 * 60,
-      duration: 15 * 60,
+      duration: 3 * 24 * 60 * 60,
+      // duration: 15 * 60,
       description: "",
       bucketSize: 50,
       endTime: null,
@@ -1806,18 +1944,18 @@ var Bucket;
       maxSize: 100000000,
       metadata: leaderboardRewards.Cup,
       operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
-      resetSchedule: "*/15 * * * *",
-      // resetSchedule: "0 0 */3 * *",
+      // resetSchedule: "*/15 * * * *",
+      resetSchedule: "0 0 */3 * *",
       sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
       startTime: 0,
-      title: "Pepe Cup",
+      title: "Baby Cup",
     },
     Rush: {
       tournamentID: "Rush",
       authoritative: true,
       category: Category.RUSH,
-      // duration: 12 * 60 * 60,
-      duration: 15 * 60,
+      duration: 12 * 60 * 60,
+      // duration: 15 * 60,
       description: "",
       bucketSize: 10,
       endTime: null,
@@ -1826,17 +1964,18 @@ var Bucket;
       maxSize: 100000000,
       metadata: leaderboardRewards.Rush,
       operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
-      resetSchedule: "*/15 * * * *",
+      // resetSchedule: "*/15 * * * *",
+      resetSchedule: "* */12 * * *",
       sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
       startTime: 0,
-      title: "Pepe Rush",
+      title: "Baby Rush",
     },
     Endless: {
       tournamentID: "Endless",
       authoritative: true,
       category: Category.ENDLESS,
-      // duration: 3 * 24 * 60 * 60,
-      duration: 10 * 60,
+      duration: 3 * 24 * 60 * 60,
+      // duration: 10 * 60,
       description: "",
       bucketSize: 50,
       endTime: null,
@@ -1845,8 +1984,8 @@ var Bucket;
       maxSize: 100000000,
       metadata: leaderboardRewards.Endless,
       operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
-      // resetSchedule: "0 0 */3 * *",
-      resetSchedule: "*/10 * * * *",
+      resetSchedule: "0 0 */3 * *",
+      // resetSchedule: "*/10 * * * *",
       sortOrder: "descending" /* nkruntime.SortOrder.DESCENDING */,
       startTime: 0,
       title: "Endless Event",
@@ -2126,7 +2265,7 @@ var Bucket;
     if (!bucket)
       return Res.response(
         false,
-        Res.Code.dosentExist,
+        "dosentExist",
         null,
         "user does not exist in this leaderboard"
       );
@@ -2433,11 +2572,12 @@ var Res;
     Code[(Code["cheatDetected"] = 9)] = "cheatDetected";
     Code[(Code["alreadyExists"] = 10)] = "alreadyExists";
     Code[(Code["expired"] = 11)] = "expired";
+    Code[(Code["failed"] = 12)] = "failed";
   })((Code = Res.Code || (Res.Code = {})));
   function response(success, code, data, message, error) {
     var res = {
       success: success,
-      code: code,
+      code: Code[code],
       data: data,
       message: message,
       error: error === null || error === void 0 ? void 0 : error.message,
@@ -2446,13 +2586,13 @@ var Res;
   }
   Res.response = response;
   function Success(data, message) {
-    return response(true, Res.Code.success, data, message);
+    return response(true, "success", data, message);
   }
   Res.Success = Success;
   function BadRequest(error) {
     return response(
       false,
-      Code.badRequest,
+      "badRequest",
       undefined,
       "invalid request body",
       error
@@ -2460,23 +2600,18 @@ var Res;
   }
   Res.BadRequest = BadRequest;
   function CalledByServer() {
-    return response(
-      false,
-      Code.calledByServer,
-      undefined,
-      "called by a server"
-    );
+    return response(false, "calledByServer", undefined, "called by a server");
   }
   Res.CalledByServer = CalledByServer;
   function Error(logger, message, error) {
     logger.error("".concat(message, ": ").concat(error.message));
-    return response(false, Code.error, undefined, message, error);
+    return response(false, "error", undefined, message, error);
   }
   Res.Error = Error;
   function notFound(name) {
     return response(
       false,
-      Code.serverInternalError,
+      "notFound",
       undefined,
       "".concat(name, " not found")
     );
@@ -2500,6 +2635,13 @@ var StorageIndex;
       fields: ["transactions"],
       maxEntries: MAX_ENTRIES,
       storageKey: CryptoPurchase.key,
+    },
+    purchase: {
+      name: "purchase",
+      collection: MyketPurchase.collection,
+      fields: ["token"],
+      maxEntries: MAX_ENTRIES,
+      storageKey: MyketPurchase.key,
     },
   };
   function registerIndexes(initializer) {
@@ -2814,12 +2956,7 @@ var levelValidatorRPC = function (ctx, logger, nk, payload) {
     var cheats = validator.cheatCheck(levelLog, initalValues);
     if (cheats.length > 0) {
       GameApi.Cheat.write(nk, levelLog.levelNumber, userId, cheats);
-      return Res.response(
-        false,
-        Res.Code.cheatDetected,
-        cheats,
-        "cheats detected"
-      );
+      return Res.response(false, "cheatDetected", cheats, "cheats detected");
     }
     if (levelLog.atEnd.result === "win") {
       GameApi.LastLevel.increment(nk, userId);
