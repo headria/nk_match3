@@ -1,29 +1,5 @@
 "use strict";
-var __setFunctionName = (this && this.__setFunctionName) || function (f, name, prefix) {
-    if (typeof name === "symbol") name = name.description ? "[".concat(name.description, "]") : "";
-    return Object.defineProperty(f, "name", { configurable: true, value: prefix ? "".concat(prefix, " ", name) : name });
-};
-var __assign = (this && this.__assign) || function () {
-    __assign = Object.assign || function(t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-                t[p] = s[p];
-        }
-        return t;
-    };
-    return __assign.apply(this, arguments);
-};
-var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
-    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
-        if (ar || !(i in from)) {
-            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
-            ar[i] = from[i];
-        }
-    }
-    return to.concat(ar || Array.prototype.slice.call(from));
-};
-var InitModule = function (ctx, logger, nk, initializer) {
+const InitModule = function (ctx, logger, nk, initializer) {
     //register storage index
     StorageIndex.registerIndexes(initializer);
     //initialize battlepass
@@ -45,7 +21,7 @@ var InitModule = function (ctx, logger, nk, initializer) {
     //validators
     initializer.registerRpc("level/validate", levelValidatorRPC);
 };
-var InitialWallet = {
+const InitialWallet = {
     Heart: {
         endDate: 0,
         isUnlimited: false,
@@ -307,124 +283,107 @@ var Levels;
         "227": 4,
     };
 })(Levels || (Levels = {}));
-var _a, _b, _c;
-var SystemUserId = "00000000-0000-0000-0000-000000000000";
-var GameApi = {
-    LastLevel: (_a = /** @class */ (function () {
-            function class_1() {
-            }
-            class_1.get = function (nk, userId) {
-                try {
-                    var storageObjects = nk.storageRead([
-                        {
-                            collection: this.Keys.collection,
-                            key: this.Keys.key,
-                            userId: userId,
-                        },
-                    ]);
-                    var lastLevel = storageObjects[0].value[this.id];
-                    return { version: storageObjects[0].version, level: lastLevel };
-                }
-                catch (error) {
-                    throw new Error("failed to get Last level: " + error.message);
-                }
-            };
-            class_1.set = function (nk, userId, newValue, version) {
-                var _a;
-                try {
-                    var value = (_a = {}, _a[this.id] = newValue, _a);
-                    var writeReq = {
-                        collection: this.Keys.collection,
-                        key: this.Keys.key,
-                        userId: userId,
-                        value: value,
-                    };
-                    if (version !== undefined)
-                        writeReq.version = version;
-                    nk.storageWrite([writeReq]);
-                }
-                catch (error) {
-                    throw new Error("failed to set Last level => " + error.message);
-                }
-            };
-            class_1.increment = function (nk, userId) {
-                var _a = GameApi.LastLevel.get(nk, userId), level = _a.level, version = _a.version;
-                GameApi.LastLevel.set(nk, userId, level + 1, version);
-            };
-            return class_1;
-        }()),
-        __setFunctionName(_a, "LastLevel"),
-        _a.Keys = {
+const SystemUserId = "00000000-0000-0000-0000-000000000000";
+const GameApi = {
+    LastLevel: class {
+        static Keys = {
             collection: "Levels",
             key: "Data",
-        },
-        _a.id = "progress",
-        _a),
-    LevelLog: (_b = /** @class */ (function () {
-            function class_2() {
-            }
-            class_2.save = function (nk, userId, data) {
-                try {
-                    nk.storageWrite([
-                        {
-                            collection: this.Keys.collection,
-                            key: (data.levelNumber || -1).toString(),
-                            userId: userId,
-                            value: data,
-                            permissionRead: 2,
-                            permissionWrite: 0,
-                        },
-                    ]);
-                }
-                catch (error) {
-                    throw new Error("failed to save LevelLog => ".concat(error.message));
-                }
-            };
-            class_2.get = function (nk, userId, levelNumber) {
-                var data = nk.storageRead([
-                    { collection: this.Keys.collection, key: levelNumber, userId: userId },
+        };
+        static id = "progress";
+        static get(nk, userId) {
+            try {
+                const storageObjects = nk.storageRead([
+                    {
+                        collection: this.Keys.collection,
+                        key: this.Keys.key,
+                        userId,
+                    },
                 ]);
-                return data;
-            };
-            return class_2;
-        }()),
-        __setFunctionName(_b, "LevelLog"),
-        _b.Keys = {
-            collection: "Levels",
-        },
-        _b),
-    Cheat: (_c = /** @class */ (function () {
-            function class_3() {
+                const lastLevel = storageObjects[0].value[this.id];
+                return { version: storageObjects[0].version, level: lastLevel };
             }
-            class_3.write = function (nk, levelNumber, userId, cheats) {
-                try {
-                    nk.storageWrite([
-                        {
-                            collection: this.Keys.collection,
-                            key: levelNumber.toString(),
-                            userId: userId,
-                            value: { cheats: cheats },
-                            permissionRead: 2,
-                            permissionWrite: 0,
-                        },
-                    ]);
-                }
-                catch (error) {
-                    throw new Error("failed to save Cheats => ".concat(error.message));
-                }
-            };
-            return class_3;
-        }()),
-        __setFunctionName(_c, "Cheat"),
-        _c.Keys = {
+            catch (error) {
+                throw new Error("failed to get Last level: " + error.message);
+            }
+        }
+        static set(nk, userId, newValue, version) {
+            try {
+                const value = { [this.id]: newValue };
+                const writeReq = {
+                    collection: this.Keys.collection,
+                    key: this.Keys.key,
+                    userId,
+                    value,
+                };
+                if (version !== undefined)
+                    writeReq.version = version;
+                nk.storageWrite([writeReq]);
+            }
+            catch (error) {
+                throw new Error("failed to set Last level => " + error.message);
+            }
+        }
+        static increment(nk, userId) {
+            const { level, version } = GameApi.LastLevel.get(nk, userId);
+            GameApi.LastLevel.set(nk, userId, level + 1, version);
+        }
+    },
+    LevelLog: class {
+        static Keys = {
+            collection: "Levels",
+        };
+        static save(nk, userId, data) {
+            try {
+                nk.storageWrite([
+                    {
+                        collection: this.Keys.collection,
+                        key: (data.levelNumber || -1).toString(),
+                        userId,
+                        value: data,
+                        permissionRead: 2,
+                        permissionWrite: 0,
+                    },
+                ]);
+            }
+            catch (error) {
+                throw new Error(`failed to save LevelLog => ${error.message}`);
+            }
+        }
+        static get(nk, userId, levelNumber) {
+            const data = nk.storageRead([
+                { collection: this.Keys.collection, key: levelNumber, userId },
+            ]);
+            return data;
+        }
+    },
+    Cheat: class {
+        static Keys = {
             collection: "Cheats",
-        },
-        _c),
+        };
+        static write(nk, levelNumber, userId, cheats) {
+            try {
+                nk.storageWrite([
+                    {
+                        collection: this.Keys.collection,
+                        key: levelNumber.toString(),
+                        userId,
+                        value: { cheats },
+                        permissionRead: 2,
+                        permissionWrite: 0,
+                    },
+                ]);
+            }
+            catch (error) {
+                throw new Error(`failed to save Cheats => ${error.message}`);
+            }
+        }
+    },
 };
 var HTTP;
 (function (HTTP) {
-    var TIMEOUT = 4000; //ms
-    var BaseHeaders = {
+    const TIMEOUT = 4000; //ms
+    const BaseHeaders = {
         "Content-Type": "application/json",
         Accept: "application/json",
     };
@@ -433,21 +392,21 @@ var HTTP;
     HTTP.CustomServerUrl = "https://api.planetmemes.com/";
     function request(nk, url, method, body, headers) {
         try {
-            var finalHeaders = __assign(__assign({}, BaseHeaders), headers);
-            var requestBody = body !== undefined ? JSON.stringify(body) : undefined;
-            var res = nk.httpRequest(url, method, finalHeaders, requestBody, TIMEOUT);
-            var resBody = JSON.parse(res.body);
+            let finalHeaders = Object.assign({}, BaseHeaders, headers);
+            const requestBody = JSON.stringify(body);
+            const res = nk.httpRequest(url, method, finalHeaders, requestBody, TIMEOUT);
+            const resBody = JSON.parse(res.body);
             return resBody;
         }
         catch (error) {
-            throw new Error("failed to get response: ".concat(error.message));
+            throw new Error(`failed to get response: ${error.message}`);
         }
     }
     HTTP.request = request;
 })(HTTP || (HTTP = {}));
 var Notifications;
 (function (Notifications) {
-    var CODES;
+    let CODES;
     (function (CODES) {
         CODES[CODES["SYSTEM"] = 0] = "SYSTEM";
         CODES[CODES["BucketReset"] = 1] = "BucketReset";
@@ -468,20 +427,20 @@ var Notifications;
         },
     };
     function create(code, userId, content) {
-        var _a = Notifications.Notifs[code], persistent = _a.persistent, senderId = _a.senderId, subject = _a.subject;
-        var data = {
-            code: code,
-            content: content,
-            persistent: persistent,
-            senderId: senderId,
-            subject: subject,
-            userId: userId,
+        const { persistent, senderId, subject } = Notifications.Notifs[code];
+        const data = {
+            code,
+            content,
+            persistent,
+            senderId,
+            subject,
+            userId,
         };
         return data;
     }
     Notifications.create = create;
 })(Notifications || (Notifications = {}));
-var SHOP_ITEMS = [
+const SHOP_ITEMS = [
     {
         id: "ADMIRAL_RESOURCES",
         name: "AdmiralResources",
@@ -651,7 +610,7 @@ var SHOP_ITEMS = [
         price: 0.01,
     },
 ];
-var initShop = function (nk) {
+const initShop = (nk) => {
     try {
         nk.storageWrite([
             {
@@ -675,35 +634,35 @@ var CryptoPurchase;
     }
     CryptoPurchase.init = init;
     function validator(nk, address, txHash) {
-        var body = {
-            address: address,
-            txHash: txHash,
+        const body = {
+            address,
+            txHash,
         };
         try {
-            var res = HTTP.request(nk, HTTP.CustomServerUrl + "iap-mcm/crypto/validate", "post", body);
+            const res = HTTP.request(nk, HTTP.CustomServerUrl + "iap-mcm/crypto/validate", "post", body);
             if (!res.success)
                 throw new Error(res.message);
-            var packageId = res.data.packageId;
+            const { packageId } = res.data;
             if (!packageId)
                 throw new Error("invalid transaction method");
             return packageId;
         }
         catch (error) {
-            throw new Error("failed to validate transaction: ".concat(error.message));
+            throw new Error(`failed to validate transaction: ${error.message}`);
         }
     }
     CryptoPurchase.validator = validator;
     function addTransaction(nk, userId, hash) {
         try {
-            var data = nk.storageRead([{ collection: CryptoPurchase.collection, key: CryptoPurchase.key, userId: userId }]);
-            var transactions = data.length > 0 ? data[0].value.transactions : [];
+            const data = nk.storageRead([{ collection: CryptoPurchase.collection, key: CryptoPurchase.key, userId }]);
+            let transactions = data.length > 0 ? data[0].value.transactions : [];
             transactions.push(hash);
             nk.storageWrite([
                 {
                     collection: CryptoPurchase.collection,
                     key: CryptoPurchase.key,
-                    userId: userId,
-                    value: { transactions: transactions },
+                    userId,
+                    value: { transactions },
                     permissionRead: 2,
                     permissionWrite: 0,
                 },
@@ -715,38 +674,38 @@ var CryptoPurchase;
     }
     CryptoPurchase.addTransaction = addTransaction;
     function txHashExists(nk, txHash) {
-        var query = "transactions:/(".concat(txHash, ")/");
-        var res = nk.storageIndexList(StorageIndex.configs.txHash.name, query, 1);
+        const query = `transactions:/(${txHash})/`;
+        const res = nk.storageIndexList(StorageIndex.configs.txHash.name, query, 1);
         return res.length > 0;
     }
     CryptoPurchase.txHashExists = txHashExists;
 })(CryptoPurchase || (CryptoPurchase = {}));
-var validateTransaction = function (ctx, logger, nk, payload) {
+const validateTransaction = (ctx, logger, nk, payload) => {
     try {
-        var userId = ctx.userId;
+        const userId = ctx.userId;
         if (!userId)
             return Res.CalledByServer();
-        var input = JSON.parse(payload);
-        var hash = input.hash;
+        const input = JSON.parse(payload);
+        const { hash } = input;
         if (!hash)
             return Res.BadRequest();
         if (CryptoPurchase.txHashExists(nk, hash)) {
             return Res.response(false, "alreadyExists", undefined, "transaction hash already exists");
         }
-        var wallet = CryptoWallet.get(nk, userId);
+        const wallet = CryptoWallet.get(nk, userId);
         if (!wallet || !wallet.address)
             return Res.notFound("wallet address");
-        var address = wallet.address;
-        var packageId_1 = CryptoPurchase.validator(nk, address, hash);
-        var rewards = SHOP_ITEMS.filter(function (i) { return i.id === packageId_1; });
+        const { address } = wallet;
+        const packageId = CryptoPurchase.validator(nk, address, hash);
+        const rewards = SHOP_ITEMS.filter((i) => i.id === packageId);
         if (rewards.length < 1)
             return Res.notFound("shop item");
-        var reward = {
+        const reward = {
             id: rewards[0].id,
             items: rewards[0].items,
             type: "Shop",
         };
-        var newWallet = Rewards.addNcliam(nk, userId, reward);
+        const newWallet = Rewards.addNcliam(nk, userId, reward);
         //write purchase record
         CryptoPurchase.addTransaction(nk, userId, hash);
         return newWallet.code === "success"
@@ -759,10 +718,10 @@ var validateTransaction = function (ctx, logger, nk, payload) {
 };
 var CryptoWallet;
 (function (CryptoWallet) {
-    var collection = "Crypto";
-    var key = "Wallet";
+    const collection = "Crypto";
+    const key = "Wallet";
     function get(nk, userId) {
-        var res = nk.storageRead([{ collection: collection, key: key, userId: userId }]);
+        const res = nk.storageRead([{ collection, key, userId }]);
         if (res.length > 0)
             return res[0].value;
         return null;
@@ -771,9 +730,9 @@ var CryptoWallet;
     function set(nk, userId, newWallet) {
         nk.storageWrite([
             {
-                collection: collection,
-                key: key,
-                userId: userId,
+                collection,
+                key,
+                userId,
                 value: newWallet,
                 permissionRead: 2,
                 permissionWrite: 0,
@@ -785,23 +744,20 @@ var CryptoWallet;
 var MyketPurchase;
 (function (MyketPurchase) {
     MyketPurchase.collection = "Purchase";
-    MyketPurchase.key = "Myket";
-    var accessToken = "044f102f-f59a-4bd8-a0a5-51090647767f";
-    var PackageName = "com.PlanetMemes.MemeCoinMania";
-    var ValidateURL = function (sku, token) {
-        return "https://developer.myket.ir/api/applications/".concat(PackageName, "/purchases/products/").concat(sku, "/tokens/").concat(token);
-    };
+    const accessToken = "044f102f-f59a-4bd8-a0a5-51090647767f";
+    const PackageName = "com.PlanetMemes.MemeCoinMania";
+    const ValidateURL = (sku, token) => `https://developer.myket.ir/api/applications/${PackageName}/purchases/products/${sku}/tokens/${token}`;
     function init(initializer) {
         initializer.registerRpc("purchase", PurchaseRPC);
     }
     MyketPurchase.init = init;
-    function save(nk, userId, data) {
+    function save(nk, key, userId, data) {
         try {
             nk.storageWrite([
                 {
                     collection: MyketPurchase.collection,
-                    key: MyketPurchase.key,
-                    userId: userId,
+                    key,
+                    userId,
                     value: data,
                     permissionRead: 2,
                     permissionWrite: 0,
@@ -809,70 +765,81 @@ var MyketPurchase;
             ]);
         }
         catch (error) {
-            throw new Error("failed to save Purchase data => ".concat(error.message));
+            throw new Error(`failed to save Purchase data => ${error.message}`);
         }
     }
     function validateToken(nk, sku, token) {
-        var url = ValidateURL(sku, token);
-        var headers = { "X-Access-Token": accessToken };
-        var res;
+        const url = ValidateURL(sku, token);
+        let res;
         try {
-            res = HTTP.request(nk, url, "get", undefined, headers);
+            const headers = { "X-Access-Token": accessToken };
+            const body = {
+                sku,
+                token,
+            };
+            res = HTTP.request(nk, url, "get", body, headers);
         }
         catch (error) {
             return {
                 code: "error",
-                message: "validation request failed => ".concat(error.message),
+                message: `validation request failed => ${error.message}`,
             };
         }
-        var body = JSON.parse(res);
-        var data = {
-            purchaseTime: body.purchaseTime,
-            payload: body.developerPayload,
+        const data = {
+            purchaseTime: res.purchaseTime,
+            payload: res.developerPayload,
         };
         return res.purchaseState === 0
-            ? { code: "success", data: data }
+            ? { code: "success", data }
             : { code: "failed", message: "purchase has been failed" };
     }
     function purchaseTokenExists(nk, token) {
-        var query = "+token:".concat(token);
-        var name = StorageIndex.configs.purchase.name;
-        var results = nk.storageIndexList(name, query, 1);
-        return results.length > 0;
+        const query = `+token:${token}`;
+        const { name } = StorageIndex.configs.purchase;
+        const results = nk.storageIndexList(name, query, 1);
+        return results.length > 0 ? results[0] : undefined;
     }
     function processPurchase(nk, userId, packageId) {
-        var filterResults = SHOP_ITEMS.filter(function (item) { return item.id === packageId; });
+        const filterResults = SHOP_ITEMS.filter((item) => item.id === packageId);
         if (filterResults.length < 1)
             return { code: "notFound", message: "Shop item not found" };
-        var item = filterResults[0];
+        const item = filterResults[0];
         item.type = "Shop";
-        var claimRes = Rewards.addNcliam(nk, userId, item);
+        const claimRes = Rewards.addNcliam(nk, userId, item);
         if (claimRes.code !== "success")
             return {
                 code: claimRes.code,
-                message: "failed to claim item => ".concat(claimRes.message),
+                message: `failed to claim item => ${claimRes.message}`,
             };
         return { code: "success" };
     }
-    MyketPurchase.purchase = function (ctx, logger, nk, payload) {
-        var userId = ctx.userId;
+    MyketPurchase.purchase = (ctx, logger, nk, payload) => {
+        const userId = ctx.userId;
         if (!userId)
             return Res.CalledByServer();
-        var _a = JSON.parse(payload), token = _a.token, sku = _a.sku;
+        const { token, sku } = JSON.parse(payload);
         if (!token || !sku)
             return Res.BadRequest();
-        var tokenExists = purchaseTokenExists(nk, token);
-        if (tokenExists)
-            return Res.response(false, "alreadyExists", undefined, "Duplicate purchase token");
-        var validateRes = validateToken(nk, sku, token);
+        const tokenExists = purchaseTokenExists(nk, token);
+        if (tokenExists !== undefined)
+            return tokenExists.userId === userId
+                ? Res.response(false, "alreadyExists", undefined, "you have already claimed this")
+                : Res.response(false, "expired", undefined, "Duplicate purchase token");
+        const validateRes = validateToken(nk, sku, token);
         if (validateRes.code !== "success")
             return Res.response(false, validateRes.code, undefined, validateRes.message);
-        var _b = validateRes.data, purchaseTime = _b.purchaseTime, purchasePayload = _b.payload;
-        var result = processPurchase(nk, userId, sku);
+        const { purchaseTime, payload: purchasePayload } = validateRes.data;
+        const result = processPurchase(nk, userId, sku);
         if (result.code !== "success")
             return Res.response(false, result.code, undefined, result.message);
         try {
-            save(nk, userId, { sku: sku, purchaseTime: purchaseTime, token: token, payload: purchasePayload });
+            const key = String(token);
+            save(nk, key, userId, {
+                sku,
+                purchaseTime,
+                token,
+                payload: purchasePayload,
+            });
         }
         catch (error) {
             return Res.Error(logger, "failed to save Purchase data in database", error);
@@ -880,43 +847,43 @@ var MyketPurchase;
         return Res.Success();
     };
 })(MyketPurchase || (MyketPurchase = {}));
-var PurchaseRPC = function (ctx, logger, nk, payload) {
+const PurchaseRPC = (ctx, logger, nk, payload) => {
     return MyketPurchase.purchase(ctx, logger, nk, payload);
 };
 var Rewards;
 (function (Rewards) {
-    var collection = "Rewards";
+    const collection = "Rewards";
     function init(initializer) {
         initializer.registerRpc("rewards/claim", ClaimRewardRPC);
         initializer.registerRpc("rewards/notClaimed", notClaimedRPC);
     }
     Rewards.init = init;
     function get(nk, type, userId) {
-        var data = nk.storageRead([{ collection: collection, key: type, userId: userId }]);
-        var rewards = data.length > 0 ? data[0].value.rewards : [];
-        var version = data.length > 0 ? data[0].version : undefined;
-        return { rewards: rewards, version: version };
+        const data = nk.storageRead([{ collection, key: type, userId }]);
+        let rewards = data.length > 0 ? data[0].value.rewards : [];
+        let version = data.length > 0 ? data[0].version : undefined;
+        return { rewards, version };
     }
     Rewards.get = get;
     function set(nk, userId, type, newRewards, version) {
-        var writeObj = {
-            collection: collection,
+        const writeObj = {
+            collection,
             key: type,
-            userId: userId,
+            userId,
             value: { rewards: newRewards },
             permissionRead: 1,
             permissionWrite: 0,
         };
         if (version !== undefined)
             writeObj.version = version;
-        var res = nk.storageWrite([writeObj]);
+        const res = nk.storageWrite([writeObj]);
         return res[0].version;
     }
     //add new reward
     function add(nk, userId, reward, expiry) {
         while (true) {
             try {
-                var _a = get(nk, reward.type, userId), rewards = _a.rewards, version = _a.version;
+                const { rewards, version } = get(nk, reward.type, userId);
                 reward.claimed = false;
                 reward.addTime = Date.now();
                 if (expiry !== undefined)
@@ -927,7 +894,7 @@ var Rewards;
             }
             catch (error) {
                 if (error.message.indexOf("version check failed") === -1)
-                    throw new Error("failed to add reward: ".concat(error.message));
+                    throw new Error(`failed to add reward: ${error.message}`);
             }
         }
     }
@@ -938,11 +905,11 @@ var Rewards;
     }
     Rewards.addNcliam = addNcliam;
     function rewardIndex(id, rewards) {
-        var rewardIndex = -1;
+        let rewardIndex = -1;
         //reverse order for accessing latest rewards
-        var now = Date.now();
-        for (var i = rewards.length - 1; i >= 0; i--) {
-            var reward = rewards[i];
+        const now = Date.now();
+        for (let i = rewards.length - 1; i >= 0; i--) {
+            const reward = rewards[i];
             if (reward.id === id && reward.claimed === false) {
                 if (reward.expiry !== undefined && reward.expiry < now) {
                     continue;
@@ -956,12 +923,12 @@ var Rewards;
     function claim(nk, userId, type, rewardId) {
         while (true) {
             try {
-                var _a = get(nk, type, userId), rewards = _a.rewards, version = _a.version;
-                var index = rewardIndex(rewardId, rewards);
+                let { rewards, version } = get(nk, type, userId);
+                const index = rewardIndex(rewardId, rewards);
                 if (index === -1)
                     return { code: "notFound" };
-                var rewardItems = rewards[index].items;
-                var wallet = Wallet.update(nk, userId, rewardItems).wallet;
+                const rewardItems = rewards[index].items;
+                const { wallet } = Wallet.update(nk, userId, rewardItems);
                 rewards[index].claimed = true;
                 rewards[index].claimTime = Date.now();
                 set(nk, userId, type, rewards, version);
@@ -975,11 +942,10 @@ var Rewards;
     }
     Rewards.claim = claim;
     function getTierByRank(rank, tierConfig) {
-        var TierRanking = ["gold", "silver", "bronze", "normal"];
+        const TierRanking = ["gold", "silver", "bronze", "normal"];
         if (rank > 0) {
-            for (var _i = 0, TierRanking_1 = TierRanking; _i < TierRanking_1.length; _i++) {
-                var tier = TierRanking_1[_i];
-                var tierMaxRank = tierConfig[tier];
+            for (const tier of TierRanking) {
+                const tierMaxRank = tierConfig[tier];
                 if (!tierMaxRank)
                     break;
                 if (rank <= tierMaxRank) {
@@ -991,9 +957,9 @@ var Rewards;
     }
     Rewards.getTierByRank = getTierByRank;
     function notClaimedRewards(nk, userId, type) {
-        var rewards = Rewards.get(nk, type, userId).rewards;
-        var now = Date.now();
-        var result = rewards.filter(function (r) {
+        const { rewards } = Rewards.get(nk, type, userId);
+        const now = Date.now();
+        const result = rewards.filter((r) => {
             if (r.expiry !== undefined && r.expiry < now)
                 return false;
             if (r.claimed === false)
@@ -1003,16 +969,16 @@ var Rewards;
     }
     Rewards.notClaimedRewards = notClaimedRewards;
 })(Rewards || (Rewards = {}));
-var ClaimRewardRPC = function (ctx, logger, nk, payload) {
-    var userId = ctx.userId;
+const ClaimRewardRPC = (ctx, logger, nk, payload) => {
+    const userId = ctx.userId;
     if (!userId)
         return Res.CalledByServer();
     try {
-        var input = JSON.parse(payload);
-        var id = input.id, type = input.type;
+        const input = JSON.parse(payload);
+        const { id, type } = input;
         if (!id || !type)
             return Res.BadRequest();
-        var res = Rewards.claim(nk, userId, type, id);
+        const res = Rewards.claim(nk, userId, type, id);
         if (res.code === "notFound")
             return Res.notFound("reward");
         return res.code === "success"
@@ -1023,16 +989,16 @@ var ClaimRewardRPC = function (ctx, logger, nk, payload) {
         return Res.Error(logger, "failed to claim reward", error);
     }
 };
-var notClaimedRPC = function (ctx, logger, nk, payload) {
+const notClaimedRPC = (ctx, logger, nk, payload) => {
     try {
-        var userId = ctx.userId;
+        const userId = ctx.userId;
         if (!userId)
             return Res.CalledByServer();
-        var type = JSON.parse(payload).type;
+        const { type } = JSON.parse(payload);
         if (!type)
             return Res.BadRequest();
-        var notClaimed = Rewards.notClaimedRewards(nk, userId, type);
-        var ids = notClaimed.map(function (r) { return r.id; });
+        const notClaimed = Rewards.notClaimedRewards(nk, userId, type);
+        const ids = notClaimed.map((r) => r.id);
         return Res.Success(ids);
     }
     catch (error) {
@@ -1113,27 +1079,27 @@ var VirtualShop;
     }
     VirtualShop.init = init;
 })(VirtualShop || (VirtualShop = {}));
-var VirtualPurchaseRPC = function (ctx, logger, nk, payload) {
+const VirtualPurchaseRPC = (ctx, logger, nk, payload) => {
     try {
-        var userId = ctx.userId;
+        const userId = ctx.userId;
         if (!userId)
             return Res.CalledByServer();
-        var id_1;
-        id_1 = JSON.parse(payload).id;
-        if (!id_1)
+        let id;
+        id = JSON.parse(payload).id;
+        if (!id)
             return Res.BadRequest();
-        var items = VirtualShop.items.filter(function (item) { return item.id === id_1; });
+        const items = VirtualShop.items.filter((item) => item.id === id);
         if (items.length < 1)
             return Res.notFound("item");
-        var item = {
+        const item = {
             id: items[0].id,
             items: items[0].items,
             type: "Shop",
         };
-        var wallet = Wallet.get(nk, userId).wallet;
+        const { wallet } = Wallet.get(nk, userId);
         if (items[0].price > wallet.Coins.quantity)
             return Res.response(false, "notEnoughCoins", null, "not enough coins");
-        var newWallet = Wallet.update(nk, userId, [
+        const newWallet = Wallet.update(nk, userId, [
             { id: "Coins", quantity: -items[0].price },
         ]);
         if (item.items.length > 0)
@@ -1149,17 +1115,17 @@ var Wallet;
     Wallet.collection = "Economy";
     Wallet.key = "Wallet";
     // const HeartFillInterval = 20 * 60 * 1000; // every 20 minutes
-    var HeartFillInterval = 5 * 60 * 1000; // every 5 minute
-    var MAX_HEARTS = 5;
-    var unlimitables = ["Heart", "TNT", "DiscoBall", "Rocket"];
+    const HeartFillInterval = 5 * 60 * 1000; // every 5 minute
+    const MAX_HEARTS = 5;
+    const unlimitables = ["Heart", "TNT", "DiscoBall", "Rocket"];
     function updateWallet(wallet, changeset) {
-        changeset.map(function (cs) {
-            var key = cs.id;
-            var item = wallet[key];
+        changeset.map((cs) => {
+            const key = cs.id;
+            const item = wallet[key];
             if (cs.time) {
                 if (unlimitables.indexOf(key) === -1 || item.endDate === undefined)
                     throw new Error("Cannot add duration to non-unlimited items.");
-                var endDate = item.isUnlimited ? item.endDate : Date.now();
+                const endDate = item.isUnlimited ? item.endDate : Date.now();
                 wallet[key].endDate = endDate + cs.time * 1000;
                 wallet[key].isUnlimited = true;
             }
@@ -1177,12 +1143,12 @@ var Wallet;
         return wallet;
     }
     function get(nk, userId) {
-        var data = nk.storageRead([{ collection: Wallet.collection, key: Wallet.key, userId: userId }]);
+        const data = nk.storageRead([{ collection: Wallet.collection, key: Wallet.key, userId }]);
         if (data.length < 1)
-            throw new Error("failed to get wallet for ".concat(userId));
-        var wallet = data[0].value;
-        var version = data[0].version;
-        return { wallet: wallet, version: version };
+            throw new Error(`failed to get wallet for ${userId}`);
+        const wallet = data[0].value;
+        const version = data[0].version;
+        return { wallet, version };
     }
     Wallet.get = get;
     function init(nk, userId) {
@@ -1191,46 +1157,45 @@ var Wallet;
     Wallet.init = init;
     function set(nk, userId, wallet, version) {
         try {
-            var writeObj = {
+            const writeObj = {
                 collection: Wallet.collection,
                 key: Wallet.key,
-                userId: userId,
+                userId,
                 value: wallet,
                 permissionRead: 1,
                 permissionWrite: 0,
             };
             if (version)
                 writeObj.version = version;
-            var res = nk.storageWrite([writeObj]);
-            var newVersion = res[0].version;
+            const res = nk.storageWrite([writeObj]);
+            const newVersion = res[0].version;
             return newVersion;
         }
         catch (error) {
-            throw new Error("failed to set wallet: wallet: ".concat(JSON.stringify(wallet), " error:").concat(error.message));
+            throw new Error(`failed to set wallet: wallet: ${JSON.stringify(wallet)} error:${error.message}`);
         }
     }
     function update(nk, userId, changeset) {
         while (true) {
             try {
-                var _a = get(nk, userId), wallet = _a.wallet, version = _a.version;
-                var newWallet = updateWallet(wallet, changeset);
-                var newVersion = set(nk, userId, newWallet, version);
+                let { wallet, version } = get(nk, userId);
+                const newWallet = updateWallet(wallet, changeset);
+                const newVersion = set(nk, userId, newWallet, version);
                 return { wallet: newWallet, version: newVersion };
             }
             catch (error) {
                 if (error.message.indexOf("version check failed") === -1)
-                    throw new Error("failed to update Wallet: ".concat(error.message));
+                    throw new Error(`failed to update Wallet: ${error.message}`);
             }
         }
     }
     Wallet.update = update;
     function checkExpired(nk, userId) {
         try {
-            var _a = Wallet.get(nk, userId), wallet = _a.wallet, version = _a.version;
-            var hasChanged = false;
-            for (var _i = 0, _b = Object.keys(wallet); _i < _b.length; _i++) {
-                var key_1 = _b[_i];
-                var item = wallet[key_1];
+            let { wallet, version } = Wallet.get(nk, userId);
+            let hasChanged = false;
+            for (const key of Object.keys(wallet)) {
+                const item = wallet[key];
                 if (item.isUnlimited && item.endDate) {
                     if (Date.now() > item.endDate) {
                         item.isUnlimited = false;
@@ -1242,17 +1207,16 @@ var Wallet;
                 set(nk, userId, wallet, version);
         }
         catch (error) {
-            throw new Error("failed to check expired: ".concat(error.message));
+            throw new Error(`failed to check expired: ${error.message}`);
         }
     }
     Wallet.checkExpired = checkExpired;
     function heartFillUp(nk, logger, userId) {
-        var _a;
         try {
             while (true) {
-                var _b = get(nk, userId), wallet = _b.wallet, version = _b.version;
-                var hearts = wallet.Heart.quantity;
-                var nextHeart = (_a = wallet.Heart) === null || _a === void 0 ? void 0 : _a.next;
+                let { wallet, version } = get(nk, userId);
+                const hearts = wallet.Heart.quantity;
+                let nextHeart = wallet.Heart?.next;
                 if (hearts >= MAX_HEARTS) {
                     if (nextHeart && nextHeart !== 0) {
                         wallet.Heart.next = 0;
@@ -1267,7 +1231,7 @@ var Wallet;
                 }
                 if (Date.now() < nextHeart)
                     return;
-                var count = 0;
+                let count = 0;
                 while (nextHeart < Date.now()) {
                     count++;
                     nextHeart += HeartFillInterval;
@@ -1276,7 +1240,7 @@ var Wallet;
                         break;
                     }
                 }
-                var changeSet = [{ id: "Heart", quantity: count }];
+                const changeSet = [{ id: "Heart", quantity: count }];
                 wallet.Heart.next = nextHeart;
                 wallet = updateWallet(wallet, changeSet);
                 set(nk, userId, wallet, version);
@@ -1285,25 +1249,24 @@ var Wallet;
         }
         catch (error) {
             if (error.message.indexOf("version check") === -1)
-                throw new Error("Heart fillup failed: ".concat(error.message));
+                throw new Error(`Heart fillup failed: ${error.message}`);
         }
     }
     Wallet.heartFillUp = heartFillUp;
 })(Wallet || (Wallet = {}));
 //disable unlimited items if they are expired
-var BeforeGetStorage = function (ctx, logger, nk, data) {
-    var _a;
-    (_a = data.objectIds) === null || _a === void 0 ? void 0 : _a.forEach(function (element) {
+const BeforeGetStorage = (ctx, logger, nk, data) => {
+    data.objectIds?.forEach((element) => {
         if (element.collection === Wallet.collection &&
             element.key === Wallet.key) {
-            var userId = element.userId;
+            const userId = element.userId;
             Wallet.heartFillUp(nk, logger, userId);
             Wallet.checkExpired(nk, userId);
         }
     });
     return data;
 };
-var BattlePassRewards = [
+const BattlePassRewards = [
     {
         free: [{ id: "DiscoBall", quantity: 1 }],
         premium: [{ id: "DiscoBall", quantity: 2 }],
@@ -1508,8 +1471,8 @@ var BattlePassRewards = [
 ];
 var BattlePass;
 (function (BattlePass) {
-    var MAX_BONUS_BANK_KEYS = 500;
-    var rawData = {
+    const MAX_BONUS_BANK_KEYS = 500;
+    const rawData = {
         tier: 0,
         tierKeys: 0,
         premium: false,
@@ -1528,74 +1491,73 @@ var BattlePass;
     }
     BattlePass.init = init;
     function get(nk, userId) {
-        var _a;
         try {
-            var leaderboardID = BattlePass.config.leaderboardID;
-            var recordData = nk.leaderboardRecordsList(leaderboardID, [userId], 1);
-            var premium = rawData.premium, tier = rawData.tier, tierKeys = rawData.tierKeys;
-            var totalKeys = 0;
+            const { leaderboardID } = BattlePass.config;
+            const recordData = nk.leaderboardRecordsList(leaderboardID, [userId], 1);
+            let { premium, tier, tierKeys } = rawData;
+            let totalKeys = 0;
             if (recordData.ownerRecords && recordData.ownerRecords.length > 0) {
-                (_a = recordData.ownerRecords[0]
-                    .metadata, premium = _a.premium, tier = _a.tier, tierKeys = _a.tierKeys);
+                ({ premium, tier, tierKeys } = recordData.ownerRecords[0]
+                    .metadata);
                 totalKeys = recordData.ownerRecords[0].score;
             }
-            return { totalKeys: totalKeys, tier: tier, tierKeys: tierKeys, premium: premium };
+            return { totalKeys, tier, tierKeys, premium };
         }
         catch (error) {
-            throw new Error("failed to get BattlePass: ".concat(error.message));
+            throw new Error(`failed to get BattlePass: ${error.message}`);
         }
     }
     BattlePass.get = get;
     function update(nk, userId, keys, tierKeys, tier, premium) {
         try {
-            var leaderboardID = BattlePass.config.leaderboardID;
-            var metadata = get(nk, userId);
+            const { leaderboardID } = BattlePass.config;
+            let metadata = get(nk, userId);
             if (tierKeys !== undefined)
                 metadata.tierKeys = Math.min(MAX_BONUS_BANK_KEYS, tierKeys);
             if (tier !== undefined)
                 metadata.tier = tier;
             if (premium !== undefined)
                 metadata.premium = premium;
-            var newMeta = metadata;
+            const newMeta = metadata;
             nk.leaderboardRecordWrite(leaderboardID, userId, undefined, keys, undefined, newMeta);
         }
         catch (error) {
-            throw new Error("failed to set Battlepass metadata: ".concat(error.message));
+            throw new Error(`failed to set Battlepass metadata: ${error.message}`);
         }
     }
     BattlePass.update = update;
     function addReward(nk, userId, tier, expiry, subType) {
-        var tierRewards = BattlePassRewards[tier][subType];
+        const tierRewards = BattlePassRewards[tier][subType];
         if (tierRewards.length < 1)
             return;
-        var reward = {
-            id: "BP-".concat(subType, "-").concat(tier),
+        const reward = {
+            id: `BP-${subType}-${tier}`,
             items: tierRewards,
             type: "BattlePass",
         };
         Rewards.add(nk, userId, reward, expiry);
     }
     function getStats(nk) {
-        var leaderboard = nk.leaderboardsGetId([BattlePass.config.leaderboardID])[0];
+        const leaderboard = nk.leaderboardsGetId([BattlePass.config.leaderboardID])[0];
         return leaderboard;
     }
     function premiumfy(nk, userId) {
-        var data = get(nk, userId);
+        const data = get(nk, userId);
         if (data.premium)
             return;
-        var stats = getStats(nk);
-        var expiry = stats.nextReset * 1000;
-        for (var tier = 0; tier < data.tier || tier < BattlePassRewards.length; tier++) {
+        const stats = getStats(nk);
+        const expiry = stats.nextReset * 1000;
+        for (let tier = 0; tier < data.tier || tier < BattlePassRewards.length; tier++) {
             addReward(nk, userId, tier, expiry, "premium");
         }
         update(nk, userId, undefined, undefined, undefined, true);
     }
     function addKeys(nk, logger, userId, keys) {
         try {
-            var _a = get(nk, userId), tier = _a.tier, tierKeys = _a.tierKeys, premium = _a.premium;
-            var newTier = getTierByKeys(keys, tier, tierKeys);
-            var stats = getStats(nk);
-            var expiry = stats.nextReset * 1000;
+            let { tier, tierKeys, premium } = get(nk, userId);
+            const newTier = getTierByKeys(keys, tier, tierKeys);
+            const stats = getStats(nk);
+            const expiry = stats.nextReset * 1000;
             while (newTier.tier > tier) {
                 if (premium)
                     addReward(nk, userId, tier, expiry, "premium");
@@ -1605,15 +1567,15 @@ var BattlePass;
             update(nk, userId, keys, newTier.keys, newTier.tier);
         }
         catch (error) {
-            throw new Error("failed to add battlepass keys: ".concat(error.message));
+            throw new Error(`failed to add battlepass keys: ${error.message}`);
         }
     }
     BattlePass.addKeys = addKeys;
     function getTierByKeys(keys, latestTier, tierKeys) {
         try {
-            var tier = latestTier;
-            var remainedKeys = keys + tierKeys;
-            var lastTier = BattlePassRewards.length - 1;
+            let tier = latestTier;
+            let remainedKeys = keys + tierKeys;
+            const lastTier = BattlePassRewards.length - 1;
             while (tier < lastTier &&
                 remainedKeys >= BattlePassRewards[tier].requiredKeys) {
                 remainedKeys -= BattlePassRewards[tier].requiredKeys;
@@ -1621,42 +1583,41 @@ var BattlePass;
             }
             if (tier >= lastTier)
                 remainedKeys = Math.min(MAX_BONUS_BANK_KEYS, remainedKeys);
-            return { tier: tier, keys: remainedKeys };
+            return { tier, keys: remainedKeys };
         }
         catch (error) {
-            throw new Error("failed to getTierByKeys: ".concat(error.message));
+            throw new Error(`failed to getTierByKeys: ${error.message}`);
         }
     }
     BattlePass.getTierByKeys = getTierByKeys;
     function BattlePassReset(nk, logger, reset) {
-        var cursor = undefined;
-        var notifications = [];
-        var leaderboardID = BattlePass.config.leaderboardID;
-        var batchSize = 100;
+        let cursor = undefined;
+        let notifications = [];
+        const { leaderboardID } = BattlePass.config;
+        const batchSize = 100;
         do {
-            var recordData = nk.leaderboardRecordsList(leaderboardID, undefined, batchSize, cursor, reset);
+            const recordData = nk.leaderboardRecordsList(leaderboardID, undefined, batchSize, cursor, reset);
             if (!recordData || !recordData.records)
                 break;
-            var records = recordData.records;
-            for (var _i = 0, records_1 = records; _i < records_1.length; _i++) {
-                var r = records_1[_i];
-                var userId = r.ownerId;
-                var metadata = r.metadata;
+            const { records } = recordData;
+            for (const r of records) {
+                const userId = r.ownerId;
+                const metadata = r.metadata;
                 if (metadata.tier < BattlePassRewards.length - 1)
                     continue;
-                var coins = Math.floor(metadata.tierKeys / 10) * 100;
+                const coins = Math.floor(metadata.tierKeys / 10) * 100;
                 if (coins < 1)
                     continue;
-                var reward = {
+                const reward = {
                     id: "Bonus Bank",
                     items: [{ id: "Coins", quantity: coins }],
                     type: "BattlePass",
                 };
                 Rewards.add(nk, userId, reward);
-                var content = {
-                    reward: reward,
+                const content = {
+                    reward,
                 };
-                var notif = Notifications.create(Notifications.CODES.BattlePassReset, userId, content);
+                const notif = Notifications.create(Notifications.CODES.BattlePassReset, userId, content);
                 notifications.push(notif);
             }
             nk.notificationsSend(notifications);
@@ -1676,8 +1637,8 @@ var Category;
     Category[Category["FRIENDS"] = 5] = "FRIENDS";
     Category[Category["ENDLESS"] = 6] = "ENDLESS";
 })(Category || (Category = {}));
-var MAX_SCORE = 1000000;
-var leaderboardRewards = {
+const MAX_SCORE = 1000000;
+const leaderboardRewards = {
     Weekly: {
         config: {
             gold: 1,
@@ -1795,16 +1756,15 @@ var Bucket;
             userBucketIds: "IDs",
         },
     };
-    Bucket.initializeLeaderboards = function (nk, initializer) {
-        for (var _i = 0, _a = Object.keys(Bucket.configs); _i < _a.length; _i++) {
-            var id = _a[_i];
+    Bucket.initializeLeaderboards = (nk, initializer) => {
+        for (const id of Object.keys(Bucket.configs)) {
             init(nk, Bucket.configs[id]);
         }
         initializer.registerTournamentReset(tournamentReset);
         initializer.registerBeforeJoinTournament(beforeJointournament);
-        initializer.registerRpc("leaderboard/getRecords", GetRecordsRPC);
+        initializer.registerRpc(`leaderboard/getRecords`, GetRecordsRPC);
     };
-    var init = function (nk, config) {
+    const init = function (nk, config) {
         nk.tournamentCreate(config.tournamentID, config.authoritative, config.sortOrder, config.operator, config.duration, config.resetSchedule, config.metadata, config.title, config.description, config.category, config.startTime, config.endTime, config.maxSize, config.maxNumScore, config.joinRequired);
     };
     Bucket.configs = {
@@ -1891,13 +1851,13 @@ var Bucket;
     };
     function getLatestBucketId(nk, leaderBoadrdId) {
         try {
-            var collection = leaderBoadrdId;
-            var key = Bucket.storage.keys.latest;
-            var valueKey = "id";
-            var latestBucket = nk.storageRead([
-                { collection: collection, key: key, userId: SystemUserId },
+            const collection = leaderBoadrdId;
+            const key = Bucket.storage.keys.latest;
+            const valueKey = "id";
+            const latestBucket = nk.storageRead([
+                { collection, key, userId: SystemUserId },
             ]);
-            var latestVersion = void 0, latestId = void 0;
+            let latestVersion, latestId;
             if (latestBucket.length < 1) {
                 latestId = 0;
                 latestVersion = setLatestBucketId(nk, leaderBoadrdId, latestId);
@@ -1906,67 +1866,66 @@ var Bucket;
                 latestVersion = latestBucket[0].version;
                 latestId = parseInt(latestBucket[0].value[valueKey]);
             }
-            return { latestId: latestId, latestVersion: latestVersion };
+            return { latestId, latestVersion };
         }
         catch (error) {
-            throw new Error("failed to getLatestBucketId: ".concat(error.message));
+            throw new Error(`failed to getLatestBucketId: ${error.message}`);
         }
     }
     Bucket.getLatestBucketId = getLatestBucketId;
     function setLatestBucketId(nk, leaderBoadrdId, newId, version) {
         try {
-            var collection = leaderBoadrdId;
-            var key = Bucket.storage.keys.latest;
-            var value = { id: newId };
-            var writeObj = {
-                collection: collection,
-                key: key,
+            const collection = leaderBoadrdId;
+            const key = Bucket.storage.keys.latest;
+            const value = { id: newId };
+            const writeObj = {
+                collection,
+                key,
                 userId: SystemUserId,
-                value: value,
+                value,
                 permissionRead: 2,
                 permissionWrite: 0,
             };
             if (version)
                 writeObj.version = version;
-            var res = nk.storageWrite([writeObj]);
+            const res = nk.storageWrite([writeObj]);
             return res[0].version;
         }
         catch (error) {
-            throw new Error("failed to setLatestBucketId: ".concat(error.message));
+            throw new Error(`failed to setLatestBucketId: ${error.message}`);
         }
     }
     Bucket.setLatestBucketId = setLatestBucketId;
     function getBucketById(nk, leaderboard, id) {
-        var collection = Bucket.storage.collection;
-        var key = "".concat(leaderboard, "#").concat(id);
+        const collection = Bucket.storage.collection;
+        const key = `${leaderboard}#${id}`;
         try {
-            var res = nk.storageRead([{ collection: collection, key: key, userId: SystemUserId }]);
+            const res = nk.storageRead([{ collection, key, userId: SystemUserId }]);
             if (res.length < 1)
-                throw new Error("Bucket ".concat(key, " doesn't exists"));
-            var version = res[0].version;
-            var bucket = res[0].value;
-            return { bucket: bucket, version: version };
+                throw new Error(`Bucket ${key} doesn't exists`);
+            const version = res[0].version;
+            const bucket = res[0].value;
+            return { bucket, version };
         }
         catch (error) {
-            throw new Error("failed to getBucketById: key:".concat(key, " collection:").concat(collection, " error: ").concat(error.message));
+            throw new Error(`failed to getBucketById: key:${key} collection:${collection} error: ${error.message}`);
         }
     }
     Bucket.getBucketById = getBucketById;
     function createNewBucket(nk, logger, leaderBoadrdId, id, latestBucketVersion) {
-        var _a, _b;
-        var key = "".concat(leaderBoadrdId, "#").concat(id);
+        let key = `${leaderBoadrdId}#${id}`;
         try {
-            var latestVersion = setLatestBucketId(nk, leaderBoadrdId, id, latestBucketVersion);
-            var tournamentInfo = nk.tournamentsGetId([leaderBoadrdId])[0];
-            var resetTimeUnix = (_b = (_a = tournamentInfo.endActive) !== null && _a !== void 0 ? _a : tournamentInfo.endTime) !== null && _b !== void 0 ? _b : 0;
-            var bucket = {
+            let latestVersion = setLatestBucketId(nk, leaderBoadrdId, id, latestBucketVersion);
+            const tournamentInfo = nk.tournamentsGetId([leaderBoadrdId])[0];
+            const resetTimeUnix = tournamentInfo.endActive ?? tournamentInfo.endTime ?? 0;
+            let bucket = {
                 userIds: [],
-                resetTimeUnix: resetTimeUnix,
+                resetTimeUnix,
             };
-            var res = nk.storageWrite([
+            const res = nk.storageWrite([
                 {
                     collection: Bucket.storage.collection,
-                    key: key,
+                    key,
                     userId: SystemUserId,
                     value: bucket,
                     version: "*",
@@ -1974,23 +1933,23 @@ var Bucket;
                     permissionWrite: 0,
                 },
             ]);
-            var version = res[0].version;
-            return { bucket: bucket, version: version, latestVersion: latestVersion };
+            const version = res[0].version;
+            return { bucket, version, latestVersion };
         }
         catch (error) {
-            throw new Error("failed to createNewBucket with id ".concat(key, ": ").concat(error.message));
+            throw new Error(`failed to createNewBucket with id ${key}: ${error.message}`);
         }
     }
     Bucket.createNewBucket = createNewBucket;
     function addUserToBucket(nk, leaderBoadrdId, bucketId, version, bucket) {
         try {
-            var collection = Bucket.storage.collection;
-            var key = "".concat(leaderBoadrdId, "#").concat(bucketId);
+            const collection = Bucket.storage.collection;
+            const key = `${leaderBoadrdId}#${bucketId}`;
             nk.storageWrite([
                 {
-                    collection: collection,
-                    key: key,
-                    version: version,
+                    collection,
+                    key,
+                    version,
                     userId: SystemUserId,
                     value: bucket,
                     permissionRead: 2,
@@ -1999,7 +1958,7 @@ var Bucket;
             ]);
         }
         catch (error) {
-            throw new Error("failed to addUserToBucket: ".concat(error.message));
+            throw new Error(`failed to addUserToBucket: ${error.message}`);
         }
     }
     Bucket.addUserToBucket = addUserToBucket;
@@ -2009,64 +1968,64 @@ var Bucket;
                 {
                     collection: Bucket.storage.collection,
                     key: leaderBoadrdId,
-                    userId: userId,
-                    value: { id: id },
+                    userId,
+                    value: { id },
                     permissionRead: 2,
                     permissionWrite: 0,
                 },
             ]);
         }
         catch (error) {
-            throw new Error("failed to setUserBucket: ".concat(error.message));
+            throw new Error(`failed to setUserBucket: ${error.message}`);
         }
     }
     Bucket.setUserBucket = setUserBucket;
     function getUserBucketId(nk, leaderBoadrdId, userId) {
-        var collection = Bucket.storage.collection;
-        var userBucket = nk.storageRead([
-            { collection: collection, key: leaderBoadrdId, userId: userId },
+        const collection = Bucket.storage.collection;
+        const userBucket = nk.storageRead([
+            { collection, key: leaderBoadrdId, userId },
         ]);
         if (userBucket.length < 1)
             return null;
-        var id = userBucket[0].value.id;
+        const { id } = userBucket[0].value;
         return id;
     }
     Bucket.getUserBucketId = getUserBucketId;
     function getUserBucket(nk, config, userId) {
         try {
-            var leaderBoadrdId = config.tournamentID;
-            var userBucketId = getUserBucketId(nk, leaderBoadrdId, userId);
+            const leaderBoadrdId = config.tournamentID;
+            const userBucketId = getUserBucketId(nk, leaderBoadrdId, userId);
             if (!userBucketId)
                 return null;
-            var bucket = Bucket.getBucketById(nk, leaderBoadrdId, userBucketId).bucket;
+            const { bucket } = Bucket.getBucketById(nk, leaderBoadrdId, userBucketId);
             return bucket;
         }
         catch (error) {
-            throw new Error("failed to getUserBucket: ".concat(error.message));
+            throw new Error(`failed to getUserBucket: ${error.message}`);
         }
     }
     Bucket.getUserBucket = getUserBucket;
     function joinLeaderboard(nk, logger, ctx, config) {
-        var userId = ctx.userId;
-        var leaderBoadrdId = config.tournamentID;
-        var userBucket = getUserBucket(nk, config, userId);
+        const userId = ctx.userId;
+        const leaderBoadrdId = config.tournamentID;
+        const userBucket = getUserBucket(nk, config, userId);
         if (userBucket) {
-            throw new Error("User Has already joined ".concat(leaderBoadrdId, " leaderboard"));
+            throw new Error(`User Has already joined ${leaderBoadrdId} leaderboard`);
         }
-        var attempts = 0;
+        let attempts = 0;
         //get last bucket
         while (true) {
             try {
-                var latestRes = Bucket.getLatestBucketId(nk, leaderBoadrdId);
-                var latestId = latestRes.latestId, latestVersion = latestRes.latestVersion;
+                const latestRes = Bucket.getLatestBucketId(nk, leaderBoadrdId);
+                let { latestId, latestVersion } = latestRes;
                 if (latestId === 0) {
-                    var data = Bucket.createNewBucket(nk, logger, leaderBoadrdId, ++latestId, latestVersion);
+                    const data = Bucket.createNewBucket(nk, logger, leaderBoadrdId, ++latestId, latestVersion);
                     latestVersion = data.latestVersion;
                 }
-                var _a = Bucket.getBucketById(nk, leaderBoadrdId, latestId), bucket = _a.bucket, version = _a.version;
+                let { bucket, version } = Bucket.getBucketById(nk, leaderBoadrdId, latestId);
                 // if full create new bucket
                 if (bucket.userIds.length >= config.bucketSize) {
-                    var data = Bucket.createNewBucket(nk, logger, leaderBoadrdId, ++latestId, latestVersion);
+                    const data = Bucket.createNewBucket(nk, logger, leaderBoadrdId, ++latestId, latestVersion);
                     version = data.version;
                     latestVersion = data.latestVersion;
                     bucket = data.bucket;
@@ -2075,7 +2034,7 @@ var Bucket;
                 bucket.userIds.push(userId);
                 Bucket.addUserToBucket(nk, leaderBoadrdId, latestId, version, bucket);
                 Bucket.setUserBucket(nk, userId, leaderBoadrdId, latestId);
-                var rewards = leaderboardRewards[leaderBoadrdId].joinRewards;
+                const rewards = leaderboardRewards[leaderBoadrdId].joinRewards;
                 if (rewards)
                     Rewards.addNcliam(nk, userId, rewards);
                 return;
@@ -2089,74 +2048,73 @@ var Bucket;
     }
     Bucket.joinLeaderboard = joinLeaderboard;
     function getBucketRecords(nk, bucket, config, time) {
-        var _a;
         try {
-            var tournament = nk.tournamentRecordsList(config.tournamentID, bucket.userIds, config.bucketSize, undefined, time);
-            var sorted = (_a = tournament.ownerRecords) === null || _a === void 0 ? void 0 : _a.sort(function (a, b) {
+            const tournament = nk.tournamentRecordsList(config.tournamentID, bucket.userIds, config.bucketSize, undefined, time);
+            const sorted = tournament.ownerRecords?.sort((a, b) => {
                 if (b.score !== a.score) {
                     return b.score - a.score;
                 }
                 return a.updateTime - b.updateTime;
             });
-            sorted === null || sorted === void 0 ? void 0 : sorted.forEach(function (scoreObj, index) { return (scoreObj.rank = index + 1); });
+            sorted?.forEach((scoreObj, index) => (scoreObj.rank = index + 1));
             return sorted;
         }
         catch (error) {
-            throw new Error("failed to getRecords: ".concat(error.message));
+            throw new Error(`failed to getRecords: ${error.message}`);
         }
     }
     Bucket.getBucketRecords = getBucketRecords;
     function getBucketRecordsRpc(ctx, nk, config) {
-        var userId = ctx.userId;
+        const userId = ctx.userId;
         if (!userId)
             return Res.CalledByServer();
         //get user bucket
-        var bucket = Bucket.getUserBucket(nk, config, userId);
+        let bucket = Bucket.getUserBucket(nk, config, userId);
         //if not exists
         if (!bucket)
             return Res.response(false, "dosentExist", null, "user does not exist in this leaderboard");
-        var records = getBucketRecords(nk, bucket, config);
+        const records = getBucketRecords(nk, bucket, config);
         return Res.Success(records);
     }
     Bucket.getBucketRecordsRpc = getBucketRecordsRpc;
     function deleteUserBuckets(nk, logger, tournament) {
         try {
-            var config_1 = Bucket.configs[tournament.id];
-            var bucketCollection_1 = Bucket.storage.collection;
-            var batchSize = 100;
-            var leaderBoadrdId_1 = tournament.id;
-            var cursur = void 0;
-            var userObjToDelete_1 = [];
-            var notifications_1 = [];
+            const config = Bucket.configs[tournament.id];
+            const bucketCollection = Bucket.storage.collection;
+            const batchSize = 100;
+            const leaderBoadrdId = tournament.id;
+            let cursur;
+            let userObjToDelete = [];
+            let notifications = [];
             do {
-                var userBuckets = nk.storageList(undefined, bucketCollection_1, batchSize, cursur);
-                if (!userBuckets.objects || (userBuckets === null || userBuckets === void 0 ? void 0 : userBuckets.objects.length) < 1)
+                const userBuckets = nk.storageList(undefined, bucketCollection, batchSize, cursur);
+                if (!userBuckets.objects || userBuckets?.objects.length < 1)
                     return;
-                var leaderboardBuckets = userBuckets.objects.filter(function (o) { return o.key === leaderBoadrdId_1; });
-                leaderboardBuckets.map(function (b) {
-                    var userId = b.userId;
+                const leaderboardBuckets = userBuckets.objects.filter((o) => o.key === leaderBoadrdId);
+                leaderboardBuckets.map((b) => {
+                    const userId = b.userId;
                     if (userId === SystemUserId)
                         return;
-                    var obj = {
-                        collection: bucketCollection_1,
-                        key: leaderBoadrdId_1,
-                        userId: userId,
+                    const obj = {
+                        collection: bucketCollection,
+                        key: leaderBoadrdId,
+                        userId,
                     };
                     if (b.value && b.value.id) {
-                        var bucketId = b.value.id;
-                        var bucket = Bucket.getBucketById(nk, leaderBoadrdId_1, bucketId).bucket;
-                        var records = Bucket.getBucketRecords(nk, bucket, config_1, tournament.endActive);
-                        var reward = undefined;
-                        var userRecord = records === null || records === void 0 ? void 0 : records.filter(function (r) { return r.ownerId === userId; });
+                        const bucketId = b.value.id;
+                        const { bucket } = Bucket.getBucketById(nk, leaderBoadrdId, bucketId);
+                        const records = Bucket.getBucketRecords(nk, bucket, config, tournament.endActive);
+                        let reward = undefined;
+                        const userRecord = records?.filter((r) => r.ownerId === userId);
                         if (userRecord && userRecord.length > 0) {
-                            var rank = userRecord[0].rank;
-                            var rewardsConfig = leaderboardRewards[leaderBoadrdId_1].config;
-                            var tier = Rewards.getTierByRank(rank, rewardsConfig);
+                            const rank = userRecord[0].rank;
+                            const rewardsConfig = leaderboardRewards[leaderBoadrdId].config;
+                            const tier = Rewards.getTierByRank(rank, rewardsConfig);
                             if (tier) {
-                                var rewardItems = leaderboardRewards[leaderBoadrdId_1][tier];
+                                const rewardItems = leaderboardRewards[leaderBoadrdId][tier];
                                 if (rewardItems) {
                                     reward = {
-                                        id: leaderBoadrdId_1,
+                                        id: leaderBoadrdId,
                                         type: "Leaderboard",
                                         items: rewardItems,
                                     };
@@ -2164,57 +2122,56 @@ var Bucket;
                                 }
                             }
                         }
-                        var content = {
+                        const content = {
                             id: tournament.id,
                             records: records,
                             reward: reward,
                         };
-                        var notif = Notifications.create(Notifications.CODES.BucketReset, userId, content);
-                        notifications_1.push(notif);
-                        userObjToDelete_1.push(obj);
+                        let notif = Notifications.create(Notifications.CODES.BucketReset, userId, content);
+                        notifications.push(notif);
+                        userObjToDelete.push(obj);
                     }
                 });
-                nk.notificationsSend(notifications_1);
-                nk.storageDelete(userObjToDelete_1);
-                notifications_1 = [];
+                nk.notificationsSend(notifications);
+                nk.storageDelete(userObjToDelete);
+                notifications = [];
                 cursur = userBuckets.cursor;
             } while (cursur);
         }
         catch (error) {
-            logger.error("failed to delete userBuckets: ".concat(error.message));
+            logger.error(`failed to delete userBuckets: ${error.message}`);
         }
     }
     Bucket.deleteUserBuckets = deleteUserBuckets;
     function deleteBuckets(nk, logger, leaderBoardId) {
-        var _a;
         try {
-            var storageIds = nk.storageList(SystemUserId, Bucket.storage.collection, 1000);
-            var bucketsToDelete = (_a = storageIds.objects) === null || _a === void 0 ? void 0 : _a.filter(function (bucket) { return bucket.key.indexOf(leaderBoardId) !== -1; });
+            const storageIds = nk.storageList(SystemUserId, Bucket.storage.collection, 1000);
+            const bucketsToDelete = storageIds.objects?.filter((bucket) => bucket.key.indexOf(leaderBoardId) !== -1);
             if (bucketsToDelete && bucketsToDelete.length > 0) {
-                var deleteRequests = bucketsToDelete.map(function (bucket) { return ({
+                const deleteRequests = bucketsToDelete.map((bucket) => ({
                     collection: bucket.collection,
                     key: bucket.key,
                     userId: SystemUserId,
-                }); });
+                }));
                 nk.storageDelete(deleteRequests);
             }
         }
         catch (error) {
-            logger.error("failed to delete buckets: ".concat(error.message));
+            logger.error(`failed to delete buckets: ${error.message}`);
         }
     }
     Bucket.deleteBuckets = deleteBuckets;
 })(Bucket || (Bucket = {}));
-var GetRecordsRPC = function (ctx, logger, nk, payload) {
+const GetRecordsRPC = (ctx, logger, nk, payload) => {
     try {
         if (!ctx.userId)
             return Res.CalledByServer();
-        var id = void 0;
-        var input = JSON.parse(payload);
+        let id;
+        const input = JSON.parse(payload);
         id = input.id;
         if (!id)
             return Res.BadRequest();
-        var config = Bucket.configs[id];
+        const config = Bucket.configs[id];
         return Bucket.getBucketRecordsRpc(ctx, nk, config);
     }
     catch (error) {
@@ -2222,15 +2179,15 @@ var GetRecordsRPC = function (ctx, logger, nk, payload) {
     }
 };
 // Before Join Leaderboards Hooks
-var beforeJointournament = function (ctx, logger, nk, data) {
-    var tournamentId = data.tournamentId;
+const beforeJointournament = (ctx, logger, nk, data) => {
+    const tournamentId = data.tournamentId;
     if (!tournamentId)
         throw new Error("Invalid tournament id");
-    var config = Bucket.configs[tournamentId];
+    const config = Bucket.configs[tournamentId];
     Bucket.joinLeaderboard(nk, logger, ctx, config);
     return data;
 };
-var tournamentReset = function (ctx, logger, nk, tournament, end, reset) {
+const tournamentReset = (ctx, logger, nk, tournament, end, reset) => {
     Bucket.deleteUserBuckets(nk, logger, tournament);
     Bucket.deleteBuckets(nk, logger, tournament.id);
     Bucket.setLatestBucketId(nk, tournament.id, 0);
@@ -2253,42 +2210,41 @@ var Leaderboards;
         //   resetSchedule: "0 0 * * 1", // Every Monday at 00:00
         // },
     };
-    var Leaderboard = /** @class */ (function () {
-        function Leaderboard(config) {
+    class Leaderboard {
+        config;
+        constructor(config) {
             this.config = config;
         }
-        Leaderboard.prototype.initialize = function (nk, logger) {
+        initialize(nk, logger) {
             try {
                 nk.leaderboardCreate(this.config.leaderboardID, this.config.authoritative, this.config.sortOrder, this.config.operator, this.config.resetSchedule, this.config.metadata);
-                logger.info("".concat(this.config.leaderboardID, " leaderboard created"));
+                logger.info(`${this.config.leaderboardID} leaderboard created`);
             }
             catch (error) {
-                logger.error("failed to create ".concat(this.config.leaderboardID, " leaderboard"));
+                logger.error(`failed to create ${this.config.leaderboardID} leaderboard`);
             }
-        };
-        return Leaderboard;
-    }());
+        }
+    }
     Leaderboards.Leaderboard = Leaderboard;
-    Leaderboards.initalizeLeaderboards = function (initializer, nk, logger) {
-        for (var _i = 0, _a = Object.keys(Leaderboards.configs); _i < _a.length; _i++) {
-            var key = _a[_i];
-            var conf = Leaderboards.configs[key];
+    Leaderboards.initalizeLeaderboards = (initializer, nk, logger) => {
+        for (const key of Object.keys(Leaderboards.configs)) {
+            const conf = Leaderboards.configs[key];
             new Leaderboard(conf).initialize(nk, logger);
         }
         initializer.registerRpc("leaderboards/metadata", leaderboardMetadataRPC);
         initializer.registerLeaderboardReset(leaderboardReset);
     };
-    var updateGlobal = function (nk, userId, username, score, subScore) {
+    const updateGlobal = (nk, userId, username, score, subScore) => {
         try {
-            var leaderboard = Leaderboards.configs.global;
+            const leaderboard = Leaderboards.configs.global;
             nk.leaderboardRecordWrite(leaderboard.leaderboardID, userId, username, score, subScore);
         }
         catch (error) {
-            throw new Error("failed to update global Leaderboard: ".concat(error.message));
+            throw new Error(`failed to update global Leaderboard: ${error.message}`);
         }
     };
     function updateEvents(nk, userId, username, levelDifficulty, rushScore) {
-        Object.keys(Bucket.configs).map(function (tournamentId) {
+        Object.keys(Bucket.configs).map((tournamentId) => {
             try {
                 switch (tournamentId) {
                     case "Rush":
@@ -2305,35 +2261,35 @@ var Leaderboards;
             catch (error) { }
         });
     }
-    Leaderboards.UpdateLeaderboards = function (nk, logger, userId, username, levelLog) {
-        var levelNumber = levelLog.levelNumber;
+    Leaderboards.UpdateLeaderboards = (nk, logger, userId, username, levelLog) => {
+        const { levelNumber } = levelLog;
         //calculate leaderboard score
-        var rushScore = levelLog.atEnd.discoBallTargettedTiles || 0;
-        var levelDifficulty = Levels.difficulty[levelNumber] || 0;
+        const rushScore = levelLog.atEnd.discoBallTargettedTiles || 0;
+        const levelDifficulty = Levels.difficulty[levelNumber] || 0;
         updateGlobal(nk, userId, username, 1);
         if (levelLog.levelNumber > 39)
             BattlePass.addKeys(nk, logger, userId, levelDifficulty);
         updateEvents(nk, userId, username, levelDifficulty, rushScore);
     };
 })(Leaderboards || (Leaderboards = {}));
-var leaderboardMetadataRPC = function (ctx, logger, nk, payload) {
+const leaderboardMetadataRPC = (ctx, logger, nk, payload) => {
     try {
-        var id = void 0;
-        var input = JSON.parse(payload);
+        let id;
+        const input = JSON.parse(payload);
         id = input.id;
         if (!id)
             return Res.BadRequest();
-        var leaderboards = nk.leaderboardsGetId([id]);
+        const leaderboards = nk.leaderboardsGetId([id]);
         if (leaderboards.length < 1)
             return Res.notFound("leaderboard");
-        var data = leaderboards[0];
+        const data = leaderboards[0];
         return Res.Success(data);
     }
     catch (error) {
         return Res.Error(logger, "failed to get metadata", error);
     }
 };
-var leaderboardReset = function (ctx, logger, nk, leaderboard, reset) {
+const leaderboardReset = (ctx, logger, nk, leaderboard, reset) => {
     switch (leaderboard.id) {
         case BattlePass.config.leaderboardID:
             BattlePass.BattlePassReset(nk, logger, reset);
@@ -2342,7 +2298,7 @@ var leaderboardReset = function (ctx, logger, nk, leaderboard, reset) {
 };
 var Res;
 (function (Res) {
-    var Code;
+    let Code;
     (function (Code) {
         Code[Code["success"] = 0] = "success";
         Code[Code["error"] = 1] = "error";
@@ -2359,12 +2315,12 @@ var Res;
         Code[Code["failed"] = 12] = "failed";
     })(Code = Res.Code || (Res.Code = {}));
     function response(success, code, data, message, error) {
-        var res = {
-            success: success,
+        const res = {
+            success,
             code: Code[code],
-            data: data,
-            message: message,
-            error: error === null || error === void 0 ? void 0 : error.message,
+            data,
+            message,
+            error: error?.message,
         };
         return JSON.stringify(res);
     }
@@ -2382,18 +2338,18 @@ var Res;
     }
     Res.CalledByServer = CalledByServer;
     function Error(logger, message, error) {
-        logger.error("".concat(message, ": ").concat(error.message));
+        logger.error(`${message}: ${error.message}`);
         return response(false, "error", undefined, message, error);
     }
     Res.Error = Error;
     function notFound(name) {
-        return response(false, "notFound", undefined, "".concat(name, " not found"));
+        return response(false, "notFound", undefined, `${name} not found`);
     }
     Res.notFound = notFound;
 })(Res || (Res = {}));
 var StorageIndex;
 (function (StorageIndex) {
-    var MAX_ENTRIES = 1000000000;
+    const MAX_ENTRIES = 1000000000;
     StorageIndex.configs = {
         cryptoWallet: {
             name: "crypto-wallet",
@@ -2414,59 +2370,59 @@ var StorageIndex;
             collection: MyketPurchase.collection,
             fields: ["token"],
             maxEntries: MAX_ENTRIES,
-            storageKey: MyketPurchase.key,
+            storageKey: "",
         },
     };
     function registerIndexes(initializer) {
-        for (var key in StorageIndex.configs) {
-            var config = StorageIndex.configs[key];
-            var collection = config.collection, fields = config.fields, maxEntries = config.maxEntries, name_1 = config.name, storageKey = config.storageKey;
-            initializer.registerStorageIndex(name_1, collection, storageKey, fields, maxEntries);
+        for (const key in StorageIndex.configs) {
+            const config = StorageIndex.configs[key];
+            const { collection, fields, maxEntries, name, storageKey } = config;
+            initializer.registerStorageIndex(name, collection, storageKey, fields, maxEntries);
         }
     }
     StorageIndex.registerIndexes = registerIndexes;
 })(StorageIndex || (StorageIndex = {}));
-var InitiateUser = function (ctx, logger, nk, data, request) {
+const InitiateUser = (ctx, logger, nk, data, request) => {
     try {
         if (!data.created)
             return;
         Wallet.init(nk, ctx.userId);
         GameApi.LastLevel.set(nk, ctx.userId, 0);
-        logger.info("New User Joined: ".concat(ctx.userId));
+        logger.info(`New User Joined: ${ctx.userId}`);
     }
     catch (error) {
-        throw new Error("Failed to initiate user. cause: ".concat(error.message));
+        throw new Error(`Failed to initiate user. cause: ${error.message}`);
     }
 };
 var WalletIndex;
 (function (WalletIndex) {
-    var queryMaker = function (address) { return "+address:".concat(address); };
-    WalletIndex.get = function (nk, address) {
+    const queryMaker = (address) => `+address:${address}`;
+    WalletIndex.get = (nk, address) => {
         try {
-            var query = queryMaker(address);
-            var res = nk.storageIndexList(StorageIndex.configs.cryptoWallet.name, query, 1);
+            const query = queryMaker(address);
+            const res = nk.storageIndexList(StorageIndex.configs.cryptoWallet.name, query, 1);
             return res.length > 0 ? res[0] : null;
         }
         catch (error) {
-            throw new Error("failed to check wallet address existance: ".concat(error.message));
+            throw new Error(`failed to check wallet address existance: ${error.message}`);
         }
     };
 })(WalletIndex || (WalletIndex = {}));
-var WalletConnect = function (ctx, logger, nk, payload) {
-    var userId = ctx.userId;
+const WalletConnect = (ctx, logger, nk, payload) => {
+    const userId = ctx.userId;
     if (!userId)
         return Res.CalledByServer();
-    var data;
+    let data;
     data = JSON.parse(payload);
     if (!data || !data.address)
         return Res.BadRequest();
-    var address = data.address;
+    let { address } = data;
     try {
-        CryptoWallet.set(nk, userId, { address: address });
+        CryptoWallet.set(nk, userId, { address });
         return Res.Success(undefined, "wallet has been connected");
     }
     catch (error) {
-        return Res.Error(logger, "Error While Connecting Wallet", error);
+        return Res.Error(logger, `Error While Connecting Wallet`, error);
     }
 };
 var LevelValidation;
@@ -2482,95 +2438,96 @@ var LevelValidation;
         { name: "DiscoBall", index: 1 },
         { name: "Rocket", index: 2 },
     ];
-    var Validator = /** @class */ (function () {
-        function Validator() {
-        }
-        Validator.prototype.cheatCheck = function (levelLog, initialValues) {
+    class Validator {
+        cheatCheck(levelLog, initialValues) {
             try {
-                var atStart = levelLog.atStart, atEnd = levelLog.atEnd;
-                var detectedCheats = __spreadArray(__spreadArray(__spreadArray(__spreadArray(__spreadArray([], this.checkHearts(initialValues.heart), true), this.checkBoosters(initialValues.boostersCount, atStart.selectedBoosters), true), this.checkMoves(atEnd.totalMoves, atEnd.levelMaxMoves, atEnd.purchasedMovesCount), true), this.checkPowerUps(initialValues.powerUpsCount, atEnd.usedItems), true), this.checkAbilityUsage(atEnd.targetAbilityblocksPoped, atEnd.abilitUsedTimes), true);
+                const { atStart, atEnd } = levelLog;
+                const detectedCheats = [
+                    ...this.checkHearts(initialValues.heart),
+                    ...this.checkBoosters(initialValues.boostersCount, atStart.selectedBoosters),
+                    ...this.checkMoves(atEnd.totalMoves, atEnd.levelMaxMoves, atEnd.purchasedMovesCount),
+                    ...this.checkPowerUps(initialValues.powerUpsCount, atEnd.usedItems),
+                    ...this.checkAbilityUsage(atEnd.targetAbilityblocksPoped, atEnd.abilitUsedTimes),
+                ];
                 return detectedCheats;
             }
             catch (error) {
-                throw new Error("Cheat Check Error: ".concat(error.message));
+                throw new Error(`Cheat Check Error: ${error.message}`);
             }
-        };
-        Validator.prototype.checkHearts = function (heartCount) {
+        }
+        checkHearts(heartCount) {
             if (heartCount === 0)
                 return ["Started level with no heart!"];
             else if (heartCount < -1 || heartCount > 5)
-                return ["Invalid Heart Count: Hearts = ".concat(heartCount)];
+                return [`Invalid Heart Count: Hearts = ${heartCount}`];
             else
                 return [];
-        };
-        Validator.prototype.checkBoosters = function (startCounts, selectedBoosters) {
-            var detectedCheats = [];
-            for (var _i = 0, Boosters_1 = LevelValidation.Boosters; _i < Boosters_1.length; _i++) {
-                var booster = Boosters_1[_i];
-                var name_2 = booster.name, index = booster.index;
-                var startCount = startCounts[index];
-                if (selectedBoosters.indexOf(name_2) !== -1 && startCount === 0)
-                    detectedCheats.push("Used a Booster Without Having it: ".concat(name_2));
+        }
+        checkBoosters(startCounts, selectedBoosters) {
+            const detectedCheats = [];
+            for (const booster of LevelValidation.Boosters) {
+                const { name, index } = booster;
+                const startCount = startCounts[index];
+                if (selectedBoosters.indexOf(name) !== -1 && startCount === 0)
+                    detectedCheats.push(`Used a Booster Without Having it: ${name}`);
             }
             return detectedCheats;
-        };
-        Validator.prototype.checkMoves = function (totalMoves, levelMaxMoves, purchasedMovesCount) {
+        }
+        checkMoves(totalMoves, levelMaxMoves, purchasedMovesCount) {
             if (levelMaxMoves === -1)
                 return []; // time based level
             return totalMoves > levelMaxMoves + purchasedMovesCount
                 ? [
-                    "Invalid Extra Moves: totalMoves(".concat(totalMoves, ") > levelMaxMoves(").concat(levelMaxMoves, ") + purchasedMovesCount(").concat(purchasedMovesCount, ")"),
+                    `Invalid Extra Moves: totalMoves(${totalMoves}) > levelMaxMoves(${levelMaxMoves}) + purchasedMovesCount(${purchasedMovesCount})`,
                 ]
                 : [];
-        };
-        Validator.checkLevel = function (levelNumber, lastLevel) {
+        }
+        static checkLevel(levelNumber, lastLevel) {
             if (levelNumber > lastLevel + 1) {
                 return [
-                    "level skip detected: lastLevel:".concat(lastLevel, "  current:").concat(levelNumber),
+                    `level skip detected: lastLevel:${lastLevel}  current:${levelNumber}`,
                 ];
             }
             return [];
-        };
-        Validator.prototype.checkCoins = function (startCoins, purchasedMovesCoins, purchasedPowerUps) {
-            var purchasedPowerUpsPrice = Math.floor(purchasedPowerUps.reduce(function (acc, curr) { return acc + curr; }, 0) / 3) *
+        }
+        checkCoins(startCoins, purchasedMovesCoins, purchasedPowerUps) {
+            const purchasedPowerUpsPrice = Math.floor(purchasedPowerUps.reduce((acc, curr) => acc + curr, 0) / 3) *
                 600;
             return startCoins < purchasedMovesCoins + purchasedPowerUpsPrice
                 ? [
-                    "Invalid Coin Count! start(".concat(startCoins, ") < purchasedMoves(").concat(purchasedMovesCoins, ") + purchasedPowerUps(").concat(purchasedPowerUpsPrice, ")"),
+                    `Invalid Coin Count! start(${startCoins}) < purchasedMoves(${purchasedMovesCoins}) + purchasedPowerUps(${purchasedPowerUpsPrice})`,
                 ]
                 : [];
-        };
-        Validator.prototype.checkPowerUps = function (startPowerUpsCount, usedItems) {
-            var detectedCheats = [];
-            for (var _i = 0, PowerUps_1 = LevelValidation.PowerUps; _i < PowerUps_1.length; _i++) {
-                var powerUp = PowerUps_1[_i];
-                var name_3 = powerUp.name, index = powerUp.index;
-                var before = startPowerUpsCount[index];
-                var used = usedItems[index];
+        }
+        checkPowerUps(startPowerUpsCount, usedItems) {
+            const detectedCheats = [];
+            for (const powerUp of LevelValidation.PowerUps) {
+                const { name, index } = powerUp;
+                const before = startPowerUpsCount[index];
+                const used = usedItems[index];
                 if (before < used) {
-                    detectedCheats.push("".concat(name_3, " before:").concat(before, " used:").concat(used));
+                    detectedCheats.push(`${name} before:${before} used:${used}`);
                 }
             }
             return detectedCheats.length > 0
                 ? ["Cheat in PowerUps: " + detectedCheats.join(", ")]
                 : [];
-        };
-        Validator.prototype.checkAbilityUsage = function (targetAbilityblocksPoped, abilitUsedTimes) {
+        }
+        checkAbilityUsage(targetAbilityblocksPoped, abilitUsedTimes) {
             return abilitUsedTimes > targetAbilityblocksPoped / 10
                 ? [
-                    "Used ability more than allowed count: allowed: ".concat(Math.floor(targetAbilityblocksPoped / 10), " used: ").concat(abilitUsedTimes),
+                    `Used ability more than allowed count: allowed: ${Math.floor(targetAbilityblocksPoped / 10)} used: ${abilitUsedTimes}`,
                 ]
                 : [];
-        };
-        return Validator;
-    }());
+        }
+    }
     LevelValidation.Validator = Validator;
     function extractData(log, initialValues) {
         try {
-            var boosters = LevelValidation.Boosters.reduce(function (acc, curr) {
-                var selected = log.atStart.selectedBoosters.indexOf(curr.name);
-                var initCount = initialValues.boostersCount[curr.index];
-                var result = selected !== -1 ? -1 : 0;
+            const boosters = LevelValidation.Boosters.reduce((acc, curr) => {
+                const selected = log.atStart.selectedBoosters.indexOf(curr.name);
+                const initCount = initialValues.boostersCount[curr.index];
+                const result = selected !== -1 ? -1 : 0;
                 if (initCount > 0 && result !== 0) {
                     acc.push({
                         id: curr.name,
@@ -2579,10 +2536,10 @@ var LevelValidation;
                 }
                 return acc;
             }, []);
-            var powerUps = LevelValidation.PowerUps.reduce(function (acc, curr) {
-                var usedCount = log.atEnd.usedItems[curr.index];
-                var initCount = initialValues.powerUpsCount[curr.index];
-                var result = initCount - (initCount + usedCount);
+            const powerUps = LevelValidation.PowerUps.reduce((acc, curr) => {
+                const usedCount = log.atEnd.usedItems[curr.index];
+                const initCount = initialValues.powerUpsCount[curr.index];
+                const result = initCount - (initCount + usedCount);
                 if (result !== 0) {
                     acc.push({
                         id: LevelValidation.PowerUps[curr.index].name,
@@ -2591,62 +2548,64 @@ var LevelValidation;
                 }
                 return acc;
             }, []);
-            var coins = {
+            const coins = {
                 id: "Coins",
                 quantity: log.atEnd.coinsRewarded,
             };
-            var heartCount = log.atEnd.result !== "win" && initialValues.heart > 0 ? -1 : 0;
-            var hearts = {
+            const heartCount = log.atEnd.result !== "win" && initialValues.heart > 0 ? -1 : 0;
+            const hearts = {
                 id: "Heart",
                 quantity: heartCount,
             };
-            var result = __spreadArray(__spreadArray(__spreadArray([], boosters, true), powerUps, true), [
+            const result = [
+                ...boosters,
+                ...powerUps,
                 coins,
                 hearts,
-            ], false);
+            ];
             return result;
         }
         catch (error) {
-            throw new Error("Error while extracting data from log: ".concat(error.message));
+            throw new Error(`Error while extracting data from log: ${error.message}`);
         }
     }
     LevelValidation.extractData = extractData;
-    LevelValidation.initialValues = function (nk, userId) {
-        var wallet = Wallet.get(nk, userId).wallet;
-        var boostersCount = [
+    LevelValidation.initialValues = (nk, userId) => {
+        const { wallet } = Wallet.get(nk, userId);
+        const boostersCount = [
             wallet.TNT.isUnlimited ? -1 : wallet.TNT.quantity,
             wallet.DiscoBall.isUnlimited ? -1 : wallet.DiscoBall.quantity,
             wallet.Rocket.isUnlimited ? -1 : wallet.Rocket.quantity,
         ];
-        var powerUpsCount = [
+        const powerUpsCount = [
             wallet.Hammer.quantity,
             wallet.VerticalRocket.quantity,
             wallet.Shuffle.quantity,
             wallet.HorizontalRocket.quantity,
         ];
         return {
-            boostersCount: boostersCount,
+            boostersCount,
             coins: wallet.Coins.quantity,
-            powerUpsCount: powerUpsCount,
+            powerUpsCount,
             heart: wallet.Heart.isUnlimited ? -1 : wallet.Heart.quantity,
         };
     };
 })(LevelValidation || (LevelValidation = {}));
-var levelValidatorRPC = function (ctx, logger, nk, payload) {
+const levelValidatorRPC = (ctx, logger, nk, payload) => {
     try {
-        var userId = ctx.userId;
+        const userId = ctx.userId;
         if (!userId)
             return Res.CalledByServer();
-        var initalValues = LevelValidation.initialValues(nk, userId);
-        var levelLog = void 0;
+        const initalValues = LevelValidation.initialValues(nk, userId);
+        let levelLog;
         levelLog = JSON.parse(payload);
         if (!levelLog)
             return Res.BadRequest();
         //save log in storage
         GameApi.LevelLog.save(nk, userId, levelLog);
         //checking cheats
-        var validator = new LevelValidation.Validator();
-        var cheats = validator.cheatCheck(levelLog, initalValues);
+        const validator = new LevelValidation.Validator();
+        const cheats = validator.cheatCheck(levelLog, initalValues);
         if (cheats.length > 0) {
             GameApi.Cheat.write(nk, levelLog.levelNumber, userId, cheats);
             return Res.response(false, "cheatDetected", cheats, "cheats detected");
@@ -2656,11 +2615,11 @@ var levelValidatorRPC = function (ctx, logger, nk, payload) {
             Leaderboards.UpdateLeaderboards(nk, logger, userId, ctx.username, levelLog);
         }
         //update inventory
-        var changeSet = LevelValidation.extractData(levelLog, initalValues);
-        var wallet = Wallet.update(nk, userId, changeSet).wallet;
+        const changeSet = LevelValidation.extractData(levelLog, initalValues);
+        const { wallet } = Wallet.update(nk, userId, changeSet);
         return Res.Success(wallet);
     }
     catch (error) {
-        return Res.Error(logger, "failed to validate level", error);
+        return Res.Error(logger, `failed to validate level`, error);
     }
 };
