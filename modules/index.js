@@ -791,10 +791,13 @@ var MyketPurchase;
         };
         return res.purchaseState === 0
             ? { code: "success", data }
-            : { code: "failed", message: "purchase has been failed" };
+            : {
+                code: "failed",
+                message: `purchase has been failed => ${res.messageCode}`,
+            };
     }
-    function purchaseTokenExists(nk, token) {
-        const query = `+token:${token}`;
+    function purchaseTokenExists(nk, token, sku) {
+        const query = `+token:${token} +sku:${sku}`;
         const { name } = StorageIndex.configs.purchase;
         const results = nk.storageIndexList(name, query, 1);
         return results.length > 0 ? results[0] : undefined;
@@ -820,10 +823,10 @@ var MyketPurchase;
         const { token, sku } = JSON.parse(payload);
         if (!token || !sku)
             return Res.BadRequest();
-        const tokenExists = purchaseTokenExists(nk, token);
+        const tokenExists = purchaseTokenExists(nk, token, sku);
         if (tokenExists !== undefined)
             return tokenExists.userId === userId
-                ? Res.response(false, "alreadyExists", undefined, "you have already claimed this")
+                ? Res.response(false, "alreadyClaimed", undefined, "you have already claimed this")
                 : Res.response(false, "expired", undefined, "Duplicate purchase token");
         const validateRes = validateToken(nk, sku, token);
         if (validateRes.code !== "success")
@@ -833,7 +836,7 @@ var MyketPurchase;
         if (result.code !== "success")
             return Res.response(false, result.code, undefined, result.message);
         try {
-            const key = String(token);
+            const key = `${sku}-${token}`;
             save(nk, key, userId, {
                 sku,
                 purchaseTime,
@@ -2313,6 +2316,7 @@ var Res;
         Code[Code["alreadyExists"] = 10] = "alreadyExists";
         Code[Code["expired"] = 11] = "expired";
         Code[Code["failed"] = 12] = "failed";
+        Code[Code["alreadyClaimed"] = 13] = "alreadyClaimed";
     })(Code = Res.Code || (Res.Code = {}));
     function response(success, code, data, message, error) {
         const res = {
@@ -2368,7 +2372,7 @@ var StorageIndex;
         purchase: {
             name: "purchase",
             collection: MyketPurchase.collection,
-            fields: ["token"],
+            fields: ["token", "sku"],
             maxEntries: MAX_ENTRIES,
             storageKey: "",
         },
