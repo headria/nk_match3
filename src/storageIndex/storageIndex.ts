@@ -4,9 +4,9 @@ namespace StorageIndex {
   type IndexConfig = {
     name: string;
     collection: string;
-    storageKey: string;
     fields: string[];
     maxEntries: number;
+    storageKey: string;
   };
 
   export type Names = "cryptoWallet" | "txHash" | "purchase";
@@ -31,7 +31,7 @@ namespace StorageIndex {
       collection: MyketPurchase.collection,
       fields: ["token"],
       maxEntries: MAX_ENTRIES,
-      storageKey: MyketPurchase.key,
+      storageKey: "",
     },
   };
 
