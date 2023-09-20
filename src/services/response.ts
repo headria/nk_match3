@@ -13,6 +13,7 @@ namespace Res {
     alreadyExists,
     expired,
     failed,
+    alreadyClaimed,
   }
 
   export type Response = {
