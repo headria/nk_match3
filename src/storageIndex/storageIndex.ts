@@ -29,7 +29,7 @@ namespace StorageIndex {
     purchase: {
       name: "purchase",
       collection: MyketPurchase.collection,
-      fields: ["token"],
+      fields: ["token", "sku"],
       maxEntries: MAX_ENTRIES,
       storageKey: "",
     },
