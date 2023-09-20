@@ -14,7 +14,6 @@ namespace MyketPurchase {
     consumptionState: 0 | 1;
   };
   export const collection = "Purchase";
-  export const key = "Myket";
 
   const accessToken = "044f102f-f59a-4bd8-a0a5-51090647767f";
   const PackageName = "com.PlanetMemes.MemeCoinMania";
@@ -25,7 +24,7 @@ namespace MyketPurchase {
     initializer.registerRpc("purchase", PurchaseRPC);
   }
 
-  function save(nk: nkruntime.Nakama, userId: string, data: Data) {
+  function save(nk: nkruntime.Nakama, key: string, userId: string, data: Data) {
     try {
       nk.storageWrite([
         {
@@ -48,31 +47,43 @@ namespace MyketPurchase {
     token: string
   ): Res.ServiceRes {
     const url = ValidateURL(sku, token);
-    const headers = { "X-Access-Token": accessToken };
     let res;
     try {
-      res = HTTP.request(nk, url, "get", undefined, headers);
+      const headers = { "X-Access-Token": accessToken };
+      const body = {
+        sku,
+        token,
+      };
+      res = HTTP.request(nk, url, "get", body, headers);
     } catch (error: any) {
       return {
         code: "error",
         message: `validation request failed => ${error.message}`,
       };
     }
-    const body: validateResponse = JSON.parse(res);
+
     const data = {
-      purchaseTime: body.purchaseTime,
-      payload: body.developerPayload,
+      purchaseTime: res.purchaseTime,
+      payload: res.developerPayload,
     };
+
     return res.purchaseState === 0
       ? { code: "success", data }
-      : { code: "failed", message: "purchase has been failed" };
+      : {
+          code: "failed",
+          message: `purchase has been failed => ${res.messageCode}`,
+        };
   }
 
-  function purchaseTokenExists(nk: nkruntime.Nakama, token: string) {
-    const query = `+token:${token}`;
+  function purchaseTokenExists(
+    nk: nkruntime.Nakama,
+    token: string,
+    sku: string
+  ) {
+    const query = `+token:${token} +sku:${sku}`;
     const { name } = StorageIndex.configs.purchase;
     const results = nk.storageIndexList(name, query, 1);
-    return results.length > 0;
+    return results.length > 0 ? results[0] : undefined;
   }
 
   function processPurchase(
@@ -105,15 +116,17 @@ namespace MyketPurchase {
     const { token, sku } = JSON.parse(payload);
     if (!token || !sku) return Res.BadRequest();
 
-    const tokenExists = purchaseTokenExists(nk, token);
+    const tokenExists = purchaseTokenExists(nk, token, sku);
 
-    if (tokenExists)
-      return Res.response(
-        false,
-        "alreadyExists",
-        undefined,
-        "Duplicate purchase token"
-      );
+    if (tokenExists !== undefined)
+      return tokenExists.userId === userId
+        ? Res.response(
+            false,
+            "alreadyClaimed",
+            undefined,
+            "you have already claimed this"
+          )
+        : Res.response(false, "expired", undefined, "Duplicate purchase token");
 
     const validateRes = validateToken(nk, sku, token);
     if (validateRes.code !== "success")
@@ -128,7 +141,13 @@ namespace MyketPurchase {
     if (result.code !== "success")
       return Res.response(false, result.code, undefined, result.message);
     try {
-      save(nk, userId, { sku, purchaseTime, token, payload: purchasePayload });
+      const key = `${sku}-${token}`;
+      save(nk, key, userId, {
+        sku,
+        purchaseTime,
+        token,
+        payload: purchasePayload,
+      });
     } catch (error) {
       return Res.Error(
         logger,

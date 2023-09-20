@@ -11,6 +11,7 @@ namespace HTTP {
     "Content-Type": "application/json",
     Accept: "application/json",
   };
+
   // export const BaseUrl: string = "http://host.docker.internal:8003/";
   export const BaseUrl: string = "http://nk.planetmemes.com/";
   export const CustomServerUrl: string = "https://api.planetmemes.com/";
@@ -20,12 +21,11 @@ namespace HTTP {
     url: string,
     method: nkruntime.RequestMethod,
     body?: any,
-    headers?: { [key: string]: string }
+    headers?: { [key: string]: any }
   ) {
     try {
-      const finalHeaders = { ...BaseHeaders, ...headers };
-      const requestBody = body !== undefined ? JSON.stringify(body) : undefined;
-
+      let finalHeaders = Object.assign({}, BaseHeaders, headers);
+      const requestBody = JSON.stringify(body);
       const res = nk.httpRequest(
         url,
         method,

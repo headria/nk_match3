@@ -3,9 +3,9 @@
     "outFile": "./modules/index.js",
     "typeRoots": ["./node_modules"],
     "rootDir": "./src",
-    "target": "es5",
+    "target": "ESNext",
 
-    "module": "system",
+    "module": "System",
     "allowJs": true,
     "checkJs": false,
     "jsx": "react",
