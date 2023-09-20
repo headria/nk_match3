@@ -320,30 +320,32 @@ var GameApi = {
             },
           ]);
           var lastLevel = storageObjects[0].value[this.id];
-          return lastLevel;
+          return { version: storageObjects[0].version, level: lastLevel };
         } catch (error) {
           throw new Error("failed to get Last level: " + error.message);
         }
       };
-      class_1.set = function (nk, userId, newValue) {
+      class_1.set = function (nk, userId, newValue, version) {
         var _a;
         try {
           var value = ((_a = {}), (_a[this.id] = newValue), _a);
-          nk.storageWrite([
-            {
-              collection: this.Keys.collection,
-              key: this.Keys.key,
-              userId: userId,
-              value: value,
-            },
-          ]);
+          var writeReq = {
+            collection: this.Keys.collection,
+            key: this.Keys.key,
+            userId: userId,
+            value: value,
+          };
+          if (version !== undefined) writeReq.version = version;
+          nk.storageWrite([writeReq]);
         } catch (error) {
-          throw new Error("failed to set Last level: " + error.message);
+          throw new Error("failed to set Last level => " + error.message);
         }
       };
       class_1.increment = function (nk, userId) {
-        var lastLevel = GameApi.LastLevel.get(nk, userId);
-        GameApi.LastLevel.set(nk, userId, lastLevel + 1);
+        var _a = GameApi.LastLevel.get(nk, userId),
+          level = _a.level,
+          version = _a.version;
+        GameApi.LastLevel.set(nk, userId, level + 1, version);
       };
       return class_1;
     })()),
@@ -370,7 +372,7 @@ var GameApi = {
             },
           ]);
         } catch (error) {
-          throw new Error("failed to save LevelLog: ".concat(error.message));
+          throw new Error("failed to save LevelLog => ".concat(error.message));
         }
       };
       class_2.get = function (nk, userId, levelNumber) {
@@ -406,7 +408,7 @@ var GameApi = {
             },
           ]);
         } catch (error) {
-          throw new Error("failed to save Cheats: ".concat(error.message));
+          throw new Error("failed to save Cheats => ".concat(error.message));
         }
       };
       return class_3;
@@ -417,6 +419,33 @@ var GameApi = {
     }),
     _c),
 };
+var HTTP;
+(function (HTTP) {
+  var TIMEOUT = 4000; //ms
+  var headers = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  };
+  // export const BaseUrl: string = "http://host.docker.internal:8003/";
+  HTTP.BaseUrl = "http://nk.planetmemes.com/";
+  HTTP.CustomServerUrl = "https://api.planetmemes.com/";
+  function request(nk, url, method, body) {
+    try {
+      var res = nk.httpRequest(
+        url,
+        method,
+        headers,
+        JSON.stringify(body),
+        TIMEOUT
+      );
+      var resBody = JSON.parse(res.body);
+      return resBody;
+    } catch (error) {
+      throw new Error("failed to get response: ".concat(error.message));
+    }
+  }
+  HTTP.request = request;
+})(HTTP || (HTTP = {}));
 var Notifications;
 (function (Notifications) {
   var CODES;
@@ -641,25 +670,20 @@ var CryptoPurchase;
     initializer.registerRpc("crypto/validate", validateTransaction);
   }
   CryptoPurchase.init = init;
-  var TIMEOUT = 10000; //ms
-  var headers = {
-    "Content-Type": "application/json",
-    Accept: "application/json",
-  };
-  var url = "https://api.planetmemes.com/iap-mcm/crypto/validate";
-  //   const url: string = "http://localhost:8010/iap-mcm/crypto/validate/";
   function validator(nk, address, txHash) {
-    var body = JSON.stringify({
+    var body = {
       address: address,
       txHash: txHash,
-    });
+    };
     try {
-      var res = nk.httpRequest(url, "post", headers, body, TIMEOUT);
-      var resBody = JSON.parse(res.body);
-      if (!resBody.success) {
-        throw new Error(resBody.message);
-      }
-      var packageId = resBody.data.packageId;
+      var res = HTTP.request(
+        nk,
+        HTTP.CustomServerUrl + "iap-mcm/crypto/validate",
+        "post",
+        body
+      );
+      if (!res.success) throw new Error(res.message);
+      var packageId = res.data.packageId;
       if (!packageId) throw new Error("invalid transaction method");
       return packageId;
     } catch (error) {
@@ -667,7 +691,7 @@ var CryptoPurchase;
     }
   }
   CryptoPurchase.validator = validator;
-  function addTransaction(nk, userId, hash, packageId) {
+  function addTransaction(nk, userId, hash) {
     try {
       var data = nk.storageRead([
         {
@@ -730,7 +754,7 @@ var validateTransaction = function (ctx, logger, nk, payload) {
     };
     var newWallet = Rewards.addNcliam(nk, userId, reward);
     //write purchase record
-    CryptoPurchase.addTransaction(nk, userId, hash, packageId_1);
+    CryptoPurchase.addTransaction(nk, userId, hash);
     return newWallet.code === Res.Code.success
       ? Res.Success(newWallet.data)
       : Res.Error(logger, "failed to claim reward", newWallet.error);
@@ -790,23 +814,27 @@ var Rewards;
       permissionRead: 1,
       permissionWrite: 0,
     };
-    writeObj.version = version !== undefined ? version : "*";
+    if (version !== undefined) writeObj.version = version;
     var res = nk.storageWrite([writeObj]);
     return res[0].version;
   }
   //add new reward
   function add(nk, userId, reward, expiry) {
-    try {
-      var _a = get(nk, reward.type, userId),
-        rewards = _a.rewards,
-        version = _a.version;
-      reward.claimed = false;
-      reward.addTime = Date.now();
-      if (expiry !== undefined) reward.expiry = expiry;
-      rewards.push(reward);
-      set(nk, userId, reward.type, rewards, version);
-    } catch (error) {
-      throw new Error("failed to add reward: ".concat(error.message));
+    while (true) {
+      try {
+        var _a = get(nk, reward.type, userId),
+          rewards = _a.rewards,
+          version = _a.version;
+        reward.claimed = false;
+        reward.addTime = Date.now();
+        if (expiry !== undefined) reward.expiry = expiry;
+        rewards.push(reward);
+        set(nk, userId, reward.type, rewards, version);
+        break;
+      } catch (error) {
+        if (error.message.indexOf("version check failed") === -1)
+          throw new Error("failed to add reward: ".concat(error.message));
+      }
     }
   }
   Rewards.add = add;
@@ -1815,7 +1843,7 @@ var Bucket;
       joinRequired: true,
       maxNumScore: MAX_SCORE,
       maxSize: 100000000,
-      metadata: {},
+      metadata: leaderboardRewards.Endless,
       operator: "increment" /* nkruntime.Operator.INCREMENTAL */,
       // resetSchedule: "0 0 */3 * *",
       resetSchedule: "*/10 * * * *",
@@ -2060,6 +2088,7 @@ var Bucket;
   }
   Bucket.joinLeaderboard = joinLeaderboard;
   function getBucketRecords(nk, bucket, config, time) {
+    var _a;
     try {
       var tournament = nk.tournamentRecordsList(
         config.tournamentID,
@@ -2068,7 +2097,21 @@ var Bucket;
         undefined,
         time
       );
-      return tournament.ownerRecords;
+      var sorted =
+        (_a = tournament.ownerRecords) === null || _a === void 0
+          ? void 0
+          : _a.sort(function (a, b) {
+              if (b.score !== a.score) {
+                return b.score - a.score;
+              }
+              return a.updateTime - b.updateTime;
+            });
+      sorted === null || sorted === void 0
+        ? void 0
+        : sorted.forEach(function (scoreObj, index) {
+            return (scoreObj.rank = index + 1);
+          });
+      return sorted;
     } catch (error) {
       throw new Error("failed to getRecords: ".concat(error.message));
     }
@@ -2153,7 +2196,7 @@ var Bucket;
                 var rewardItems = leaderboardRewards[leaderBoadrdId_1][tier];
                 if (rewardItems) {
                   reward = {
-                    id: tournament.id,
+                    id: leaderBoadrdId_1,
                     type: "Leaderboard",
                     items: rewardItems,
                   };
@@ -2177,6 +2220,7 @@ var Bucket;
         });
         nk.notificationsSend(notifications_1);
         nk.storageDelete(userObjToDelete_1);
+        notifications_1 = [];
         cursur = userBuckets.cursor;
       } while (cursur);
     } catch (error) {
@@ -2313,20 +2357,7 @@ var Leaderboards;
       );
     }
   };
-  Leaderboards.UpdateLeaderboards = function (
-    nk,
-    logger,
-    userId,
-    username,
-    levelLog
-  ) {
-    var levelNumber = levelLog.levelNumber;
-    //calculate leaderboard score
-    var rushScore = levelLog.atEnd.discoBallTargettedTiles || 0;
-    var levelDifficulty = Levels.difficulty[levelNumber] || 0;
-    updateGlobal(nk, userId, username, 1);
-    if (levelLog.levelNumber > 39)
-      BattlePass.addKeys(nk, logger, userId, levelDifficulty);
+  function updateEvents(nk, userId, username, levelDifficulty, rushScore) {
     Object.keys(Bucket.configs).map(function (tournamentId) {
       try {
         switch (tournamentId) {
@@ -2347,6 +2378,22 @@ var Leaderboards;
         }
       } catch (error) {}
     });
+  }
+  Leaderboards.UpdateLeaderboards = function (
+    nk,
+    logger,
+    userId,
+    username,
+    levelLog
+  ) {
+    var levelNumber = levelLog.levelNumber;
+    //calculate leaderboard score
+    var rushScore = levelLog.atEnd.discoBallTargettedTiles || 0;
+    var levelDifficulty = Levels.difficulty[levelNumber] || 0;
+    updateGlobal(nk, userId, username, 1);
+    if (levelLog.levelNumber > 39)
+      BattlePass.addKeys(nk, logger, userId, levelDifficulty);
+    updateEvents(nk, userId, username, levelDifficulty, rushScore);
   };
 })(Leaderboards || (Leaderboards = {}));
 var leaderboardMetadataRPC = function (ctx, logger, nk, payload) {
